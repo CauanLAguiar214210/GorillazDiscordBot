@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36109.1 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GorillazDiscordBot", "GorillazDiscordBot.csproj", "{935BC3EC-55C0-4295-BA81-389B3723415A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Itens de Solução", "Itens de Solução", "{380A7511-A354-6D7A-0CC0-8FA1F1BA7B6C}"
+	ProjectSection(SolutionItems) = preProject
+		MongoDBService.cs = MongoDBService.cs
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{935BC3EC-55C0-4295-BA81-389B3723415A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{935BC3EC-55C0-4295-BA81-389B3723415A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{935BC3EC-55C0-4295-BA81-389B3723415A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{935BC3EC-55C0-4295-BA81-389B3723415A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {01A26E24-0B2F-449E-BAC6-A5B7AE79311C}
+	EndGlobalSection
+EndGlobal
