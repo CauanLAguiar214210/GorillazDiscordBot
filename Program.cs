@@ -9,7 +9,6 @@ class Program
 {
     private DiscordSocketClient _client;
     private CommandService _commands;
-    private IServiceProvider _services;
 
     static async Task Main(string[] args)
     {
@@ -64,24 +63,11 @@ class Program
     private async Task HandleCommandAsync(SocketMessage arg)
     {
         var message = arg as SocketUserMessage;
-        Console.WriteLine($"Mensagem recebida: '{message.Content ?? "(null)"}' de {message.Author.Username}");
 
-        Console.WriteLine($"Tipo da mensagem: {arg.GetType().Name}");
-        Console.WriteLine($"É SocketUserMessage? {message != null}");
-        Console.WriteLine($"Autor: {arg.Author.Username} (Bot: {arg.Author.IsBot})");
-        Console.WriteLine($"Conteúdo bruto: '{arg.Content ?? "(null)"}'");
+        if (message == null) return;        
 
-        if (message == null)
-        {
-            Console.WriteLine("Mensagem ignorada: não é SocketUserMessage.");
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(message.Content))
-        {
-            Console.WriteLine("Mensagem ignorada: conteúdo vazio.");
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(message.Content)) return;
+        
         if (message.Author.IsBot) return;
 
         int argPos = 0;
