@@ -73,7 +73,7 @@ class Program
         int argPos = 0;
 
         // Prefixo '!' para comandos
-        if (!(message.HasCharPrefix('!', ref argPos) || message.HasMentionPrefix(_client.CurrentUser, ref argPos)))
+        if (!(message.HasStringPrefix("macaco ", ref argPos) || message.HasMentionPrefix(_client.CurrentUser, ref argPos)))
             return;
 
         var context = new SocketCommandContext(_client, message);
