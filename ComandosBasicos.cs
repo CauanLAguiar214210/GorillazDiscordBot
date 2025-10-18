@@ -359,7 +359,7 @@ namespace GorillazDiscordBot
         [Summary("Mostra o tamanho do seu pinto")]
         public async Task TamanhoDoPintoAsync()
         {
-            int tamanhoDoPinto = _random.Next(0, 30);
+            int tamanhoDoPinto = _random.Next(0, 50);
             string pinto = "8";
 
             for (int i = 0; i < tamanhoDoPinto; i++)
@@ -368,7 +368,7 @@ namespace GorillazDiscordBot
             }
             pinto += "D";
 
-            await ReplyAsync(texto + ", seu pinto tem o tamanho de: " + pinto + " (" + tamanhoDoPinto + " cm)");
+            await ReplyAsync("Seu pinto tem o tamanho de: " + pinto + " (" + tamanhoDoPinto + " cm)");
         }
     }
 }
