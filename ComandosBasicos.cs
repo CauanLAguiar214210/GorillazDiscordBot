@@ -360,6 +360,7 @@ namespace GorillazDiscordBot
         public async Task TamanhoDoPintoAsync()
         {
             int tamanhoDoPinto = _random.Next(0, 50);
+            int chanceMensagemAleatoria = _random.Next(1, 300);
             string pinto = "8";
 
             for (int i = 0; i < tamanhoDoPinto; i++)
@@ -367,8 +368,12 @@ namespace GorillazDiscordBot
                 pinto += "=";
             }
             pinto += "D";
-
             await ReplyAsync("Seu pinto tem o tamanho de: " + pinto + " (" + tamanhoDoPinto + " cm)");
+
+            if (chanceMensagemAleatoria == 30)
+            {
+                ReplyAsync("https://26.media.tumblr.com/tumblr_lvr18jYoTH1qjk5ivo1_400.gif");
+            }
         }
     }
 }
