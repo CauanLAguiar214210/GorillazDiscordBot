@@ -354,5 +354,21 @@ namespace GorillazDiscordBot
             string textoInvertido = new string(arr);
             await ReplyAsync(textoInvertido);
         }
+
+        [Command("tamanhodopinto")]
+        [Summary("Mostra o tamanho do seu pinto")]
+        public async Task TamanhoDoPintoAsync([Remainder] string texto)
+        {
+            int tamanhoDoPinto = _random.Next(0, 30);
+            string pinto = "8";
+
+            for (int i = 0; i < tamanhoDoPinto; i++)
+            {
+                pinto += "=";
+            }
+            pinto += "D";
+
+            await ReplyAsync(texto + ", seu pinto tem o tamanho de: " + pinto + " (" + tamanhoDoPinto + " cm)");
+        }
     }
 }
