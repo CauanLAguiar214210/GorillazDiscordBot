@@ -35,7 +35,7 @@ class Program
 
         await RegisterCommandsAsync();
 
-        string token = "***REMOVED***";
+        string token = "";
 
         await _client.LoginAsync(TokenType.Bot, token);
         await _client.StartAsync();
