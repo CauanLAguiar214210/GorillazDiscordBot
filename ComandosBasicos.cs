@@ -72,7 +72,7 @@ namespace GorillazDiscordBot
         }
 
         [Command("foto")]
-        public async Task FotoAsync() => await ReplyAsync("Ainda não implementado");        
+        public async Task FotoAsync() => await ReplyAsync("Ainda não implementado");
 
         [Command("azul")]
         [Summary("Mostrar as bolas")]
@@ -98,13 +98,13 @@ namespace GorillazDiscordBot
         }
 
         [Command("joia")]
-        public async Task JoiaAsync() => await ReplyAsync("https://c.tenor.com/_1qbDhMf0ZQAAAAd/tenor.gif");        
+        public async Task JoiaAsync() => await ReplyAsync("https://c.tenor.com/_1qbDhMf0ZQAAAAd/tenor.gif");
 
         [Command("malicia")]
-        public async Task MaliciaAsync() => await ReplyAsync("https://tenor.com/pt-BR/view/yzxh-funny-gif-15066639939174565798");        
+        public async Task MaliciaAsync() => await ReplyAsync("https://tenor.com/pt-BR/view/yzxh-funny-gif-15066639939174565798");
 
         [Command("galado")]
-        public async Task GaladoAsync() => await ReplyAsync("https://tenor.com/pt-BR/view/fox-cartoon-milk-mouth-face-gif-13048116");        
+        public async Task GaladoAsync() => await ReplyAsync("https://tenor.com/pt-BR/view/fox-cartoon-milk-mouth-face-gif-13048116");
 
         [Command("fazol")]
         public async Task FazOLAsync()
@@ -360,7 +360,7 @@ namespace GorillazDiscordBot
         public async Task TamanhoDoPintoAsync()
         {
             int tamanhoDoPinto = _random.Next(0, 50);
-            int chanceMensagemAleatoria = _random.Next(1, 300);
+            int chancePirocaAleatoria = _random.Next(1, 50);
             string pinto = "8";
 
             for (int i = 0; i < tamanhoDoPinto; i++)
@@ -368,12 +368,26 @@ namespace GorillazDiscordBot
                 pinto += "=";
             }
             pinto += "D";
-            await ReplyAsync("Seu pinto tem o tamanho de: " + pinto + " (" + tamanhoDoPinto + " cm)");
+            await ReplyAsync("Seu pinto tem o tamanho de: " + pinto + " (" + tamanhoDoPinto + " cm)" + " " + chancePirocaAleatoria.ToString());
 
-            if (chanceMensagemAleatoria == 30)
+
+            
+            switch (chancePirocaAleatoria)
             {
-                ReplyAsync("https://26.media.tumblr.com/tumblr_lvr18jYoTH1qjk5ivo1_400.gif");
+                case 5:
+                    ReplyAsync("https://26.media.tumblr.com/tumblr_lvr18jYoTH1qjk5ivo1_400.gif");
+                    break;
+                case 25:
+                    ReplyAsync("https://hugeblackman.com/wp-content/uploads/2015/11/tumblr_msc5hiWof01s82hilo1_400.gif");
+                    break;
+                case 50:
+                    ReplyAsync("https://18gayteen.com/wp-content/uploads/2016/02/big_black_cock_10.gif");
+                    break;
+                case 13:
+                    ReplyAsync("https://imagex1.sx.cdn.live/images/pinporn/2017/02/18/17374585.gif?width=460");
+                    break;
             }
+            
         }
     }
 }
