@@ -35,7 +35,7 @@ class Program
 
         await RegisterCommandsAsync();
 
-        string token = "MTI5OTUyOTk2ODkzMzY3MDk0Mg.Ggpaho.fQ_F79lge28zjJSDFFBtnE0KiSBqrdPRf9fob0";
+        string token = "";
 
         await _client.LoginAsync(TokenType.Bot, token);
         await _client.StartAsync();
