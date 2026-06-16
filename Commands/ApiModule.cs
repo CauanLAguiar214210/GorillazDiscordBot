@@ -8,11 +8,13 @@ public class ApiModule : ModuleBase<SocketCommandContext>
 {
     private readonly IFOneService _f1Service;
     private readonly ICotacaoService _cotacaoService;
+    private readonly IWeatherService _weatherService;
 
-    public ApiModule(IFOneService f1Service, ICotacaoService cotacaoService)
+    public ApiModule(IFOneService f1Service, ICotacaoService cotacaoService, IWeatherService weatherService)
     {
         _f1Service = f1Service;
         _cotacaoService = cotacaoService;
+        _weatherService = weatherService;
     }
 
     [Command("f1")]
@@ -67,6 +69,13 @@ public class ApiModule : ModuleBase<SocketCommandContext>
     [Command("tempo")]
     public async Task TempoAsync([Remainder] string cidade)
     {
-        await ReplyAsync($"🌤️ A previsão do tempo para {cidade} ainda não está implementada, mas já já chega!");
+        if (string.IsNullOrWhiteSpace(cidade))
+        {
+            await ReplyAsync("🌤️ Use: `macaco tempo <cidade>`");
+            return;
+        }
+
+        var resultado = await _weatherService.GetWeatherAsync(cidade);
+        await ReplyAsync(resultado);
     }
 }

@@ -14,7 +14,7 @@
   - [ ] `macaco ranking` — ranking de riqueza do servidor
   - **Arquivos afetados:** `Data/Repository/UserRepository.cs`, `Commands/EconomyModule.cs`
 
-- [ ] `⭐🟢` **Sistema de GIFs no MongoDB**
+- [X] `⭐🟢` **Sistema de GIFs no MongoDB**
   - [ ] Criar `Entity/Gif.cs` (nome, url, categoria, addedBy)
   - [ ] `macaco gif add <nome> <url>` — adicionar GIF
   - [ ] `macaco gif <nome>` — buscar e enviar GIF por nome
@@ -32,7 +32,7 @@
   - [ ] Migrar gradualmente comandos de texto para `/comando`
   - **Arquivo de exemplo:** `Commands/Slash/GeneralSlashModule.cs`
 
-- [ ] `🟢` **Previsão do Tempo**
+- [X] `🟢` **Previsão do Tempo**
   - [ ] Criar `Services/Interfaces/IWeatherService.cs`
   - [ ] Criar `Services/WeatherService.cs` (OpenWeatherMap API via `IHttpClientFactory`)
   - [ ] Implementar `macaco tempo <cidade>` — temperatura, clima, umidade

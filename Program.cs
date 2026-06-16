@@ -63,6 +63,12 @@ builder.Services.AddSingleton(typeof(IMongoRepository<>), typeof(MongoRepository
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
 builder.Services.AddSingleton<IGifRepository, GifRepository>();
 
+// Weather Service (OpenWeatherMap)
+builder.Services.AddHttpClient<IWeatherService, WeatherService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
 // GIF URL Normalization
 builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>
 {
