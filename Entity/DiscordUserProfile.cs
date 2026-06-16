@@ -1,20 +1,22 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace GorillazDiscordBot.Entity
+namespace GorillazDiscordBot.Entity;
+
+public class DiscordUserProfile
 {
-    public class DiscordUserProfile
-    {
-        [BsonId]
-        public ObjectId Id { get; set; }
+    [BsonId]
+    public ObjectId Id { get; set; }
 
-        [BsonElement("UserId")]
-        public ulong UserId { get; set; }
+    [BsonElement("UserId")]
+    public ulong UserId { get; set; }
 
-        [BsonElement("Username")]
-        public string Username { get; set; }
+    [BsonElement("Username")]
+    public string Username { get; set; } = string.Empty;
 
-        [BsonElement("Points")]
-        public int Points { get; set; }
-    }
+    [BsonElement("Points")]
+    public int Points { get; set; }
+
+    [BsonElement("LastDailyClaim")]
+    public DateTime? LastDailyClaim { get; set; }
 }

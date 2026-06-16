@@ -60,6 +60,15 @@ builder.Services.AddHttpClient<ICotacaoService, CotacaoService>(client =>
 
 // Repository Pattern (MongoDB)
 builder.Services.AddSingleton(typeof(IMongoRepository<>), typeof(MongoRepository<>));
+builder.Services.AddSingleton<IUserRepository, UserRepository>();
+builder.Services.AddSingleton<IGifRepository, GifRepository>();
+
+// GIF URL Normalization
+builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+    client.DefaultRequestHeaders.Add("User-Agent", "GorillazDiscordBot/1.0");
+});
 
 // Hosted Service (gerencia lifecycle do bot)
 builder.Services.AddHostedService<DiscordBotService>();
