@@ -12,8 +12,13 @@
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="3.17.4" />
     <PackageReference Include="Discord.Net.Commands" Version="3.17.4" />
+    <PackageReference Include="DotNetEnv" Version="3.2.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1-Preview.1" />
     <PackageReference Include="MongoDB.Driver" Version="3.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update=".env" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
