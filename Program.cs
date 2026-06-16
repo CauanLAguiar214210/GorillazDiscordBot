@@ -1,98 +1,68 @@
-﻿using System;
-using System.IO;
-using System.Reflection;
-using System.Threading.Tasks;
-using Discord;
+﻿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using GorillazDiscordBot;
+using GorillazDiscordBot.Configuration;
+using GorillazDiscordBot.Data.Repository;
+using GorillazDiscordBot.Services;
+using GorillazDiscordBot.Services.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
-class Program
+var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
+try { DotNetEnv.Env.Load(envPath); }
+catch (FileNotFoundException) { }
+
+var builder = Host.CreateApplicationBuilder(args);
+
+// Options Pattern
+builder.Services.Configure<BotOptions>(options =>
 {
-    private DiscordSocketClient _client;
-    private CommandService _commands;
+    options.DiscordToken = Environment.GetEnvironmentVariable("DISCORD_TOKEN") ?? "";
+    options.CommandPrefix = Environment.GetEnvironmentVariable("COMMAND_PREFIX") ?? "macaco ";
+});
 
-    static async Task Main(string[] args)
+builder.Services.Configure<MongoOptions>(options =>
+{
+    options.ConnectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") ?? "mongodb://localhost:27017";
+    options.DatabaseName = Environment.GetEnvironmentVariable("MONGODB_DATABASE_NAME") ?? "gorillazbot";
+});
+
+// Discord Socket Client (singleton)
+builder.Services.AddSingleton<DiscordSocketClient>(_ =>
+{
+    var config = new DiscordSocketConfig
     {
-        var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
-        try { DotNetEnv.Env.Load(envPath); }
-        catch (FileNotFoundException) { }
-        var program = new Program();
-        await program.MainAsync();
-    }
+        GatewayIntents = GatewayIntents.Guilds
+                       | GatewayIntents.GuildMessages
+                       | GatewayIntents.MessageContent
+                       | GatewayIntents.DirectMessages,
+        AlwaysDownloadUsers = true,
+        MessageCacheSize = 100
+    };
+    return new DiscordSocketClient(config);
+});
 
-    public async Task MainAsync()
-    {
-        var config = new DiscordSocketConfig
-        {
-            GatewayIntents = GatewayIntents.Guilds
-                             | GatewayIntents.GuildMessages
-                             | GatewayIntents.MessageContent
-                             | GatewayIntents.DirectMessages
-        };
+// Command Service (singleton)
+builder.Services.AddSingleton<CommandService>();
 
-        _client = new DiscordSocketClient(config);
-        _commands = new CommandService();
+// HTTP Clients via IHttpClientFactory (typed)
+builder.Services.AddHttpClient<IFOneService, FOneService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
-        _client.Log += LogAsync;
-        _commands.Log += LogAsync;
-        _client.Ready += ReadyAsync;
+builder.Services.AddHttpClient<ICotacaoService, CotacaoService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
-        await RegisterCommandsAsync();
+// Repository Pattern (MongoDB)
+builder.Services.AddSingleton(typeof(IMongoRepository<>), typeof(MongoRepository<>));
 
-        string token = Environment.GetEnvironmentVariable("DISCORD_TOKEN") ?? "";
-        string mongoConnectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") ?? "mongodb://localhost:27017";
-        string mongoDatabaseName = Environment.GetEnvironmentVariable("MONGODB_DATABASE_NAME") ?? "gorillazbot";
+// Hosted Service (gerencia lifecycle do bot)
+builder.Services.AddHostedService<DiscordBotService>();
 
-        var mongoService = new MongoDBService(mongoConnectionString, mongoDatabaseName);
-
-        await _client.LoginAsync(TokenType.Bot, token);
-        await _client.StartAsync();
-        await Task.Delay(-1);
-    }
-
-    private Task LogAsync(LogMessage log)
-    {
-        Console.WriteLine(log.ToString());
-        return Task.CompletedTask;
-    }
-
-    private Task ReadyAsync()
-    {
-        Console.WriteLine($"Bot conectado como {_client.CurrentUser.Username}#{_client.CurrentUser.Discriminator}");
-        return Task.CompletedTask;
-    }
-
-    public async Task RegisterCommandsAsync()
-    {
-        _client.MessageReceived += HandleCommandAsync;
-        await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), null);
-    }
-
-    private async Task HandleCommandAsync(SocketMessage arg)
-    {
-        var message = arg as SocketUserMessage;
-
-        if (message == null) return;        
-
-        if (string.IsNullOrWhiteSpace(message.Content)) return;
-        
-        if (message.Author.IsBot) return;
-
-        int argPos = 0;
-
-        // Prefixo '!' para comandos
-        if (!(message.HasStringPrefix("macaco ", ref argPos) || message.HasMentionPrefix(_client.CurrentUser, ref argPos)))
-            return;
-
-        var context = new SocketCommandContext(_client, message);
-
-        // Executa o comando
-        var result = await _commands.ExecuteAsync(context, argPos, null);
-
-        if (!result.IsSuccess)
-        {
-            Console.WriteLine($"Erro ao executar comando: {result.ErrorReason}");
-            await context.Channel.SendMessageAsync($"Erro: {result.ErrorReason}");
-        }
-    }
-}
+var host = builder.Build();
+await host.RunAsync();
