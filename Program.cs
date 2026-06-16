@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 using Discord;
@@ -12,6 +13,9 @@ class Program
 
     static async Task Main(string[] args)
     {
+        var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
+        try { DotNetEnv.Env.Load(envPath); }
+        catch (FileNotFoundException) { }
         var program = new Program();
         await program.MainAsync();
     }
@@ -35,7 +39,11 @@ class Program
 
         await RegisterCommandsAsync();
 
-        string token = "";
+        string token = Environment.GetEnvironmentVariable("DISCORD_TOKEN") ?? "";
+        string mongoConnectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") ?? "mongodb://localhost:27017";
+        string mongoDatabaseName = Environment.GetEnvironmentVariable("MONGODB_DATABASE_NAME") ?? "gorillazbot";
+
+        var mongoService = new MongoDBService(mongoConnectionString, mongoDatabaseName);
 
         await _client.LoginAsync(TokenType.Bot, token);
         await _client.StartAsync();
