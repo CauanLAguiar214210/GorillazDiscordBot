@@ -19,7 +19,7 @@ services:
     container_name: gorillaz-bot
     restart: unless-stopped
     environment:
-      DISCORD_TOKEN: "${DISCORD_TOKEN}"
+      DISCORD_TOKEN: "***REMOVED***"
       MONGODB_CONNECTION_STRING: "mongodb://mongodb:27017"
       MONGODB_DATABASE_NAME: "gorillazbot"
       TZ: "America/Sao_Paulo"
