@@ -1,40 +1,8 @@
 using Discord.Commands;
-using GorillazDiscordBot.Data.Repository;
+using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services.Interfaces;
 
 namespace GorillazDiscordBot.Commands;
-
-public class GifModule : ModuleBase<SocketCommandContext>
-{
-    private static readonly Random _random = new();
-
-    [Command("tamanhodopinto")]
-    public async Task TamanhoDoPintoAsync()
-    {
-        int tamanhoDoPinto = _random.Next(0, 50);
-        int chancePirocaAleatoria = _random.Next(1, 50);
-        string pinto = "8";
-
-        for (int i = 0; i < tamanhoDoPinto; i++)
-            pinto += "=";
-
-        pinto += "D";
-
-        await ReplyAsync("Seu pinto tem o tamanho de: " + pinto + " (" + tamanhoDoPinto + " cm)" + " " + chancePirocaAleatoria.ToString());
-
-        string? gifUrl = chancePirocaAleatoria switch
-        {
-            5  => "https://26.media.tumblr.com/tumblr_lvr18jYoTH1qjk5ivo1_400.gif",
-            25 => "https://hugeblackman.com/wp-content/uploads/2015/11/tumblr_msc5hiWof01s82hilo1_400.gif",
-            50 => "https://18gayteen.com/wp-content/uploads/2016/02/big_black_cock_10.gif",
-            13 => "https://imagex1.sx.cdn.live/images/pinporn/2017/02/18/17374585.gif?width=460",
-            _  => null
-        };
-
-        if (gifUrl != null)
-            await ReplyAsync(gifUrl);
-    }
-}
 
 [Group("gif")]
 public class GifManageModule : ModuleBase<SocketCommandContext>
