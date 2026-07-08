@@ -1,0 +1,35 @@
+{
+  "family": "gorillazbot",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/gorillazbot-task-role",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/gorillazbot-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "containerDefinitions": [
+    {
+      "name": "gorillazbot",
+      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/gorillazbot:latest",
+      "essential": true,
+      "environment": [
+        { "name": "COMMAND_PREFIX", "value": "macaco " },
+        { "name": "MONGODB_DATABASE_NAME", "value": "gorillazbot" },
+        { "name": "AWS_LOG_GROUP", "value": "gorillazbot" },
+        { "name": "AWS_REGION", "value": "us-east-1" }
+      ],
+      "secrets": [
+        { "name": "DISCORD_TOKEN", "valueFrom": "arn:aws:ssm:us-east-1:ACCOUNT_ID:parameter/gorillazbot/DISCORD_TOKEN" },
+        { "name": "MONGODB_CONNECTION_STRING", "valueFrom": "arn:aws:ssm:us-east-1:ACCOUNT_ID:parameter/gorillazbot/MONGODB_CONNECTION_STRING" },
+        { "name": "OWM_API_KEY", "valueFrom": "arn:aws:ssm:us-east-1:ACCOUNT_ID:parameter/gorillazbot/OWM_API_KEY" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "gorillazbot",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

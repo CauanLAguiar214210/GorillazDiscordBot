@@ -1,0 +1,238 @@
+================================================================================
+  SESSÃO: Deploy do GorillazDiscordBot na AWS
+  Data: 07/07/2026
+================================================================================
+
+SUMÁRIO
+-------
+Bot: GorillazDiscordBot (.NET 9 / Discord.Net)
+Infraestrutura: Terraform (HCL)
+CI/CD: GitHub Actions
+Database: MongoDB Atlas (free tier)
+Compute: AWS ECS Fargate (256 CPU / 512 MB)
+
+
+ARQUITETURA AWS
+---------------
+
+┌─────────────────────────────────────────────────────────┐
+│                      AWS Cloud                          │
+│                                                         │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  VPC (10.0.0.0/16)                               │   │
+│  │                                                   │   │
+│  │  ┌──────────────────────────────────────┐         │   │
+│  │  │  Public Subnet (10.0.1.0/24)         │         │   │
+│  │  │  us-east-1a                          │         │   │
+│  │  │                                      │         │   │
+│  │  │  ┌─────────────────────────┐         │         │   │
+│  │  │  │  ECS Fargate (1 tarefa) │         │         │   │
+│  │  │  │  IP público automático  │         │         │   │
+│  │  │  │                         │         │         │   │
+│  │  │  │  Container:             │         │         │   │
+│  │  │  │  gorillaz-discord-bot   │         │         │   │
+│  │  │  │  .NET 9 / Alpine        │         │         │   │
+│  │  │  │                         │         │         │   │
+│  │  │  │  ↓ Discord Gateway      │         │         │   │
+│  │  │  │  ↓ OpenWeatherMap API   │         │         │   │
+│  │  │  │  ↓ Ergast F1 API        │         │         │   │
+│  │  │  │  ↓ AwesomeAPI           │         │         │   │
+│  │  │  │  ↓ MongoDB Atlas        │         │         │   │
+│  │  │  └─────────────────────────┘         │         │   │
+│  │  │                                      │         │   │
+│  │  │  ┌─────────────────────────┐         │         │   │
+│  │  │  │  Security Group         │         │         │   │
+│  │  │  │  Outbound: 0.0.0.0/0    │         │         │   │
+│  │  │  │  Inbound:  nenhum       │         │         │   │
+│  │  │  └─────────────────────────┘         │         │   │
+│  │  └──────────────────────────────────────┘         │   │
+│  │                                                   │   │
+│  │  ┌──────────────────────────────────────┐         │   │
+│  │  │  Internet Gateway                     │         │   │
+│  │  └──────────────────────────────────────┘         │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                         │
+│  ┌─────────────────────────┐  ┌──────────────────────┐  │
+│  │  ECR                    │  │  Secrets Manager     │  │
+│  │  gorillaz-discord-bot   │  │  ├─ discord-token    │  │
+│  │  (até 10 imagens)       │  │  ├─ owm-api-key     │  │
+│  │                         │  │  └─ mongodb-conn     │  │
+│  └─────────────────────────┘  └──────────────────────┘  │
+│                                                         │
+│  ┌─────────────────────────┐                            │
+│  │  CloudWatch Logs        │                            │
+│  │  /ecs/gorillaz-discord  │                            │
+│  │  (30 dias retenção)     │                            │
+│  └─────────────────────────┘                            │
+└─────────────────────────────────────────────────────────┘
+
+            ┌──────────────────────┐
+            │  MongoDB Atlas       │
+            │  Cluster M0 (Free)   │
+            │  DB: gorillazbot     │
+            │  ┌──────────────────┐│
+            │  │ discordUserProf  ││
+            │  │ Gif              ││
+            │  │ Joke             ││
+            │  └──────────────────┘│
+            └──────────────────────┘
+
+
+ESTRUTURA DE ARQUIVOS CRIADOS
+------------------------------
+
+infra/
+├── main.tf                         # Provider AWS + módulos
+├── variables.tf                    # Variáveis configuráveis
+├── outputs.tf                      # Outputs + comandos secrets
+├── terraform.tfvars.example        # Template para terraform.tfvars
+├── .gitignore                      # Ignora .terraform/, tfstate
+└── modules/
+    ├── networking/main.tf          # VPC, subnet, IGW, SG
+    ├── ecr/main.tf                 # ECR repo + lifecycle policy
+    ├── secrets/main.tf             # 3 secrets no Secrets Manager
+    └── ecs/
+        ├── main.tf                 # Cluster, task def, service
+        └── iam.tf                  # Execution + task IAM roles
+
+.github/workflows/
+└── deploy.yml                      # CI/CD: build → push → deploy
+
+
+VARIÁVEIS DO TERRAFORM (variables.tf)
+--------------------------------------
+aws_region                  = "us-east-1"         (default)
+project_name                = "gorillaz-discord-bot" (default)
+vpc_cidr                    = "10.0.0.0/16"       (default)
+subnet_cidr                 = "10.0.1.0/24"       (default)
+mongodb_database            = "gorillazbot"       (default)
+command_prefix              = "macaco "           (default)
+task_cpu                    = 256                 (default)
+task_memory                 = 512                 (default)
+discord_token               = (sensitive)         (preencher)
+owm_api_key                 = (sensitive)         (preencher)
+mongodb_connection_string   = (sensitive)         (preencher)
+
+
+VARIÁVEIS DE AMBIENTE DO BOT
+-----------------------------
+No container ECS (task definition):
+
+  Environment:
+    MONGODB_DATABASE_NAME  = gorillazbot
+    COMMAND_PREFIX         = macaco
+    TZ                     = America/Sao_Paulo
+    DOTNET_ENVIRONMENT     = Production
+
+  Secrets (do Secrets Manager):
+    DISCORD_TOKEN             → arn:aws:secretsmanager:.../discord-token
+    OWM_API_KEY               → arn:aws:secretsmanager:.../owm-api-key
+    MONGODB_CONNECTION_STRING → arn:aws:secretsmanager:.../mongodb-connection
+
+
+PASSO A PASSO PARA DEPLOY
+--------------------------
+
+PRÉ-REQUISITOS
+  1. AWS CLI configurado (aws sts get-caller-identity)
+  2. Terraform >= 1.5 instalado
+  3. Docker instalado
+  4. Conta no MongoDB Atlas (https://mongodb.com/atlas)
+
+ETAPA 1 — MongoDB Atlas
+  1.1  Criar conta/cluster M0 Sandbox (free)
+  1.2  Criar database user (usuário + senha)
+  1.3  Network Access → Add IP → 0.0.0.0/0 (Allow all)
+  1.4  Clusters → Connect → Drivers → Copiar connection string
+       Ex: mongodb+srv://usuario:senha@cluster0.xxxxx.mongodb.net/gorillazbot
+
+ETAPA 2 — Preparar Terraform
+  2.1  cp infra/terraform.tfvars.example infra/terraform.tfvars
+  2.2  Editar infra/terraform.tfvars com seus valores reais
+  2.3  terraform -chdir=infra init
+  2.4  terraform -chdir=infra plan
+  2.5  terraform -chdir=infra apply
+
+ETAPA 3 — Preencher Secrets
+  3.1  Acessar AWS Console → Secrets Manager
+  3.2  Atualizar os 3 secrets com valores reais:
+       - gorillaz-discord-bot/discord-token
+       - gorillaz-discord-bot/owm-api-key
+       - gorillaz-discord-bot/mongodb-connection
+  OU via CLI (ver outputs do Terraform):
+       aws secretsmanager put-secret-value \
+         --secret-id arn:aws:secretsmanager:.../discord-token \
+         --secret-string "seu-token-real"
+
+ETAPA 4 — Push da primeira imagem Docker
+  4.1  aws ecr get-login-password --region us-east-1 | docker login \
+         --username AWS --password-stdin \
+         <account-id>.dkr.ecr.us-east-1.amazonaws.com
+  4.2  docker build -t gorillaz-discord-bot .
+  4.3  docker tag gorillaz-discord-bot:latest \
+         <account-id>.dkr.ecr.us-east-1.amazonaws.com/gorillaz-discord-bot:latest
+  4.4  docker push \
+         <account-id>.dkr.ecr.us-east-1.amazonaws.com/gorillaz-discord-bot:latest
+
+ETAPA 5 — Verificar ECS
+  5.1  Acessar AWS Console → ECS → gorillaz-discord-bot
+  5.2  Ver se a tarefa está "RUNNING"
+  5.3  Logs: CloudWatch → Log groups → /ecs/gorillaz-discord-bot
+
+ETAPA 6 — CI/CD (GitHub Actions)
+  6.1  Configurar OIDC entre GitHub e AWS:
+       - Criar IAM Identity Provider para token.actions.githubusercontent.com
+       - Criar IAM Role com trust policy para seu repositório
+       - Role deve ter permissões: ECR Push, ECS UpdateService
+  6.2  Adicionar secret AWS_ROLE_ARN no GitHub
+  6.3  Fazer push para main → deploy automático
+
+
+CUSTO ESTIMADO (AWS, us-east-1)
+--------------------------------
+  ECS Fargate (256/512, 1 tarefa 24/7)   ~$10,00/mês
+  ECR (armazenamento de imagens)          ~$0,10/mês
+  Secrets Manager (3 secrets)             ~$1,50/mês
+  CloudWatch Logs (30 dias)               ~$0,50/mês
+  VPC + Internet Gateway                  Grátis
+  NAT Gateway                             NÃO USADO (subnet pública)
+  ------------------------------------------------
+  Total                                   ~$12,10/mês
+  MongoDB Atlas M0                        Grátis
+
+
+SEGURANÇA — PENDÊNCIAS
+-----------------------
+  ⚠️  docker-compose.yml contém Discord token em plaintext (linha 22)
+      → Rotacionar o token e remover do arquivo
+
+  ⚠️  Não há health check HTTP (bot não expõe porta)
+      → Monitorar via CloudWatch Logs + Discord Gateway status
+
+  ⚠️  Apenas 1 AZ (us-east-1a)
+      → Se a AZ cair, o bot fica offline até recovery
+
+
+MÓDULOS DO BOT (comandos disponíveis)
+--------------------------------------
+  FunModule:      ping, mama, banana, 8ball, gorila, dado, flip
+  EconomyModule:  daily, saldo, bet, pagar, ranking
+  GifModule:      tamanhodopinto, gif add, gif random, gif <nome>
+  ApiModule:      f1, cotacao, tempo <cidade>
+  UtilityModule:  ajuda, userinfo, random, timer, avatar, serverinfo,
+                  horario, contador, reversa
+
+
+DEPENDÊNCIAS EXTERNAS
+-----------------------
+  Discord.Net 3.17.4        → Discord API
+  MongoDB.Driver 3.4.0      → MongoDB Atlas
+  OpenWeatherMap API        → comando tempo
+  Ergast API (F1)           → comando f1
+  AwesomeAPI (cotação)      → comando cotacao
+  Tenor (GIF scraping)      → comando tamanhodopinto
+
+
+================================================================================
+  FIM DO DOCUMENTO
+================================================================================

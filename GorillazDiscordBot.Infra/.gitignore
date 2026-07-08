@@ -1,0 +1,13 @@
+# Local .terraform directory
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+crash.log
+override.tf
+override.tf.json
+terraform.rc
+.terraform.lock.hcl
+
+# Live credentials
+terraform.tfvars
