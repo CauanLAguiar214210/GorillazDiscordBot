@@ -1,7 +1,7 @@
 using System.Text;
 using Discord;
 using Discord.Commands;
-using GorillazDiscordBot.Data.Repository;
+using GorillazDiscordBot.Domain.Interfaces;
 
 namespace GorillazDiscordBot.Commands;
 

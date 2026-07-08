@@ -1,6 +1,7 @@
 using System.Text;
 using Discord.Commands;
 using GorillazDiscordBot.Services.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace GorillazDiscordBot.Commands;
 
@@ -9,12 +10,14 @@ public class ApiModule : ModuleBase<SocketCommandContext>
     private readonly IFOneService _f1Service;
     private readonly ICotacaoService _cotacaoService;
     private readonly IWeatherService _weatherService;
+    private readonly ILogger<ApiModule> _logger;
 
-    public ApiModule(IFOneService f1Service, ICotacaoService cotacaoService, IWeatherService weatherService)
+    public ApiModule(IFOneService f1Service, ICotacaoService cotacaoService, IWeatherService weatherService, ILogger<ApiModule> logger)
     {
         _f1Service = f1Service;
         _cotacaoService = cotacaoService;
         _weatherService = weatherService;
+        _logger = logger;
     }
 
     [Command("f1")]
@@ -36,6 +39,7 @@ public class ApiModule : ModuleBase<SocketCommandContext>
         }
         catch(Exception ex)
         {
+            _logger.LogError(ex, "Falha ao obter classificação F1");
             await ReplyAsync("Falha na Integração com a FO.");
         }
     }

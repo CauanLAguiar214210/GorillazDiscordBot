@@ -1,11 +1,15 @@
-﻿using Discord;
+﻿using AWS.Logger;
+using AWS.Logger.AspNetCore;
+using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using GorillazDiscordBot;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Data.Repository;
+using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Services.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -75,6 +79,16 @@ builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>
     client.Timeout = TimeSpan.FromSeconds(10);
     client.DefaultRequestHeaders.Add("User-Agent", "GorillazDiscordBot/1.0");
 });
+
+// CloudWatch Logs (opcional — ativar com env AWS_LOG_GROUP)
+if (builder.Configuration.GetValue<string>("AWS_LOG_GROUP") is { Length: > 0 } logGroup)
+{
+    builder.Logging.AddAWSProvider(new AWSLoggerConfig
+    {
+        LogGroup = logGroup,
+        Region = builder.Configuration.GetValue<string>("AWS_REGION") ?? "us-east-1"
+    });
+}
 
 // Hosted Service (gerencia lifecycle do bot)
 builder.Services.AddHostedService<DiscordBotService>();
