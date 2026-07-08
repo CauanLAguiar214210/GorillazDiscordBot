@@ -14,12 +14,12 @@ services:
 
   bot:
     build:
-      context: .
+      context: GorillazDiscordBot.Api
       dockerfile: Dockerfile
     container_name: gorillaz-bot
     restart: unless-stopped
     environment:
-      DISCORD_TOKEN: "MTI5OTUyOTk2ODkzMzY3MDk0Mg.Gogurj.pKyF8QUyAZzbcxTbujRXFBspGwTC3CCPQEF5DU"
+      DISCORD_TOKEN: "${DISCORD_TOKEN}"
       MONGODB_CONNECTION_STRING: "mongodb://mongodb:27017"
       MONGODB_DATABASE_NAME: "gorillazbot"
       TZ: "America/Sao_Paulo"
