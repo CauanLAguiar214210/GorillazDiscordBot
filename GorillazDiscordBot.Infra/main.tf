@@ -13,19 +13,19 @@ provider "aws" {
 }
 
 module "networking" {
-  source      = "./modules/networking"
+  source      = "./AWS/networking"
   project     = var.project_name
   vpc_cidr    = var.vpc_cidr
   subnet_cidr = var.subnet_cidr
 }
 
 module "ecr" {
-  source  = "./modules/ecr"
+  source  = "./AWS/ecr"
   project = var.project_name
 }
 
 module "secrets" {
-  source                       = "./modules/secrets"
+  source                       = "./AWS/secrets"
   project                      = var.project_name
   discord_token_placeholder    = var.discord_token
   owm_api_key_placeholder      = var.owm_api_key
@@ -33,7 +33,7 @@ module "secrets" {
 }
 
 module "ecs" {
-  source             = "./modules/ecs"
+  source             = "./AWS/ecs"
   project            = var.project_name
   vpc_id             = module.networking.vpc_id
   public_subnet_ids  = module.networking.public_subnet_ids
