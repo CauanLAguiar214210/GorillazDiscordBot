@@ -18,9 +18,9 @@
         { "name": "AWS_REGION", "value": "{{AWS_REGION}}" }
       ],
       "secrets": [
-        { "name": "DISCORD_TOKEN", "valueFrom": "arn:aws:ssm:us-east-1:ACCOUNT_ID:parameter/gorillazbot/DISCORD_TOKEN" },
-        { "name": "MONGODB_CONNECTION_STRING", "valueFrom": "arn:aws:ssm:us-east-1:ACCOUNT_ID:parameter/gorillazbot/MONGODB_CONNECTION_STRING" },
-        { "name": "OWM_API_KEY", "valueFrom": "arn:aws:ssm:us-east-1:ACCOUNT_ID:parameter/gorillazbot/OWM_API_KEY" }
+        { "name": "DISCORD_TOKEN", "valueFrom": "{{SECRETS_DISCORD_TOKEN_ARN}}" },
+        { "name": "MONGODB_CONNECTION_STRING", "valueFrom": "{{SECRETS_MONGODB_CONNECTION_ARN}}" },
+        { "name": "OWM_API_KEY", "valueFrom": "{{SECRETS_OWM_API_KEY_ARN}}" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
