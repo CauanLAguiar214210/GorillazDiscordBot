@@ -8,14 +8,14 @@
   "memory": "512",
   "containerDefinitions": [
     {
-      "name": "gorillazbot",
-      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/gorillazbot:latest",
+      "name": "CONTAINER_NAME",
+      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/gorillaz-discord-bot:latest",
       "essential": true,
       "environment": [
-        { "name": "COMMAND_PREFIX", "value": "macaco " },
-        { "name": "MONGODB_DATABASE_NAME", "value": "gorillazbot" },
-        { "name": "AWS_LOG_GROUP", "value": "gorillazbot" },
-        { "name": "AWS_REGION", "value": "us-east-1" }
+        { "name": "COMMAND_PREFIX", "value": "{{COMMAND_PREFIX}}" },
+        { "name": "MONGODB_DATABASE_NAME", "value": "{{MONGODB_DATABASE_NAME}}" },
+        { "name": "AWS_LOG_GROUP", "value": "{{AWS_LOG_GROUP}}" },
+        { "name": "AWS_REGION", "value": "{{AWS_REGION}}" }
       ],
       "secrets": [
         { "name": "DISCORD_TOKEN", "valueFrom": "arn:aws:ssm:us-east-1:ACCOUNT_ID:parameter/gorillazbot/DISCORD_TOKEN" },
@@ -25,8 +25,8 @@
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "gorillazbot",
-          "awslogs-region": "us-east-1",
+          "awslogs-group": "{{AWS_LOG_GROUP}}",
+          "awslogs-region": "{{AWS_REGION}}",
           "awslogs-stream-prefix": "ecs"
         }
       }
