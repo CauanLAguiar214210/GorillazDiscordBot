@@ -35,6 +35,8 @@ env:
   ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
   ECS_SERVICE: ${{ vars.ECS_SERVICE }}
   ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_TASK_DEFINITION: aws/ecs/task-definition.json
+  CONTAINER_NAME: ${{ vars.CONTAINER_NAME }}
 
 permissions:
   contents: read
