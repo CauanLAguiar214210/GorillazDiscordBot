@@ -1,7 +1,7 @@
 {
   "family": "gorillazbot",
-  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/gorillazbot-ecs-task-role",
-  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/gorillazbot-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/gorillaz-discord-bot-ecs-task-role",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/gorillaz-discord-bot-ecs-execution-role",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "256",
