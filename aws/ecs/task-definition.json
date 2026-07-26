@@ -1,5 +1,5 @@
 {
-  "family": "gorillazbot",
+  "family": "gorillaz-discord-bot",
   "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/gorillaz-discord-bot-ecs-task-role",
   "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/gorillaz-discord-bot-ecs-execution-role",
   "networkMode": "awsvpc",
@@ -8,25 +8,25 @@
   "memory": "512",
   "containerDefinitions": [
     {
-      "name": "CONTAINER_NAME",
+      "name": "bot",
       "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/gorillaz-discord-bot:latest",
       "essential": true,
       "environment": [
-        { "name": "COMMAND_PREFIX", "value": "{{COMMAND_PREFIX}}" },
-        { "name": "MONGODB_DATABASE_NAME", "value": "{{MONGODB_DATABASE_NAME}}" },
-        { "name": "AWS_LOG_GROUP", "value": "{{AWS_LOG_GROUP}}" },
-        { "name": "AWS_REGION", "value": "{{AWS_REGION}}" }
+        { "name": "DOTNET_ENVIRONMENT", "value": "Production" },
+        { "name": "MONGODB_DATABASE_NAME", "value": "gorillazbot" },
+        { "name": "COMMAND_PREFIX", "value": "macaco " },
+        { "name": "TZ", "value": "America/Sao_Paulo" }
       ],
       "secrets": [
-        { "name": "DISCORD_TOKEN", "valueFrom": "{{SECRETS_DISCORD_TOKEN_ARN}}" },
-        { "name": "MONGODB_CONNECTION_STRING", "valueFrom": "{{SECRETS_MONGODB_CONNECTION_ARN}}" },
-        { "name": "OWM_API_KEY", "valueFrom": "{{SECRETS_OWM_API_KEY_ARN}}" }
+        { "name": "DISCORD_TOKEN", "valueFrom": "SECRETS_DISCORD_TOKEN_ARN" },
+        { "name": "OWM_API_KEY", "valueFrom": "SECRETS_OWM_API_KEY_ARN" },
+        { "name": "MONGODB_CONNECTION_STRING", "valueFrom": "SECRETS_MONGODB_CONNECTION_ARN" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "{{AWS_LOG_GROUP}}",
-          "awslogs-region": "{{AWS_REGION}}",
+          "awslogs-group": "AWS_LOG_GROUP",
+          "awslogs-region": "AWS_REGION",
           "awslogs-stream-prefix": "ecs"
         }
       }

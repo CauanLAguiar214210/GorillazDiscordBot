@@ -5,19 +5,13 @@ on:
     branches: [ "dev" ]
 
 env:
-  AWS_REGION: ${{ vars.AWS_REGION }}
-  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
-  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
-  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "137451610933"
+  ECR_REPOSITORY: gorillaz-discord-bot
+  ECS_SERVICE: gorillaz-discord-bot
+  ECS_CLUSTER: gorillaz-discord-bot
   ECS_TASK_DEFINITION: aws/ecs/task-definition.json
-  CONTAINER_NAME: ${{ vars.CONTAINER_NAME }}
-  COMMAND_PREFIX: ${{ vars.COMMAND_PREFIX }}
-  MONGODB_DATABASE_NAME: ${{ vars.MONGODB_DATABASE_NAME }}
-  AWS_LOG_GROUP: ${{ vars.AWS_LOG_GROUP }}
-  SECRETS_DISCORD_TOKEN_ARN: ${{ vars.SECRETS_DISCORD_TOKEN_ARN }}
-  SECRETS_MONGODB_CONNECTION_ARN: ${{ vars.SECRETS_MONGODB_CONNECTION_ARN }}
-  SECRETS_OWM_API_KEY_ARN: ${{ vars.SECRETS_OWM_API_KEY_ARN }}
+  AWS_LOG_GROUP: /ecs/gorillaz-discord-bot
 
 permissions:
   contents: read
@@ -50,28 +44,27 @@ jobs:
         IMAGE_TAG: ${{ github.sha }}
       run: |
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
     - name: Prepare task definition
       run: |
         cp ${{ env.ECS_TASK_DEFINITION }} task-definition-rendered.json
         sed -i "s/ACCOUNT_ID/${{ env.AWS_ACCOUNT_ID }}/g" task-definition-rendered.json
-        sed -i "s/CONTAINER_NAME/${{ env.CONTAINER_NAME }}/g" task-definition-rendered.json
-        sed -i "s/{{COMMAND_PREFIX}}/${{ env.COMMAND_PREFIX }}/g" task-definition-rendered.json
-        sed -i "s/{{MONGODB_DATABASE_NAME}}/${{ env.MONGODB_DATABASE_NAME }}/g" task-definition-rendered.json
-        sed -i "s/{{AWS_LOG_GROUP}}/${{ env.AWS_LOG_GROUP }}/g" task-definition-rendered.json
-        sed -i "s/{{AWS_REGION}}/${{ env.AWS_REGION }}/g" task-definition-rendered.json
-        sed -i "s|{{SECRETS_DISCORD_TOKEN_ARN}}|${{ env.SECRETS_DISCORD_TOKEN_ARN }}|g" task-definition-rendered.json
-        sed -i "s|{{SECRETS_MONGODB_CONNECTION_ARN}}|${{ env.SECRETS_MONGODB_CONNECTION_ARN }}|g" task-definition-rendered.json
-        sed -i "s|{{SECRETS_OWM_API_KEY_ARN}}|${{ env.SECRETS_OWM_API_KEY_ARN }}|g" task-definition-rendered.json
+        sed -i "s/AWS_LOG_GROUP/${{ env.AWS_LOG_GROUP }}/g" task-definition-rendered.json
+        sed -i "s/AWS_REGION/${{ env.AWS_REGION }}/g" task-definition-rendered.json
+        sed -i "s|SECRETS_DISCORD_TOKEN_ARN|${{ secrets.SECRETS_DISCORD_TOKEN_ARN }}|g" task-definition-rendered.json
+        sed -i "s|SECRETS_MONGODB_CONNECTION_ARN|${{ secrets.SECRETS_MONGODB_CONNECTION_ARN }}|g" task-definition-rendered.json
+        sed -i "s|SECRETS_OWM_API_KEY_ARN|${{ secrets.SECRETS_OWM_API_KEY_ARN }}|g" task-definition-rendered.json
 
     - name: Fill in the new image ID in the Amazon ECS task definition
       id: task-def
       uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
         task-definition: task-definition-rendered.json
-        container-name: ${{ env.CONTAINER_NAME }}
+        container-name: bot
         image: ${{ steps.build-image.outputs.image }}
 
     - name: Deploy Amazon ECS task definition
