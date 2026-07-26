@@ -12,6 +12,9 @@ env:
   ECS_CLUSTER: gorillaz-discord-bot
   ECS_TASK_DEFINITION: aws/ecs/task-definition.json
   AWS_LOG_GROUP: /ecs/gorillaz-discord-bot
+  SECRETS_DISCORD_TOKEN_ARN: arn:aws:secretsmanager:us-east-1:137451610933:secret:gorillaz-discord-bot/discord-token-Sy7OML
+  SECRETS_MONGODB_CONNECTION_ARN: arn:aws:secretsmanager:us-east-1:137451610933:secret:gorillaz-discord-bot/mongodb-connection-WqGVdI
+  SECRETS_OWM_API_KEY_ARN: arn:aws:secretsmanager:us-east-1:137451610933:secret:gorillaz-discord-bot/owm-api-key-2o5J5H
 
 permissions:
   contents: read
@@ -55,9 +58,9 @@ jobs:
         sed -i "s|ACCOUNT_ID|${{ env.AWS_ACCOUNT_ID }}|g" task-definition-rendered.json
         sed -i "s|AWS_LOG_GROUP|${{ env.AWS_LOG_GROUP }}|g" task-definition-rendered.json
         sed -i "s|AWS_REGION|${{ env.AWS_REGION }}|g" task-definition-rendered.json
-        sed -i "s|SECRETS_DISCORD_TOKEN_ARN|${{ secrets.SECRETS_DISCORD_TOKEN_ARN }}|g" task-definition-rendered.json
-        sed -i "s|SECRETS_MONGODB_CONNECTION_ARN|${{ secrets.SECRETS_MONGODB_CONNECTION_ARN }}|g" task-definition-rendered.json
-        sed -i "s|SECRETS_OWM_API_KEY_ARN|${{ secrets.SECRETS_OWM_API_KEY_ARN }}|g" task-definition-rendered.json
+        sed -i "s|SECRETS_DISCORD_TOKEN_ARN|${{ env.SECRETS_DISCORD_TOKEN_ARN }}|g" task-definition-rendered.json
+        sed -i "s|SECRETS_MONGODB_CONNECTION_ARN|${{ env.SECRETS_MONGODB_CONNECTION_ARN }}|g" task-definition-rendered.json
+        sed -i "s|SECRETS_OWM_API_KEY_ARN|${{ env.SECRETS_OWM_API_KEY_ARN }}|g" task-definition-rendered.json
 
     - name: Fill in the new image ID in the Amazon ECS task definition
       id: task-def
