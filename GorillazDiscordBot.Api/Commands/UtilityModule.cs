@@ -34,7 +34,7 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
         ["bet"] = "Aposta 50/50",
         ["pagar"] = "Transferir moedas para outro usuário",
         ["ranking"] = "Ranking de riqueza do servidor",
-        ["gif"] = "Buscar, adicionar ou sortear GIFs",
+        ["gif"] = "Gerenciar GIFs (use 'ajuda gif' para ver subcomandos)",
         ["f1"] = "Classificação de pilotos de F1",
         ["cotacao"] = "Cotação de moedas",
         ["tempo"] = "Previsão do tempo por cidade",
@@ -46,6 +46,15 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
         ["horario"] = "Hora atual (UTC)",
         ["contador"] = "Conta de 1 até N",
         ["reversa"] = "Inverte o texto informado",
+    };
+
+    private static readonly Dictionary<string, (string Usage, string Description)> _gifSubcommands = new()
+    {
+        ["add"] = ("add <nome> <url>", "Adiciona um novo GIF"),
+        ["list"] = ("list [--page N] [--categoria X]", "Lista GIFs cadastrados"),
+        ["random"] = ("random", "Envia um GIF aleatório"),
+        ["remove"] = ("remove <nome>", "Remove um GIF pelo nome"),
+        ["categories"] = ("categories", "Lista categorias disponíveis"),
     };
 
     public UtilityModule(CommandService commandService, DiscordSocketClient client)
@@ -93,6 +102,12 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
     [Command("ajuda")]
     public async Task AjudaAsync(string comando)
     {
+        if (comando.Equals("gif", StringComparison.OrdinalIgnoreCase))
+        {
+            await ShowGifHelpAsync();
+            return;
+        }
+
         var cmd = _commandService.Commands
             .FirstOrDefault(c => c.Aliases.Any(a =>
                 a.Equals(comando, StringComparison.OrdinalIgnoreCase)));
@@ -125,6 +140,24 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
                 $"`{p.Name}` — {(string.IsNullOrEmpty(p.Summary) ? "Sem descrição" : p.Summary)}"));
             embed.AddField("Parâmetros", paramList, inline: false);
         }
+
+        await ReplyAsync(embed: embed.Build());
+    }
+
+    private async Task ShowGifHelpAsync()
+    {
+        var embed = new EmbedBuilder()
+            .WithColor(Color.Gold)
+            .WithAuthor($"🖼️ Comando: gif", _client.CurrentUser.GetAvatarUrl())
+            .WithDescription("Gerencie sua coleção de GIFs no servidor.")
+            .WithFooter("Use macaco gif <subcomando> para executar");
+
+        foreach (var (subcmd, (usage, desc)) in _gifSubcommands)
+        {
+            embed.AddField($"`macaco gif {usage}`", desc, inline: false);
+        }
+
+        embed.AddField("Busca", "`macaco gif <nome>` — Busca um GIF pelo nome (com sugestões)", inline: false);
 
         await ReplyAsync(embed: embed.Build());
     }
