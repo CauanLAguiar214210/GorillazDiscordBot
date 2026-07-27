@@ -1,45 +1,132 @@
+using Discord;
 using Discord.Commands;
+using Discord.WebSocket;
 using System.Text;
 
 namespace GorillazDiscordBot.Commands;
 
 public class UtilityModule : ModuleBase<SocketCommandContext>
 {
+    private readonly CommandService _commandService;
+    private readonly DiscordSocketClient _client;
     private static readonly Random _random = new();
 
+    private static readonly Dictionary<string, (string Name, string Emoji)> _moduleInfo = new()
+    {
+        ["FunModule"] = ("Diversão", "🎮"),
+        ["UtilityModule"] = ("Utilidades", "🛠️"),
+        ["EconomyModule"] = ("Economia", "💰"),
+        ["GifManageModule"] = ("GIFs", "🖼️"),
+        ["ApiModule"] = ("APIs Externas", "🌐"),
+    };
+
+    private static readonly Dictionary<string, string> _commandDescriptions = new()
+    {
+        ["ping"] = "Responde com Pong!",
+        ["mama"] = "Sequência de 'Glub!' até engasgar",
+        ["banana"] = "'Cadê?!' repetido e finalização",
+        ["8ball"] = "Bola 8 mágica responde sua pergunta",
+        ["gorila"] = "Curiosidade sobre gorilas",
+        ["dado"] = "Joga um dado de 6 lados",
+        ["flip"] = "Cara ou coroa",
+        ["daily"] = "Reivindica moedas diárias",
+        ["saldo"] = "Ver seu saldo (alias: coins)",
+        ["bet"] = "Aposta 50/50",
+        ["pagar"] = "Transferir moedas para outro usuário",
+        ["ranking"] = "Ranking de riqueza do servidor",
+        ["gif"] = "Buscar, adicionar ou sortear GIFs",
+        ["f1"] = "Classificação de pilotos de F1",
+        ["cotacao"] = "Cotação de moedas",
+        ["tempo"] = "Previsão do tempo por cidade",
+        ["userinfo"] = "Suas informações de usuário",
+        ["random"] = "Número aleatório entre min e max",
+        ["timer"] = "Temporizador com aviso",
+        ["avatar"] = "Avatar de um usuário",
+        ["serverinfo"] = "Informações do servidor",
+        ["horario"] = "Hora atual (UTC)",
+        ["contador"] = "Conta de 1 até N",
+        ["reversa"] = "Inverte o texto informado",
+    };
+
+    public UtilityModule(CommandService commandService, DiscordSocketClient client)
+    {
+        _commandService = commandService;
+        _client = client;
+    }
+
     [Command("ajuda")]
+    [Alias("help")]
     public async Task AjudaAsync()
     {
-        var sb = new StringBuilder();
-        sb.AppendLine("🛠️ **Comandos disponíveis:**");
-        sb.AppendLine();
-        sb.AppendLine("**ping** — Responde com Pong!");
-        sb.AppendLine("**ajuda** — Mostra esta mensagem de ajuda.");
-        sb.AppendLine("**mama** — Responde com uma sequência de 'Glub!' e termina com 'Engasguei!'.");
-        sb.AppendLine("**banana** — Responde com 'Cadê?!' repetido e finaliza com 'Bananinha gostosa?!'.");
-        sb.AppendLine("**azul** — Mostra imagens aleatórias com frases divertidas.");
-        sb.AppendLine("**joia** — Envia um GIF animado.");
-        sb.AppendLine("**malicia** — Envia outro GIF animado engraçado.");
-        sb.AppendLine("**galado** — Envia um GIF de raposa animada.");
-        sb.AppendLine("**fazol** — Envia GIFs variados aleatórios.");
-        sb.AppendLine("**senta** — Envia GIF e frase para 'sentar aqui'.");
-        sb.AppendLine("**cotacao** — Mostra a cotação atual de várias moedas.");
-        sb.AppendLine();
-        sb.AppendLine("**dado** — Joga um dado de 6 lados e mostra o resultado.");
-        sb.AppendLine("**flip** — Joga cara ou coroa.");
-        sb.AppendLine("**8ball [pergunta]** — Responde sua pergunta com a Bola 8 mágica.");
-        sb.AppendLine("**userinfo** — Exibe informações básicas sobre você.");
-        sb.AppendLine("**tempo [cidade]** — Mostra a previsão do tempo para uma cidade (ainda não implementado).");
-        sb.AppendLine("**random [min] [max]** — Gera um número aleatório entre dois valores.");
-        sb.AppendLine("**gorila** — Envia uma curiosidade sobre gorilas.");
-        sb.AppendLine("**timer [segundos]** — Define um temporizador em segundos e avisa quando terminar.");
-        sb.AppendLine("**avatar [usuário]** — Mostra o avatar do usuário mencionado ou seu próprio avatar.");
-        sb.AppendLine("**serverinfo** — Mostra informações básicas do servidor.");
-        sb.AppendLine("**horario** — Mostra a hora atual do servidor (UTC).");
-        sb.AppendLine("**contador [número]** — Conta de 1 até o número informado (máximo 20).");
-        sb.AppendLine("**reversa [texto]** — Retorna a mensagem invertida.");
+        var mention = _client.CurrentUser.Mention;
 
-        await ReplyAsync(sb.ToString());
+        var modules = _commandService.Modules
+            .Where(m => m.Commands.Count > 0)
+            .OrderBy(m => m.Name)
+            .ToList();
+
+        var embed = new EmbedBuilder()
+            .WithColor(new Color(0x5865F2))
+            .WithAuthor($"{_client.CurrentUser.Username} — Comandos", _client.CurrentUser.GetAvatarUrl())
+            .WithFooter($"Use {mention} <comando> para mais detalhes")
+            .WithTimestamp(DateTimeOffset.UtcNow);
+
+        foreach (var module in modules)
+        {
+            var (displayName, emoji) = _moduleInfo.GetValueOrDefault(
+                module.Name, (module.Name, "📋"));
+
+            var sb = new StringBuilder();
+            foreach (var cmd in module.Commands)
+            {
+                var name = cmd.Aliases.FirstOrDefault() ?? cmd.Name;
+                var desc = _commandDescriptions.GetValueOrDefault(name, "Sem descrição");
+                sb.AppendLine($"`{name}` — {desc}");
+            }
+
+            embed.AddField($"{emoji} {displayName}", sb.ToString(), inline: false);
+        }
+
+        await ReplyAsync(embed: embed.Build());
+    }
+
+    [Command("ajuda")]
+    public async Task AjudaAsync(string comando)
+    {
+        var cmd = _commandService.Commands
+            .FirstOrDefault(c => c.Aliases.Any(a =>
+                a.Equals(comando, StringComparison.OrdinalIgnoreCase)));
+
+        if (cmd == null)
+        {
+            await ReplyAsync($"❌ Comando `{comando}` não encontrado.");
+            return;
+        }
+
+        var name = cmd.Aliases.FirstOrDefault() ?? cmd.Name;
+        var desc = _commandDescriptions.GetValueOrDefault(name, "Sem descrição");
+        var aliases = cmd.Aliases.Where(a => a != name).ToList();
+        var usage = cmd.Parameters.Count > 0
+            ? $"`macaco {name} {string.Join(" ", cmd.Parameters.Select(p => $"<{p.Name}>"))}`"
+            : $"`macaco {name}`";
+
+        var embed = new EmbedBuilder()
+            .WithColor(new Color(0x5865F2))
+            .WithAuthor($"Comando: {name}", _client.CurrentUser.GetAvatarUrl())
+            .WithDescription(desc)
+            .AddField("Uso", usage, inline: false);
+
+        if (aliases.Count > 0)
+            embed.AddField("Aliases", string.Join(", ", aliases.Select(a => $"`{a}`")), inline: true);
+
+        if (cmd.Parameters.Count > 0)
+        {
+            var paramList = string.Join("\n", cmd.Parameters.Select(p =>
+                $"`{p.Name}` — {(string.IsNullOrEmpty(p.Summary) ? "Sem descrição" : p.Summary)}"));
+            embed.AddField("Parâmetros", paramList, inline: false);
+        }
+
+        await ReplyAsync(embed: embed.Build());
     }
 
     [Command("userinfo")]
