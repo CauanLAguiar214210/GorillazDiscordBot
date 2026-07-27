@@ -1,4 +1,3 @@
-using Discord;
 using Discord.Commands;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services.Interfaces;
@@ -22,19 +21,13 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
     {
         if (string.IsNullOrWhiteSpace(input))
         {
-            await ReplyAsync("📖 Use: `macaco gif <nome>`, `macaco gif add <nome> <url>`, `macaco gif list`, `macaco gif random`, `macaco gif categories`, ou `macaco gif remove <nome>`");
+            await ReplyAsync("📖 Use: `macaco gif <nome>`, `macaco gif add <nome> <url>`, ou `macaco gif random`");
             return;
         }
 
         if (input.Equals("random", StringComparison.OrdinalIgnoreCase))
         {
             await SendRandomGifAsync();
-            return;
-        }
-
-        if (input.Equals("categories", StringComparison.OrdinalIgnoreCase))
-        {
-            await ListCategoriesAsync();
             return;
         }
 
@@ -52,20 +45,6 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
             {
                 await ReplyAsync("⚠️ Use: `macaco gif add <nome> <url>`");
             }
-            return;
-        }
-
-        if (input.StartsWith("remove ", StringComparison.OrdinalIgnoreCase))
-        {
-            var nome = input[7..].Trim();
-            await RemoveGifAsync(nome);
-            return;
-        }
-
-        if (input.StartsWith("list", StringComparison.OrdinalIgnoreCase))
-        {
-            var args = input[4..].Trim();
-            await ListGifsAsync(args);
             return;
         }
 
@@ -130,15 +109,14 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var total = await _gifRepository.GetCountAsync();
-        if (total == 0)
+        var gifs = await _gifRepository.GetAllAsync();
+        if (gifs.Count == 0)
         {
             await ReplyAsync("📭 Nenhum GIF encontrado. Use `macaco gif add <nome> <url>` para adicionar.");
             return;
         }
 
-        var todosGifs = await _gifRepository.GetPaginatedAsync(1, int.MaxValue);
-        var similares = todosGifs
+        var similares = gifs
             .Where(g => g.Nome.Contains(nome, StringComparison.OrdinalIgnoreCase))
             .Take(5)
             .ToList();
@@ -151,129 +129,6 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
         else
         {
             await ReplyAsync($"❓ GIF `{nome}` não encontrado.");
-        }
-    }
-
-    private async Task ListGifsAsync(string args)
-    {
-        const int pageSize = 15;
-        var page = 1;
-        string? categoriaFiltro = null;
-
-        ParseListArgs(args, ref page, ref categoriaFiltro);
-
-        var total = await _gifRepository.GetCountAsync(categoriaFiltro);
-
-        if (total == 0)
-        {
-            var msg = string.IsNullOrEmpty(categoriaFiltro)
-                ? "📭 Nenhum GIF cadastrado ainda. Use `macaco gif add <nome> <url>` para adicionar."
-                : $"📭 Nenhum GIF encontrado na categoria `{categoriaFiltro}`.";
-            await ReplyAsync(msg);
-            return;
-        }
-
-        var totalPaginas = (int)Math.Ceiling((double)total / pageSize);
-
-        if (page < 1) page = 1;
-        if (page > totalPaginas) page = totalPaginas;
-
-        var gifsPagina = await _gifRepository.GetPaginatedAsync(page, pageSize, categoriaFiltro);
-
-        var embed = new EmbedBuilder()
-            .WithColor(Color.Gold)
-            .WithTitle("📚 GIFs Cadastrados")
-            .WithDescription($"**{total}** total{(string.IsNullOrEmpty(categoriaFiltro) ? "" : $" · Categoria: **{categoriaFiltro}**")}")
-            .WithFooter($"Página {page}/{totalPaginas} · Use 'macaco gif list --page {page + 1}' para ver mais")
-            .WithTimestamp(DateTimeOffset.UtcNow);
-
-        var sb = new System.Text.StringBuilder();
-        for (int i = 0; i < gifsPagina.Count; i++)
-        {
-            var gif = gifsPagina[i];
-            var numero = (page - 1) * pageSize + i + 1;
-            var usuario = Context.Client.GetUser(gif.AddedBy);
-            var nomeUsuario = usuario?.Username ?? "Desconhecido";
-            var data = gif.AddedAt.ToString("dd/MM/yyyy");
-            sb.AppendLine($"**{numero}.** `{gif.Nome}` · @{nomeUsuario} · {data}");
-        }
-
-        embed.WithDescription(sb.ToString());
-
-        if (totalPaginas > 1)
-        {
-            embed.WithFooter($"Página {page}/{totalPaginas} · Use 'macaco gif list --page {page + 1}' para ver mais");
-        }
-
-        await ReplyAsync(embed: embed.Build());
-    }
-
-    private async Task ListCategoriesAsync()
-    {
-        var categorias = await _gifRepository.GetCategoriasAsync();
-
-        if (categorias.Count == 0)
-        {
-            await ReplyAsync("📭 Nenhuma categoria cadastrada. Adicione um gif com `macaco gif add <nome> <url>`");
-            return;
-        }
-
-        var embed = new EmbedBuilder()
-            .WithColor(Color.Blue)
-            .WithTitle("📂 Categorias Disponíveis")
-            .WithDescription(string.Join("\n", categorias.Select(c => $"• `{c}`")))
-            .WithFooter("Use 'macaco gif list --categoria <nome>' para filtrar")
-            .WithTimestamp(DateTimeOffset.UtcNow)
-            .Build();
-
-        await ReplyAsync(embed: embed);
-    }
-
-    private async Task RemoveGifAsync(string nome)
-    {
-        if (string.IsNullOrWhiteSpace(nome))
-        {
-            await ReplyAsync("⚠️ Use: `macaco gif remove <nome>`");
-            return;
-        }
-
-        var gif = await _gifRepository.GetByNomeAsync(nome);
-        if (gif == null)
-        {
-            await ReplyAsync($"❌ GIF `{nome}` não encontrado.");
-            return;
-        }
-
-        var deletado = await _gifRepository.DeleteByNomeAsync(nome);
-        if (deletado)
-        {
-            await ReplyAsync($"✅ GIF `{nome}` removido com sucesso!");
-        }
-        else
-        {
-            await ReplyAsync($"❌ Erro ao remover o GIF `{nome}`.");
-        }
-    }
-
-    private void ParseListArgs(string args, ref int page, ref string? categoriaFiltro)
-    {
-        if (string.IsNullOrWhiteSpace(args)) return;
-
-        var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-        for (int i = 0; i < parts.Length; i++)
-        {
-            if (parts[i].Equals("--page", StringComparison.OrdinalIgnoreCase) && i + 1 < parts.Length)
-            {
-                if (int.TryParse(parts[i + 1], out var parsedPage))
-                    page = parsedPage;
-                i++;
-            }
-            else if (parts[i].Equals("--categoria", StringComparison.OrdinalIgnoreCase) && i + 1 < parts.Length)
-            {
-                categoriaFiltro = parts[i + 1];
-                i++;
-            }
         }
     }
 }
