@@ -41,11 +41,18 @@ jobs:
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
+    - name: Render Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: task-definition.json
+        container-name: bot
+        image: ${{ steps.build-image.outputs.image }}
+
     - name: Deploy Amazon ECS task definition
       uses: aws-actions/amazon-ecs-deploy-task-definition@v2
       with:
-        task-definition: gorillaz-discord-bot
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
         service: gorillaz-discord-bot
         cluster: gorillaz-discord-bot
         wait-for-service-stability: true
-        force-new-deployment: true
