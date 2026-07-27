@@ -5,16 +5,10 @@ on:
     branches: [ "dev" ]
 
 env:
-  AWS_REGION: us-east-1
-  AWS_ACCOUNT_ID: "137451610933"
-  ECR_REPOSITORY: gorillaz-discord-bot
-  ECS_SERVICE: gorillaz-discord-bot
-  ECS_CLUSTER: gorillaz-discord-bot
-  ECS_TASK_DEFINITION: aws/ecs/task-definition.json
-  AWS_LOG_GROUP: /ecs/gorillaz-discord-bot
-  SECRETS_DISCORD_TOKEN_ARN: arn:aws:secretsmanager:us-east-1:137451610933:secret:gorillaz-discord-bot/discord-token-Sy7OML
-  SECRETS_MONGODB_CONNECTION_ARN: arn:aws:secretsmanager:us-east-1:137451610933:secret:gorillaz-discord-bot/mongodb-connection-WqGVdI
-  SECRETS_OWM_API_KEY_ARN: arn:aws:secretsmanager:us-east-1:137451610933:secret:gorillaz-discord-bot/owm-api-key-2o5J5H
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+  ECS_SERVICE: ${{ secrets.ECS_SERVICE }}
+  ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
 
 permissions:
   contents: read
@@ -52,28 +46,11 @@ jobs:
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-    - name: Prepare task definition
-      run: |
-        cp ${{ env.ECS_TASK_DEFINITION }} task-definition-rendered.json
-        sed -i "s|ACCOUNT_ID|${{ env.AWS_ACCOUNT_ID }}|g" task-definition-rendered.json
-        sed -i "s|AWS_LOG_GROUP|${{ env.AWS_LOG_GROUP }}|g" task-definition-rendered.json
-        sed -i "s|AWS_REGION|${{ env.AWS_REGION }}|g" task-definition-rendered.json
-        sed -i "s|SECRETS_DISCORD_TOKEN_ARN|${{ env.SECRETS_DISCORD_TOKEN_ARN }}|g" task-definition-rendered.json
-        sed -i "s|SECRETS_MONGODB_CONNECTION_ARN|${{ env.SECRETS_MONGODB_CONNECTION_ARN }}|g" task-definition-rendered.json
-        sed -i "s|SECRETS_OWM_API_KEY_ARN|${{ env.SECRETS_OWM_API_KEY_ARN }}|g" task-definition-rendered.json
-
-    - name: Fill in the new image ID in the Amazon ECS task definition
-      id: task-def
-      uses: aws-actions/amazon-ecs-render-task-definition@v1
-      with:
-        task-definition: task-definition-rendered.json
-        container-name: bot
-        image: ${{ steps.build-image.outputs.image }}
-
     - name: Deploy Amazon ECS task definition
       uses: aws-actions/amazon-ecs-deploy-task-definition@v2
       with:
-        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        task-definition: ${{ secrets.ECS_TASK_DEFINITION_ARN }}
         service: ${{ env.ECS_SERVICE }}
         cluster: ${{ env.ECS_CLUSTER }}
         wait-for-service-stability: true
+        force-new-deployment: true
