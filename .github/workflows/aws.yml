@@ -5,7 +5,7 @@ on:
     branches: [ "dev" ]
 
 env:
-  AWS_REGION: ${{ env.AWS_REGION }}
+  AWS_REGION: us-east-1
   ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
   ECS_SERVICE: ${{ env.ECS_SERVICE }}
   ECS_CLUSTER: ${{ env.ECS_CLUSTER }}
