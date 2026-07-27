@@ -78,16 +78,16 @@ ARQUITETURA AWS
             └──────────────────────┘
 
 
-ESTRUTURA DE ARQUIVOS
-----------------------
+ESTRUTURA DE ARQUIVOS CRIADOS
+------------------------------
 
-GorillazDiscordBot.Infra/
+infra/
 ├── main.tf                         # Provider AWS + módulos
 ├── variables.tf                    # Variáveis configuráveis
 ├── outputs.tf                      # Outputs + comandos secrets
+├── terraform.tfvars.example        # Template para terraform.tfvars
 ├── .gitignore                      # Ignora .terraform/, tfstate
-├── deploy-aws-sessao.txt           # Este documento
-└── AWS/
+└── modules/
     ├── networking/main.tf          # VPC, subnet, IGW, SG
     ├── ecr/main.tf                 # ECR repo + lifecycle policy
     ├── secrets/main.tf             # 3 secrets no Secrets Manager
@@ -96,7 +96,7 @@ GorillazDiscordBot.Infra/
         └── iam.tf                  # Execution + task IAM roles
 
 .github/workflows/
-└── aws.yml                         # CI/CD: build → push → deploy
+└── deploy.yml                      # CI/CD: build → push → deploy
 
 
 VARIÁVEIS DO TERRAFORM (variables.tf)
@@ -180,16 +180,12 @@ ETAPA 5 — Verificar ECS
   5.3  Logs: CloudWatch → Log groups → /ecs/gorillaz-discord-bot
 
 ETAPA 6 — CI/CD (GitHub Actions)
-  6.1  Configurar GitHub Secrets:
-       - AWS_ACCESS_KEY_ID
-       - AWS_SECRET_ACCESS_KEY
-       - AWS_REGION = us-east-1
-       - ECR_REPOSITORY = gorillaz-discord-bot
-       - ECS_SERVICE = gorillaz-discord-bot
-       - ECS_CLUSTER = gorillaz-discord-bot
-       - ECS_TASK_DEFINITION_ARN = gorillaz-discord-bot
-  6.2  Criar environment "production" no repo GitHub
-  6.3  Fazer push para dev → deploy automático
+  6.1  Configurar OIDC entre GitHub e AWS:
+       - Criar IAM Identity Provider para token.actions.githubusercontent.com
+       - Criar IAM Role com trust policy para seu repositório
+       - Role deve ter permissões: ECR Push, ECS UpdateService
+  6.2  Adicionar secret AWS_ROLE_ARN no GitHub
+  6.3  Fazer push para main → deploy automático
 
 
 CUSTO ESTIMADO (AWS, us-east-1)
@@ -207,6 +203,9 @@ CUSTO ESTIMADO (AWS, us-east-1)
 
 SEGURANÇA — PENDÊNCIAS
 -----------------------
+  ⚠️  docker-compose.yml contém Discord token em plaintext (linha 22)
+      → Rotacionar o token e remover do arquivo
+
   ⚠️  Não há health check HTTP (bot não expõe porta)
       → Monitorar via CloudWatch Logs + Discord Gateway status
 
