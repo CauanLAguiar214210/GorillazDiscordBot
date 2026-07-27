@@ -137,7 +137,7 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var todosGifs = await _gifRepository.GetPaginatedAsync(1, int.MaxValue);
+        var todosGifs = await _gifRepository.GetAllAsync();
         var similares = todosGifs
             .Where(g => g.Nome.Contains(nome, StringComparison.OrdinalIgnoreCase))
             .Take(5)
@@ -182,12 +182,15 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
 
         var embed = new EmbedBuilder()
             .WithColor(Color.Gold)
-            .WithTitle("📚 GIFs Cadastrados")
-            .WithDescription($"**{total}** total{(string.IsNullOrEmpty(categoriaFiltro) ? "" : $" · Categoria: **{categoriaFiltro}**")}")
-            .WithFooter($"Página {page}/{totalPaginas} · Use 'macaco gif list --page {page + 1}' para ver mais")
-            .WithTimestamp(DateTimeOffset.UtcNow);
+            .WithTitle("📚 GIFs Cadastrados");
+
+        if (!string.IsNullOrEmpty(categoriaFiltro))
+            embed.WithDescription($"Categoria: **{categoriaFiltro}** · {total} total");
+        else
+            embed.WithDescription($"{total} GIFs cadastrados");
 
         var sb = new System.Text.StringBuilder();
+        sb.AppendLine();
         for (int i = 0; i < gifsPagina.Count; i++)
         {
             var gif = gifsPagina[i];
@@ -198,12 +201,27 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
             sb.AppendLine($"**{numero}.** `{gif.Nome}` · @{nomeUsuario} · {data}");
         }
 
-        embed.WithDescription(sb.ToString());
+        var listaStr = sb.ToString();
+        var currentDesc = embed.Description ?? "";
+
+        if (currentDesc.Length + listaStr.Length > 4000)
+        {
+            listaStr = listaStr[..(4000 - currentDesc.Length)] + "\n... (lista truncada)";
+        }
+
+        embed.WithDescription(currentDesc + listaStr);
 
         if (totalPaginas > 1)
         {
-            embed.WithFooter($"Página {page}/{totalPaginas} · Use 'macaco gif list --page {page + 1}' para ver mais");
+            var proximaPagina = page < totalPaginas ? page + 1 : 1;
+            embed.WithFooter($"Página {page}/{totalPaginas} · Próxima: macaco gif list --page {proximaPagina}");
         }
+        else
+        {
+            embed.WithFooter($"Total: {total} GIFs");
+        }
+
+        embed.WithTimestamp(DateTimeOffset.UtcNow);
 
         await ReplyAsync(embed: embed.Build());
     }
