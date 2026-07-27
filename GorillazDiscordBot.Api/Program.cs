@@ -7,6 +7,7 @@ using GorillazDiscordBot;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Data.Repository;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Infra.Repository;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -41,7 +42,8 @@ builder.Services.AddSingleton<DiscordSocketClient>(_ =>
         GatewayIntents = GatewayIntents.Guilds
                        | GatewayIntents.GuildMessages
                        | GatewayIntents.MessageContent
-                       | GatewayIntents.DirectMessages,
+                       | GatewayIntents.DirectMessages
+                       | GatewayIntents.GuildMembers,
         AlwaysDownloadUsers = true,
         MessageCacheSize = 100
     };
@@ -66,6 +68,9 @@ builder.Services.AddHttpClient<ICotacaoService, CotacaoService>(client =>
 builder.Services.AddSingleton(typeof(IMongoRepository<>), typeof(MongoRepository<>));
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
 builder.Services.AddSingleton<IGifRepository, GifRepository>();
+
+// Welcome & Goodbye (in-memory)
+builder.Services.AddSingleton<IGuildWelcomeRepository, GuildWelcomeRepository>();
 
 // Weather Service (OpenWeatherMap)
 builder.Services.AddHttpClient<IWeatherService, WeatherService>(client =>
