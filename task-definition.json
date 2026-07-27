@@ -1,0 +1,35 @@
+{
+  "family": "gorillaz-discord-bot",
+  "taskRoleArn": "arn:aws:iam::137451610933:role/gorillaz-discord-bot-ecs-task-role",
+  "executionRoleArn": "arn:aws:iam::137451610933:role/gorillaz-discord-bot-ecs-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "containerDefinitions": [
+    {
+      "name": "bot",
+      "image": "137451610933.dkr.ecr.us-east-1.amazonaws.com/gorillaz-discord-bot:latest",
+      "essential": true,
+      "environment": [
+        { "name": "DOTNET_ENVIRONMENT", "value": "Production" },
+        { "name": "MONGODB_DATABASE_NAME", "value": "gorillazbot" },
+        { "name": "COMMAND_PREFIX", "value": "macaco " },
+        { "name": "TZ", "value": "America/Sao_Paulo" }
+      ],
+      "secrets": [
+        { "name": "DISCORD_TOKEN", "valueFrom": "arn:aws:secretsmanager:us-east-1:137451610933:secret:gorillaz-discord-bot/discord-token-Sy7OML" },
+        { "name": "OWM_API_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:137451610933:secret:gorillaz-discord-bot/owm-api-key-2o5J5H" },
+        { "name": "MONGODB_CONNECTION_STRING", "valueFrom": "arn:aws:secretsmanager:us-east-1:137451610933:secret:gorillaz-discord-bot/mongodb-connection-WqGVdI" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/gorillaz-discord-bot",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
