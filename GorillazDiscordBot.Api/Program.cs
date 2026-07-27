@@ -1,5 +1,5 @@
 ﻿using AWS.Logger;
-using AWS.Logger.AspNetCore;
+using AWS.Logger.SeriLog;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
@@ -13,12 +13,45 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Events;
 
 var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
 try { DotNetEnv.Env.Load(envPath); }
 catch (FileNotFoundException) { }
 
+var logLevelEnv = Environment.GetEnvironmentVariable("LOG_LEVEL") ?? "Information";
+var logLevel = Enum.TryParse<LogEventLevel>(logLevelEnv, true, out var parsed)
+    ? parsed
+    : LogEventLevel.Information;
+
+var loggerConfig = new LoggerConfiguration()
+    .MinimumLevel.Is(logLevel)
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .Enrich.WithEnvironmentName()
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.File("logs/bot-.log",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 7,
+        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
+
+if (Environment.GetEnvironmentVariable("AWS_LOG_GROUP") is { Length: > 0 } logGroup)
+{
+    var region = Environment.GetEnvironmentVariable("AWS_REGION") ?? "us-east-1";
+    loggerConfig.WriteTo.AWSSeriLog(new AWSLoggerConfig
+    {
+        LogGroup = logGroup,
+        Region = region
+    });
+}
+
+Log.Logger = loggerConfig.CreateLogger();
+
 var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddSerilog();
 
 // Options Pattern
 builder.Services.Configure<BotOptions>(options =>
@@ -79,16 +112,6 @@ builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>
     client.Timeout = TimeSpan.FromSeconds(10);
     client.DefaultRequestHeaders.Add("User-Agent", "GorillazDiscordBot/1.0");
 });
-
-// CloudWatch Logs (opcional — ativar com env AWS_LOG_GROUP)
-if (builder.Configuration.GetValue<string>("AWS_LOG_GROUP") is { Length: > 0 } logGroup)
-{
-    builder.Logging.AddAWSProvider(new AWSLoggerConfig
-    {
-        LogGroup = logGroup,
-        Region = builder.Configuration.GetValue<string>("AWS_REGION") ?? "us-east-1"
-    });
-}
 
 // Hosted Service (gerencia lifecycle do bot)
 builder.Services.AddHostedService<DiscordBotService>();
