@@ -4,12 +4,6 @@ on:
   push:
     branches: [ "dev" ]
 
-env:
-  AWS_REGION: ${{ env.AWS_REGION }}
-  ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
-  ECS_SERVICE: ${{ env.ECS_SERVICE }}
-  ECS_CLUSTER: ${{ env.ECS_CLUSTER }}
-
 permissions:
   contents: read
 
@@ -28,7 +22,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+        aws-region: us-east-1
 
     - name: Login to Amazon ECR
       id: login-ecr
@@ -38,6 +32,7 @@ jobs:
       id: build-image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: gorillaz-discord-bot
         IMAGE_TAG: ${{ github.sha }}
       run: |
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
@@ -49,8 +44,8 @@ jobs:
     - name: Deploy Amazon ECS task definition
       uses: aws-actions/amazon-ecs-deploy-task-definition@v2
       with:
-        task-definition: ${{ env.ECS_TASK_DEFINITION_ARN }}
-        service: ${{ env.ECS_SERVICE }}
-        cluster: ${{ env.ECS_CLUSTER }}
+        task-definition: gorillaz-discord-bot
+        service: gorillaz-discord-bot
+        cluster: gorillaz-discord-bot
         wait-for-service-stability: true
         force-new-deployment: true
