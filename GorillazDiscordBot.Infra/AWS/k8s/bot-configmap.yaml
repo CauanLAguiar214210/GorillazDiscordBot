@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bot-config
+  namespace: gorillaz
+data:
+  MONGODB_DATABASE_NAME: gorillazbot
+  COMMAND_PREFIX: macaco
