@@ -14,7 +14,7 @@ services:
 
   bot:
     build:
-      context: .
+      context: GorillazDiscordBot.Api
       dockerfile: Dockerfile
     container_name: gorillaz-bot
     restart: unless-stopped
