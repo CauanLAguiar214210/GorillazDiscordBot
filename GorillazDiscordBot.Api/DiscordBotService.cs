@@ -67,7 +67,17 @@ public class DiscordBotService : IHostedService
 
     private Task LogAsync(LogMessage log)
     {
-        _logger.LogInformation("[Discord] {message}", log.ToString());
+        var level = log.Severity switch
+        {
+            LogSeverity.Error => LogLevel.Error,
+            LogSeverity.Warning => LogLevel.Warning,
+            LogSeverity.Info => LogLevel.Information,
+            LogSeverity.Verbose => LogLevel.Trace,
+            LogSeverity.Debug => LogLevel.Debug,
+            _ => LogLevel.Information
+        };
+
+        _logger.Log(level, "[Discord] {Message}", log.Message);
         return Task.CompletedTask;
     }
 
