@@ -43,7 +43,8 @@ builder.Services.AddSingleton<DiscordSocketClient>(_ =>
                        | GatewayIntents.GuildMessages
                        | GatewayIntents.MessageContent
                        | GatewayIntents.DirectMessages
-                       | GatewayIntents.GuildMembers,
+                       | GatewayIntents.GuildMembers
+                       | GatewayIntents.GuildVoiceStates,
         AlwaysDownloadUsers = true,
         MessageCacheSize = 100
     };
@@ -71,6 +72,10 @@ builder.Services.AddSingleton<IGifRepository, GifRepository>();
 
 // Welcome & Goodbye (in-memory)
 builder.Services.AddSingleton<IGuildWelcomeRepository, GuildWelcomeRepository>();
+
+// Create-your-own voice channel (in-memory)
+builder.Services.AddSingleton<IGuildVoiceRepository, GuildVoiceRepository>();
+builder.Services.AddSingleton<IVoiceChannelService, VoiceChannelService>();
 
 // Weather Service (OpenWeatherMap)
 builder.Services.AddHttpClient<IWeatherService, WeatherService>(client =>
