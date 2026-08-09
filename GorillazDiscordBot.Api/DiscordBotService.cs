@@ -4,6 +4,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,6 +19,7 @@ public class DiscordBotService : IHostedService
     private readonly ILogger<DiscordBotService> _logger;
     private readonly IServiceProvider _services;
     private readonly IGuildWelcomeRepository _welcomeRepository;
+    private readonly IVoiceChannelService _voiceChannelService;
 
     public DiscordBotService(
         DiscordSocketClient client,
@@ -25,7 +27,8 @@ public class DiscordBotService : IHostedService
         IOptions<BotOptions> botOptions,
         ILogger<DiscordBotService> logger,
         IServiceProvider services,
-        IGuildWelcomeRepository welcomeRepository)
+        IGuildWelcomeRepository welcomeRepository,
+        IVoiceChannelService voiceChannelService)
     {
         _client = client;
         _commands = commands;
@@ -33,6 +36,7 @@ public class DiscordBotService : IHostedService
         _logger = logger;
         _services = services;
         _welcomeRepository = welcomeRepository;
+        _voiceChannelService = voiceChannelService;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -43,6 +47,7 @@ public class DiscordBotService : IHostedService
         _client.MessageReceived += HandleCommandAsync;
         _client.UserJoined += OnUserJoinedAsync;
         _client.UserLeft += OnUserLeftAsync;
+        _client.UserVoiceStateUpdated += OnUserVoiceStateUpdatedAsync;
 
         await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
 
@@ -68,6 +73,7 @@ public class DiscordBotService : IHostedService
         _client.MessageReceived -= HandleCommandAsync;
         _client.UserJoined -= OnUserJoinedAsync;
         _client.UserLeft -= OnUserLeftAsync;
+        _client.UserVoiceStateUpdated -= OnUserVoiceStateUpdatedAsync;
 
         await _client.StopAsync();
         await _client.LogoutAsync();
@@ -183,4 +189,7 @@ public class DiscordBotService : IHostedService
                 user.Username, guild.Name);
         }
     }
+
+    private Task OnUserVoiceStateUpdatedAsync(SocketUser user, SocketVoiceState before, SocketVoiceState after)
+        => _voiceChannelService.OnUserVoiceStateUpdatedAsync(user, before, after);
 }
