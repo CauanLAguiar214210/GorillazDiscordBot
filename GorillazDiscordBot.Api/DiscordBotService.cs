@@ -21,6 +21,7 @@ public class DiscordBotService : IHostedService
     private readonly IServiceProvider _services;
     private readonly ISettingsRepository<GuildWelcomeSettings> _welcomeRepository;
     private readonly IVoiceChannelService _voiceChannelService;
+    private readonly IChatInteractionService _chatInteractionService;
 
     public DiscordBotService(
         DiscordSocketClient client,
@@ -29,7 +30,8 @@ public class DiscordBotService : IHostedService
         ILogger<DiscordBotService> logger,
         IServiceProvider services,
         ISettingsRepository<GuildWelcomeSettings> welcomeRepository,
-        IVoiceChannelService voiceChannelService)
+        IVoiceChannelService voiceChannelService,
+        IChatInteractionService chatInteractionService)
     {
         _client = client;
         _commands = commands;
@@ -38,6 +40,7 @@ public class DiscordBotService : IHostedService
         _services = services;
         _welcomeRepository = welcomeRepository;
         _voiceChannelService = voiceChannelService;
+        _chatInteractionService = chatInteractionService;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -118,6 +121,12 @@ public class DiscordBotService : IHostedService
                 message.Content, result.ErrorReason);
 
             await context.Channel.SendMessageAsync($"Erro: {result.ErrorReason}");
+            return;
+        }
+
+        if (!result.IsSuccess && result.Error == CommandError.UnknownCommand && context.Guild != null)
+        {
+            await _chatInteractionService.TryRespondAsync(context, prefix);
         }
     }
 

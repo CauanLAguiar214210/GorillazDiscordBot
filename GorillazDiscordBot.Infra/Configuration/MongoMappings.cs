@@ -48,6 +48,18 @@ public static class MongoMappings
             map.MapMember(c => c.Categoria).SetElementName("category");
         });
 
+        BsonClassMap.RegisterClassMap<GuildInteraction>(map =>
+        {
+            map.MapIdMember(c => c.Id)
+               .SetSerializer(new StringSerializer(BsonType.ObjectId))
+               .SetIdGenerator(StringObjectIdGenerator.Instance);
+            map.MapMember(c => c.GuildId).SetElementName("guildId");
+            map.MapMember(c => c.Trigger).SetElementName("trigger");
+            map.MapMember(c => c.Response).SetElementName("response");
+            map.MapMember(c => c.AddedBy).SetElementName("addedBy");
+            map.MapMember(c => c.CreatedAt).SetElementName("createdAt");
+        });
+
         RegisterGuildSettings<GuildWelcomeSettings>();
         RegisterGuildSettings<GuildVoiceSettings>();
     }

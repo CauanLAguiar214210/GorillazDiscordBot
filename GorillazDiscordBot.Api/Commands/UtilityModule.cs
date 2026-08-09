@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using GorillazDiscordBot.Domain.Interfaces;
 using System.Text;
 
 namespace GorillazDiscordBot.Commands;
@@ -9,6 +10,7 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
 {
     private readonly CommandService _commandService;
     private readonly DiscordSocketClient _client;
+    private readonly IGuildInteractionRepository _interactionRepository;
     private static readonly Random _random = new();
 
     private static readonly Dictionary<string, (string Name, string Emoji)> _moduleInfo = new()
@@ -18,13 +20,14 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
         ["EconomyModule"] = ("Economia", "💰"),
         ["GifManageModule"] = ("GIFs", "🖼️"),
         ["ApiModule"] = ("APIs Externas", "🌐"),
+        ["GuildModule"] = ("Boas-vindas & Despedidas", "👋"),
+        ["VoiceModule"] = ("Canais de Voz", "🔊"),
+        ["InteractionModule"] = ("Interações", "💬"),
     };
 
     private static readonly Dictionary<string, string> _commandDescriptions = new()
     {
         ["ping"] = "Responde com Pong!",
-        ["mama"] = "Sequência de 'Glub!' até engasgar",
-        ["banana"] = "'Cadê?!' repetido e finalização",
         ["8ball"] = "Bola 8 mágica responde sua pergunta",
         ["gorila"] = "Curiosidade sobre gorilas",
         ["dado"] = "Joga um dado de 6 lados",
@@ -46,12 +49,29 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
         ["horario"] = "Hora atual (UTC)",
         ["contador"] = "Conta de 1 até N",
         ["reversa"] = "Inverte o texto informado",
+        ["welcome"] = "Configura o canal de boas-vindas",
+        ["goodbye"] = "Configura o canal de despedidas",
+        ["welcomemsg"] = "Define a mensagem de boas-vindas",
+        ["goodbyemsg"] = "Define a mensagem de despedida",
+        ["welcome off"] = "Desativa as mensagens de boas-vindas",
+        ["goodbye off"] = "Desativa as mensagens de despedida",
+        ["welcome config"] = "Mostra a configuração de boas-vindas",
+        ["voice setup"] = "Define o canal criador de voz",
+        ["voice off"] = "Desativa a criação automática de canais de voz",
+        ["voice config"] = "Mostra a configuração de canais de voz",
+        ["interaction add"] = "Adiciona uma interação do servidor",
+        ["interaction remove"] = "Remove uma interação do servidor",
+        ["interaction list"] = "Lista as interações do servidor",
     };
 
-    public UtilityModule(CommandService commandService, DiscordSocketClient client)
+    public UtilityModule(
+        CommandService commandService,
+        DiscordSocketClient client,
+        IGuildInteractionRepository interactionRepository)
     {
         _commandService = commandService;
         _client = client;
+        _interactionRepository = interactionRepository;
     }
 
     [Command("ajuda")]
@@ -87,6 +107,21 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
             embed.AddField($"{emoji} {displayName}", sb.ToString(), inline: false);
         }
 
+        if (Context.Guild != null)
+        {
+            var interactions = await _interactionRepository.GetAllAsync(Context.Guild.Id);
+            if (interactions.Count > 0)
+            {
+                var sb = new StringBuilder();
+                foreach (var interaction in interactions.OrderBy(i => i.Trigger))
+                    sb.AppendLine($"`{interaction.Trigger}` → {interaction.Response}");
+
+                embed.AddField("💬 Interações deste servidor", sb.ToString(), inline: false);
+            }
+
+            embed.WithFooter("Dica: use `macaco interaction add <trigger> <resposta>` para criar suas próprias interações!");
+        }
+
         await ReplyAsync(embed: embed.Build());
     }
 
@@ -99,7 +134,28 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
 
         if (cmd == null)
         {
-            await ReplyAsync($"❌ Comando `{comando}` não encontrado.");
+            if (Context.Guild == null)
+            {
+                await ReplyAsync($"❌ Comando `{comando}` não encontrado.");
+                return;
+            }
+
+            var interaction = await _interactionRepository.GetAsync(Context.Guild.Id, comando.ToLowerInvariant());
+            if (interaction == null)
+            {
+                await ReplyAsync($"❌ Comando `{comando}` não encontrado.");
+                return;
+            }
+
+            var interactionEmbed = new EmbedBuilder()
+                .WithColor(new Color(0x5865F2))
+                .WithAuthor($"Interação: {interaction.Trigger}", _client.CurrentUser.GetAvatarUrl())
+                .WithDescription(interaction.Response)
+                .AddField("Uso", $"`macaco {interaction.Trigger}`", inline: false)
+                .WithFooter("Interação configurada neste servidor")
+                .Build();
+
+            await ReplyAsync(embed: interactionEmbed);
             return;
         }
 

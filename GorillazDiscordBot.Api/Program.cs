@@ -73,6 +73,10 @@ builder.Services.AddSingleton<IGifRepository, GifRepository>();
 builder.Services.AddSingleton(typeof(ISettingsRepository<>), typeof(SettingsRepository<>));
 builder.Services.AddSingleton<IVoiceChannelService, VoiceChannelService>();
 
+// Chat interactions por servidor (cache + MongoDB)
+builder.Services.AddSingleton<IGuildInteractionRepository, GuildInteractionRepository>();
+builder.Services.AddSingleton<IChatInteractionService, ChatInteractionService>();
+
 // Weather Service (OpenWeatherMap)
 builder.Services.AddHttpClient<IWeatherService, WeatherService>(client =>
 {
