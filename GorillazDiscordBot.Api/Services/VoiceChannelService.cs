@@ -3,6 +3,7 @@ using System.Text;
 using Discord;
 using Discord.WebSocket;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Entity;
 using Microsoft.Extensions.Logging;
 
 namespace GorillazDiscordBot.Services;
@@ -12,11 +13,11 @@ public class VoiceChannelService : IVoiceChannelService
     private const int MaxChannelNameLength = 100;
     private static readonly TimeSpan DeleteDelay = TimeSpan.FromSeconds(2);
 
-    private readonly IGuildVoiceRepository _voiceRepository;
+    private readonly ISettingsRepository<GuildVoiceSettings> _voiceRepository;
     private readonly ILogger<VoiceChannelService> _logger;
     private readonly ConcurrentDictionary<ulong, ulong> _managedChannels = new();
 
-    public VoiceChannelService(IGuildVoiceRepository voiceRepository, ILogger<VoiceChannelService> logger)
+    public VoiceChannelService(ISettingsRepository<GuildVoiceSettings> voiceRepository, ILogger<VoiceChannelService> logger)
     {
         _voiceRepository = voiceRepository;
         _logger = logger;
@@ -40,7 +41,7 @@ public class VoiceChannelService : IVoiceChannelService
         if (after.VoiceChannel is not SocketVoiceChannel creatorChannel) return;
         if (user is not IGuildUser guildUser) return;
 
-        var settings = _voiceRepository.Get(creatorChannel.Guild.Id);
+        var settings = await _voiceRepository.GetAsync(creatorChannel.Guild.Id);
         if (!settings.Enabled || settings.CreatorChannelId != creatorChannel.Id) return;
 
         if (await CreateAndMoveAsync(guildUser, creatorChannel))

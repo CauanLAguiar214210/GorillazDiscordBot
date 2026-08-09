@@ -1,6 +1,8 @@
+using GorillazDiscordBot.Domain.Interfaces;
+
 namespace GorillazDiscordBot.Entity;
 
-public class GuildWelcomeSettings
+public class GuildWelcomeSettings : IGuildSettings
 {
     public ulong GuildId { get; set; }
     public ulong? WelcomeChannelId { get; set; }

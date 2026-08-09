@@ -1,14 +1,15 @@
 using Discord;
 using Discord.Commands;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Entity;
 
 namespace GorillazDiscordBot.Commands;
 
 public class VoiceModule : ModuleBase<SocketCommandContext>
 {
-    private readonly IGuildVoiceRepository _voiceRepository;
+    private readonly ISettingsRepository<GuildVoiceSettings> _voiceRepository;
 
-    public VoiceModule(IGuildVoiceRepository voiceRepository)
+    public VoiceModule(ISettingsRepository<GuildVoiceSettings> voiceRepository)
     {
         _voiceRepository = voiceRepository;
     }
@@ -29,10 +30,10 @@ public class VoiceModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var settings = _voiceRepository.Get(Context.Guild.Id);
+        var settings = await _voiceRepository.GetAsync(Context.Guild.Id);
         settings.CreatorChannelId = channel.Id;
         settings.Enabled = true;
-        _voiceRepository.Save(settings);
+        await _voiceRepository.SaveAsync(settings);
 
         await ReplyAsync(
             $"✅ Canal criador definido para {channel.Name} e ativado!\n" +
@@ -49,9 +50,9 @@ public class VoiceModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var settings = _voiceRepository.Get(Context.Guild.Id);
+        var settings = await _voiceRepository.GetAsync(Context.Guild.Id);
         settings.Enabled = false;
-        _voiceRepository.Save(settings);
+        await _voiceRepository.SaveAsync(settings);
 
         await ReplyAsync("✅ Criação automática de canais de voz desativada.");
     }
@@ -66,7 +67,7 @@ public class VoiceModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var settings = _voiceRepository.Get(Context.Guild.Id);
+        var settings = await _voiceRepository.GetAsync(Context.Guild.Id);
 
         var status = settings.Enabled ? "🟢 Ativado" : "🔴 Desativado";
         var channelName = settings.CreatorChannelId.HasValue

@@ -1,14 +1,15 @@
 using Discord;
 using Discord.Commands;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Entity;
 
 namespace GorillazDiscordBot.Commands;
 
 public class GuildModule : ModuleBase<SocketCommandContext>
 {
-    private readonly IGuildWelcomeRepository _welcomeRepository;
+    private readonly ISettingsRepository<GuildWelcomeSettings> _welcomeRepository;
 
-    public GuildModule(IGuildWelcomeRepository welcomeRepository)
+    public GuildModule(ISettingsRepository<GuildWelcomeSettings> welcomeRepository)
     {
         _welcomeRepository = welcomeRepository;
     }
@@ -29,10 +30,10 @@ public class GuildModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var settings = _welcomeRepository.Get(Context.Guild.Id);
+        var settings = await _welcomeRepository.GetAsync(Context.Guild.Id);
         settings.WelcomeChannelId = channel.Id;
         settings.WelcomeEnabled = true;
-        _welcomeRepository.Save(settings);
+        await _welcomeRepository.SaveAsync(settings);
 
         await ReplyAsync($"✅ Canal de boas-vindas definido para {channel.Mention} e ativado!");
     }
@@ -53,10 +54,10 @@ public class GuildModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var settings = _welcomeRepository.Get(Context.Guild.Id);
+        var settings = await _welcomeRepository.GetAsync(Context.Guild.Id);
         settings.GoodbyeChannelId = channel.Id;
         settings.GoodbyeEnabled = true;
-        _welcomeRepository.Save(settings);
+        await _welcomeRepository.SaveAsync(settings);
 
         await ReplyAsync($"✅ Canal de despedidas definido para {channel.Mention} e ativado!");
     }
@@ -71,9 +72,9 @@ public class GuildModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var settings = _welcomeRepository.Get(Context.Guild.Id);
+        var settings = await _welcomeRepository.GetAsync(Context.Guild.Id);
         settings.WelcomeMessage = message;
-        _welcomeRepository.Save(settings);
+        await _welcomeRepository.SaveAsync(settings);
 
         await ReplyAsync("✅ Mensagem de boas-vindas atualizada!");
     }
@@ -88,9 +89,9 @@ public class GuildModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var settings = _welcomeRepository.Get(Context.Guild.Id);
+        var settings = await _welcomeRepository.GetAsync(Context.Guild.Id);
         settings.GoodbyeMessage = message;
-        _welcomeRepository.Save(settings);
+        await _welcomeRepository.SaveAsync(settings);
 
         await ReplyAsync("✅ Mensagem de despedida atualizada!");
     }
@@ -105,9 +106,9 @@ public class GuildModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var settings = _welcomeRepository.Get(Context.Guild.Id);
+        var settings = await _welcomeRepository.GetAsync(Context.Guild.Id);
         settings.WelcomeEnabled = false;
-        _welcomeRepository.Save(settings);
+        await _welcomeRepository.SaveAsync(settings);
 
         await ReplyAsync("✅ Mensagens de boas-vindas desativadas.");
     }
@@ -122,9 +123,9 @@ public class GuildModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var settings = _welcomeRepository.Get(Context.Guild.Id);
+        var settings = await _welcomeRepository.GetAsync(Context.Guild.Id);
         settings.GoodbyeEnabled = false;
-        _welcomeRepository.Save(settings);
+        await _welcomeRepository.SaveAsync(settings);
 
         await ReplyAsync("✅ Mensagens de despedida desativadas.");
     }
@@ -139,7 +140,7 @@ public class GuildModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var settings = _welcomeRepository.Get(Context.Guild.Id);
+        var settings = await _welcomeRepository.GetAsync(Context.Guild.Id);
 
         var welcomeStatus = settings.WelcomeEnabled ? "🟢 Ativado" : "🔴 Desativado";
         var goodbyeStatus = settings.GoodbyeEnabled ? "🟢 Ativado" : "🔴 Desativado";
