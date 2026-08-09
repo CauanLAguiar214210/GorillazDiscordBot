@@ -2,6 +2,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.IdGenerators;
 using MongoDB.Bson.Serialization.Serializers;
+using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
 
 namespace GorillazDiscordBot.Infra.Configuration;
@@ -46,5 +47,16 @@ public static class MongoMappings
             map.MapMember(c => c.Texto).SetElementName("text");
             map.MapMember(c => c.Categoria).SetElementName("category");
         });
+
+        RegisterGuildSettings<GuildWelcomeSettings>();
+        RegisterGuildSettings<GuildVoiceSettings>();
+    }
+
+    private static void RegisterGuildSettings<T>()
+    {
+        var classMap = new BsonClassMap(typeof(T));
+        classMap.AutoMap();
+        classMap.SetIdMember(classMap.GetMemberMap(nameof(IGuildSettings.GuildId)));
+        BsonClassMap.RegisterClassMap(classMap);
     }
 }

@@ -7,7 +7,6 @@ using GorillazDiscordBot;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Data.Repository;
 using GorillazDiscordBot.Domain.Interfaces;
-using GorillazDiscordBot.Infra.Repository;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -70,11 +69,8 @@ builder.Services.AddSingleton(typeof(IMongoRepository<>), typeof(MongoRepository
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
 builder.Services.AddSingleton<IGifRepository, GifRepository>();
 
-// Welcome & Goodbye (in-memory)
-builder.Services.AddSingleton<IGuildWelcomeRepository, GuildWelcomeRepository>();
-
-// Create-your-own voice channel (in-memory)
-builder.Services.AddSingleton<IGuildVoiceRepository, GuildVoiceRepository>();
+// Guild settings (cache + MongoDB, um documento por servidor)
+builder.Services.AddSingleton(typeof(ISettingsRepository<>), typeof(SettingsRepository<>));
 builder.Services.AddSingleton<IVoiceChannelService, VoiceChannelService>();
 
 // Weather Service (OpenWeatherMap)

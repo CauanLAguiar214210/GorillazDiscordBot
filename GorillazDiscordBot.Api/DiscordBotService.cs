@@ -4,6 +4,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,7 @@ public class DiscordBotService : IHostedService
     private readonly IOptions<BotOptions> _botOptions;
     private readonly ILogger<DiscordBotService> _logger;
     private readonly IServiceProvider _services;
-    private readonly IGuildWelcomeRepository _welcomeRepository;
+    private readonly ISettingsRepository<GuildWelcomeSettings> _welcomeRepository;
     private readonly IVoiceChannelService _voiceChannelService;
 
     public DiscordBotService(
@@ -27,7 +28,7 @@ public class DiscordBotService : IHostedService
         IOptions<BotOptions> botOptions,
         ILogger<DiscordBotService> logger,
         IServiceProvider services,
-        IGuildWelcomeRepository welcomeRepository,
+        ISettingsRepository<GuildWelcomeSettings> welcomeRepository,
         IVoiceChannelService voiceChannelService)
     {
         _client = client;
@@ -124,7 +125,7 @@ public class DiscordBotService : IHostedService
     {
         try
         {
-            var settings = _welcomeRepository.Get(user.Guild.Id);
+            var settings = await _welcomeRepository.GetAsync(user.Guild.Id);
 
             if (!settings.WelcomeEnabled || !settings.WelcomeChannelId.HasValue)
                 return;
@@ -159,7 +160,7 @@ public class DiscordBotService : IHostedService
     {
         try
         {
-            var settings = _welcomeRepository.Get(guild.Id);
+            var settings = await _welcomeRepository.GetAsync(guild.Id);
 
             if (!settings.GoodbyeEnabled || !settings.GoodbyeChannelId.HasValue)
                 return;
