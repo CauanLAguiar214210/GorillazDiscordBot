@@ -9,22 +9,6 @@ public class FunModule : ModuleBase<SocketCommandContext>
     [Command("ping")]
     public async Task PingAsync() => await ReplyAsync("Pong!");
 
-    [Command("mama")]
-    public async Task MamaAsync()
-    {
-        for (int i = 0; i < 10; i++)
-            await ReplyAsync("Glub!");
-        await ReplyAsync("Engasguei!");
-    }
-
-    [Command("banana")]
-    public async Task BananaAsync()
-    {
-        for (int i = 0; i < 3; i++)
-            await ReplyAsync("Cadê?!");
-        await ReplyAsync("Bananinha gostosa?!");
-    }
-
     [Command("8ball")]
     public async Task EightBallAsync([Remainder] string pergunta)
     {
