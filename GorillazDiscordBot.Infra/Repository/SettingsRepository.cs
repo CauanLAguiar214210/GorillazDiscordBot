@@ -19,12 +19,6 @@ public class SettingsRepository<T> : MongoRepository<T>, ISettingsRepository<T>
         _logger = logger;
     }
 
-    internal SettingsRepository(IMongoCollection<T> collection, ILogger<SettingsRepository<T>> logger)
-        : base(collection)
-    {
-        _logger = logger;
-    }
-
     public async Task<T> GetAsync(ulong guildId)
     {
         if (_cache.TryGetValue(guildId, out var cached))

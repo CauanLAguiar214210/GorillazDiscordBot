@@ -14,10 +14,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="GorillazDiscordBot.Tests" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\GorillazDiscordBot.Domain\GorillazDiscordBot.Domain.csproj" />
   </ItemGroup>
 

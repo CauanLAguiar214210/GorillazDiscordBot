@@ -87,7 +87,7 @@ public class PrefixModule : ModuleBase<SocketCommandContext>
         await ReplyAsync($"✅ Prefixo resetado! Voltou ao padrão global: `{defaultPrefix}`");
     }
 
-    internal string GetCurrentPrefix(GuildPrefixSettings settings)
+    private string GetCurrentPrefix(GuildPrefixSettings settings)
         => !string.IsNullOrWhiteSpace(settings.Prefix)
             ? settings.Prefix
             : _botOptions.Value.CommandPrefix;
