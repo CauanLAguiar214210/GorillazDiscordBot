@@ -108,7 +108,7 @@ public class DiscordBotService : IHostedService
         int argPos = 0;
         var prefix = _botOptions.Value.CommandPrefix;
 
-        if (!message.HasStringPrefix(prefix, ref argPos) &&
+        if (!message.HasStringPrefix(prefix, ref argPos, StringComparison.OrdinalIgnoreCase) &&
             !message.HasMentionPrefix(_client.CurrentUser, ref argPos))
             return;
 
