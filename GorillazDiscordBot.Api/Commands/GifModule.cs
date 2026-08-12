@@ -1,4 +1,3 @@
-using Discord;
 using Discord.Commands;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services.Interfaces;
@@ -8,8 +7,6 @@ namespace GorillazDiscordBot.Commands;
 [Group("gif")]
 public class GifManageModule : ModuleBase<SocketCommandContext>
 {
-    private const int MaxListItems = 15;
-
     private readonly IGifRepository _gifRepository;
     private readonly IGifUrlService _gifUrlService;
 
@@ -22,40 +19,15 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
     [Command]
     public async Task GifRouterAsync([Remainder] string input)
     {
-        if (Context.Guild == null)
-        {
-            await ReplyAsync("⚠️ Os comandos de GIF devem ser usados dentro de um servidor.");
-            return;
-        }
-
         if (string.IsNullOrWhiteSpace(input))
         {
-            await ReplyAsync("📖 Use: `gif <nome>`, `gif add <nome> <url>`, `gif random`, `gif list` ou `gif remove <nome>`");
+            await ReplyAsync("📖 Use: `macaco gif <nome>`, `macaco gif add <nome> <url>`, ou `macaco gif random`");
             return;
         }
 
         if (input.Equals("random", StringComparison.OrdinalIgnoreCase))
         {
             await SendRandomGifAsync();
-            return;
-        }
-
-        if (input.Equals("list", StringComparison.OrdinalIgnoreCase))
-        {
-            await ListGifsAsync();
-            return;
-        }
-
-        if (input.StartsWith("remove ", StringComparison.OrdinalIgnoreCase))
-        {
-            var nome = input[7..].Trim();
-            if (nome.Length == 0)
-            {
-                await ReplyAsync("⚠️ Use: `gif remove <nome>`");
-                return;
-            }
-
-            await RemoveGifAsync(nome);
             return;
         }
 
@@ -71,7 +43,7 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
             }
             else
             {
-                await ReplyAsync("⚠️ Use: `gif add <nome> <url>`");
+                await ReplyAsync("⚠️ Use: `macaco gif add <nome> <url>`");
             }
             return;
         }
@@ -83,12 +55,11 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
     {
         if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(url))
         {
-            await ReplyAsync("⚠️ Use: `gif add <nome> <url>`");
+            await ReplyAsync("⚠️ Use: `macaco gif add <nome> <url>`");
             return;
         }
 
-        var guildId = Context.Guild.Id;
-        var existente = await _gifRepository.GetByNomeAsync(guildId, nome);
+        var existente = await _gifRepository.GetByNomeAsync(nome);
         if (existente != null)
         {
             await ReplyAsync($"⚠️ Já existe um GIF com o nome `{nome}`.");
@@ -108,7 +79,6 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
 
         var gif = new Entity.Gif
         {
-            GuildId = guildId,
             Nome = nome,
             Url = resolvedUrl,
             AddedBy = Context.User.Id,
@@ -119,60 +89,19 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
         await ReplyAsync($"✅ GIF `{nome}` adicionado com sucesso!");
     }
 
-    private async Task RemoveGifAsync(string nome)
-    {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para remover GIFs.");
-            return;
-        }
-
-        var removed = await _gifRepository.RemoveAsync(Context.Guild.Id, nome);
-
-        if (removed)
-            await ReplyAsync($"✅ GIF `{nome}` removido do servidor!");
-        else
-            await ReplyAsync($"❓ GIF `{nome}` não encontrado neste servidor.");
-    }
-
-    private async Task ListGifsAsync()
-    {
-        var gifs = await _gifRepository.GetAllAsync(Context.Guild.Id);
-
-        if (gifs.Count == 0)
-        {
-            await ReplyAsync("📭 Nenhum GIF encontrado neste servidor. Use `gif add <nome> <url>` para adicionar.");
-            return;
-        }
-
-        var embed = new EmbedBuilder()
-            .WithTitle("🖼️ GIFs deste servidor")
-            .WithColor(Color.Blue);
-
-        foreach (var gif in gifs.Take(MaxListItems))
-            embed.AddField(gif.Nome, gif.Url, false);
-
-        if (gifs.Count > MaxListItems)
-            embed.WithFooter($"Mostrando os primeiros {MaxListItems} de {gifs.Count} GIFs · {Context.Guild.Name}");
-        else
-            embed.WithFooter($"Total: {gifs.Count} GIFs · {Context.Guild.Name}");
-
-        await ReplyAsync(embed: embed.Build());
-    }
-
     private async Task SendRandomGifAsync()
     {
-        var gif = await _gifRepository.GetRandomAsync(Context.Guild.Id);
+        var gif = await _gifRepository.GetRandomAsync();
 
         if (gif != null)
             await ReplyAsync(gif.Url);
         else
-            await ReplyAsync("📭 Nenhum GIF cadastrado ainda. Use `gif add <nome> <url>` para adicionar.");
+            await ReplyAsync("📭 Nenhum GIF cadastrado ainda. Use `macaco gif add <nome> <url>` para adicionar.");
     }
 
     private async Task SearchGifAsync(string nome)
     {
-        var gif = await _gifRepository.GetByNomeAsync(Context.Guild.Id, nome);
+        var gif = await _gifRepository.GetByNomeAsync(nome);
 
         if (gif != null)
         {
@@ -180,10 +109,10 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var gifs = await _gifRepository.GetAllAsync(Context.Guild.Id);
+        var gifs = await _gifRepository.GetAllAsync();
         if (gifs.Count == 0)
         {
-            await ReplyAsync("📭 Nenhum GIF encontrado. Use `gif add <nome> <url>` para adicionar.");
+            await ReplyAsync("📭 Nenhum GIF encontrado. Use `macaco gif add <nome> <url>` para adicionar.");
             return;
         }
 
@@ -202,9 +131,4 @@ public class GifManageModule : ModuleBase<SocketCommandContext>
             await ReplyAsync($"❓ GIF `{nome}` não encontrado.");
         }
     }
-
-    private bool HasPermission()
-        => Context.Guild != null &&
-           Context.User is IGuildUser guildUser &&
-           (guildUser.GuildPermissions.ManageGuild || guildUser.GuildPermissions.Administrator);
 }
