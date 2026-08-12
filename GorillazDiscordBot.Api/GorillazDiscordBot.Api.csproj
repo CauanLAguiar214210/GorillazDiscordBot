@@ -25,6 +25,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="GorillazDiscordBot.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update=".env" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

@@ -7,21 +7,29 @@ namespace GorillazDiscordBot.Data.Repository;
 
 public class MongoRepository<T> : IMongoRepository<T> where T : class
 {
-    private readonly IMongoCollection<T> _collection;
-
-    public IMongoCollection<T> Collection => _collection;
+    public IMongoCollection<T> Collection { get; }
 
     public MongoRepository(IOptions<MongoOptions> options)
+        : this(CreateCollection(options))
+    {
+    }
+
+    protected MongoRepository(IMongoCollection<T> collection)
+    {
+        Collection = collection;
+    }
+
+    private static IMongoCollection<T> CreateCollection(IOptions<MongoOptions> options)
     {
         MongoMappings.Register();
         var client = new MongoClient(options.Value.ConnectionString);
         var database = client.GetDatabase(options.Value.DatabaseName);
-        _collection = database.GetCollection<T>(typeof(T).Name);
+        return database.GetCollection<T>(typeof(T).Name);
     }
 
     public async Task<List<T>> GetAllAsync()
-        => await _collection.Find(_ => true).ToListAsync();
+        => await Collection.Find(_ => true).ToListAsync();
 
     public async Task CreateAsync(T entity)
-        => await _collection.InsertOneAsync(entity);
+        => await Collection.InsertOneAsync(entity);
 }
