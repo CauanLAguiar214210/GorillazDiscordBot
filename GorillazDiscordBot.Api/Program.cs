@@ -53,17 +53,6 @@ builder.Services.AddSingleton<DiscordSocketClient>(_ =>
 // Command Service (singleton)
 builder.Services.AddSingleton<CommandService>();
 
-// HTTP Clients via IHttpClientFactory (typed)
-builder.Services.AddHttpClient<IFOneService, FOneService>(client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(10);
-});
-
-builder.Services.AddHttpClient<ICotacaoService, CotacaoService>(client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(10);
-});
-
 // Repository Pattern (MongoDB)
 builder.Services.AddSingleton(typeof(IMongoRepository<>), typeof(MongoRepository<>));
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
@@ -76,12 +65,6 @@ builder.Services.AddSingleton<IVoiceChannelService, VoiceChannelService>();
 // Chat interactions por servidor (cache + MongoDB)
 builder.Services.AddSingleton<IGuildInteractionRepository, GuildInteractionRepository>();
 builder.Services.AddSingleton<IChatInteractionService, ChatInteractionService>();
-
-// Weather Service (OpenWeatherMap)
-builder.Services.AddHttpClient<IWeatherService, WeatherService>(client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(10);
-});
 
 // GIF URL Normalization
 builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>
