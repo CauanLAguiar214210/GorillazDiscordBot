@@ -62,6 +62,7 @@ public static class MongoMappings
 
         RegisterGuildSettings<GuildWelcomeSettings>();
         RegisterGuildSettings<GuildVoiceSettings>();
+        RegisterGuildSettings<GuildPrefixSettings>();
     }
 
     private static void RegisterGuildSettings<T>()
