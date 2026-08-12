@@ -20,6 +20,7 @@ public class DiscordBotService : IHostedService
     private readonly ILogger<DiscordBotService> _logger;
     private readonly IServiceProvider _services;
     private readonly ISettingsRepository<GuildWelcomeSettings> _welcomeRepository;
+    private readonly ISettingsRepository<GuildPrefixSettings> _prefixRepository;
     private readonly IVoiceChannelService _voiceChannelService;
     private readonly IChatInteractionService _chatInteractionService;
 
@@ -30,6 +31,7 @@ public class DiscordBotService : IHostedService
         ILogger<DiscordBotService> logger,
         IServiceProvider services,
         ISettingsRepository<GuildWelcomeSettings> welcomeRepository,
+        ISettingsRepository<GuildPrefixSettings> prefixRepository,
         IVoiceChannelService voiceChannelService,
         IChatInteractionService chatInteractionService)
     {
@@ -39,6 +41,7 @@ public class DiscordBotService : IHostedService
         _logger = logger;
         _services = services;
         _welcomeRepository = welcomeRepository;
+        _prefixRepository = prefixRepository;
         _voiceChannelService = voiceChannelService;
         _chatInteractionService = chatInteractionService;
     }
@@ -106,7 +109,7 @@ public class DiscordBotService : IHostedService
         if (message.Author.IsBot) return;
 
         int argPos = 0;
-        var prefix = _botOptions.Value.CommandPrefix;
+        var prefix = await GetPrefixAsync(message);
 
         if (!message.HasStringPrefix(prefix, ref argPos, StringComparison.OrdinalIgnoreCase) &&
             !message.HasMentionPrefix(_client.CurrentUser, ref argPos))
@@ -128,6 +131,18 @@ public class DiscordBotService : IHostedService
         {
             await _chatInteractionService.TryRespondAsync(context, prefix);
         }
+    }
+
+    private async Task<string> GetPrefixAsync(SocketUserMessage message)
+    {
+        if (message.Channel is SocketGuildChannel guildChannel)
+        {
+            var settings = await _prefixRepository.GetAsync(guildChannel.Guild.Id);
+            if (!string.IsNullOrWhiteSpace(settings.Prefix))
+                return settings.Prefix;
+        }
+
+        return _botOptions.Value.CommandPrefix;
     }
 
     private async Task OnUserJoinedAsync(SocketGuildUser user)
