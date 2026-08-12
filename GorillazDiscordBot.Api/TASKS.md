@@ -112,7 +112,7 @@
 
 ## 📋 Checklist de Arquitetura Futura
 
-- [ ] Adicionar prefixo configurável por servidor (salvar no MongoDB)
+- [x] Adicionar prefixo configurável por servidor (salvar no MongoDB)
 - [ ] Adicionar cooldown por comando
 - [ ] Adicionar `[RequireUserPermission]` nos comandos de moderação
 - [ ] Separar GIFs NSFW em módulo com restrição de canal
