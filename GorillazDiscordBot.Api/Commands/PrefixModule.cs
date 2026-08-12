@@ -62,7 +62,7 @@ public class PrefixModule : ModuleBase<SocketCommandContext>
         }
 
         var settings = await _prefixRepository.GetAsync(Context.Guild.Id);
-        settings.Prefix = prefixo;
+        settings.Prefix = prefixo + " ";
         await _prefixRepository.SaveAsync(settings);
 
         await ReplyAsync(

@@ -125,66 +125,6 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
         await ReplyAsync(embed: embed.Build());
     }
 
-    [Command("ajuda")]
-    public async Task AjudaAsync(string comando)
-    {
-        var cmd = _commandService.Commands
-            .FirstOrDefault(c => c.Aliases.Any(a =>
-                a.Equals(comando, StringComparison.OrdinalIgnoreCase)));
-
-        if (cmd == null)
-        {
-            if (Context.Guild == null)
-            {
-                await ReplyAsync($"❌ Comando `{comando}` não encontrado.");
-                return;
-            }
-
-            var interaction = await _interactionRepository.GetAsync(Context.Guild.Id, comando.ToLowerInvariant());
-            if (interaction == null)
-            {
-                await ReplyAsync($"❌ Comando `{comando}` não encontrado.");
-                return;
-            }
-
-            var interactionEmbed = new EmbedBuilder()
-                .WithColor(new Color(0x5865F2))
-                .WithAuthor($"Interação: {interaction.Trigger}", _client.CurrentUser.GetAvatarUrl())
-                .WithDescription(interaction.Response)
-                .AddField("Uso", $"`macaco {interaction.Trigger}`", inline: false)
-                .WithFooter("Interação configurada neste servidor")
-                .Build();
-
-            await ReplyAsync(embed: interactionEmbed);
-            return;
-        }
-
-        var name = cmd.Aliases.FirstOrDefault() ?? cmd.Name;
-        var desc = _commandDescriptions.GetValueOrDefault(name, "Sem descrição");
-        var aliases = cmd.Aliases.Where(a => a != name).ToList();
-        var usage = cmd.Parameters.Count > 0
-            ? $"`macaco {name} {string.Join(" ", cmd.Parameters.Select(p => $"<{p.Name}>"))}`"
-            : $"`macaco {name}`";
-
-        var embed = new EmbedBuilder()
-            .WithColor(new Color(0x5865F2))
-            .WithAuthor($"Comando: {name}", _client.CurrentUser.GetAvatarUrl())
-            .WithDescription(desc)
-            .AddField("Uso", usage, inline: false);
-
-        if (aliases.Count > 0)
-            embed.AddField("Aliases", string.Join(", ", aliases.Select(a => $"`{a}`")), inline: true);
-
-        if (cmd.Parameters.Count > 0)
-        {
-            var paramList = string.Join("\n", cmd.Parameters.Select(p =>
-                $"`{p.Name}` — {(string.IsNullOrEmpty(p.Summary) ? "Sem descrição" : p.Summary)}"));
-            embed.AddField("Parâmetros", paramList, inline: false);
-        }
-
-        await ReplyAsync(embed: embed.Build());
-    }
-
     [Command("userinfo")]
     public async Task UserInfoAsync()
     {

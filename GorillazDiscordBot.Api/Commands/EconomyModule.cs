@@ -31,7 +31,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("saldo")]
-    [Alias("coins")]
+    [Alias("carteira")]
     public async Task SaldoAsync()
     {
         var user = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
@@ -39,8 +39,14 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("bet")]
-    public async Task BetAsync(int quantia)
+    public async Task BetAsync(string valor)
     {
+        if (!int.TryParse(valor, out int quantia))
+        {
+            await ReplyAsync("⚠️ Informe um valor numérico Inteiro. Exemplo: `bet 100`");
+            return;
+        }
+
         if (quantia <= 0)
         {
             await ReplyAsync("⚠️ A aposta deve ser um valor positivo.");
@@ -72,6 +78,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("pagar")]
+    [Alias("pay")]
     public async Task PagarAsync(IUser receiver, int quantia)
     {
         if (quantia <= 0)
@@ -108,6 +115,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("ranking")]
+    [Alias("rank")]
     public async Task RankingAsync()
     {
         var top = await _userRepository.GetTopUsersAsync(10);
