@@ -35,6 +35,7 @@ public static class MongoMappings
             map.MapMember(c => c.Nome).SetElementName("nome");
             map.MapMember(c => c.Url).SetElementName("url");
             map.MapMember(c => c.Categoria).SetElementName("categoria");
+            map.MapMember(c => c.GuildId).SetElementName("guildId");
             map.MapMember(c => c.AddedBy).SetElementName("addedBy");
             map.MapMember(c => c.AddedAt).SetElementName("addedAt");
         });
