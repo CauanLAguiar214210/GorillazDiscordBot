@@ -8,10 +8,33 @@ permissions:
   contents: read
 
 jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Restore
+      run: dotnet restore GorillazDiscordBot.sln
+
+    - name: Build
+      run: dotnet build GorillazDiscordBot.sln -c Release --no-restore
+
+    - name: Test
+      run: dotnet test GorillazDiscordBot.sln -c Release --no-build
+
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     environment: production
+    needs: build-and-test
 
     steps:
     - name: Checkout
@@ -49,6 +72,10 @@ jobs:
         OWM_API_KEY_ARN: ${{ vars.OWM_API_KEY_ARN }}
         MONGODB_CONN_ARN: ${{ vars.MONGODB_CONN_ARN }}
       run: |
+        : "${AWS_ACCOUNT_ID:?AWS_ACCOUNT_ID variable nao configurado}"
+        : "${DISCORD_TOKEN_ARN:?DISCORD_TOKEN_ARN variable nao configurado}"
+        : "${OWM_API_KEY_ARN:?OWM_API_KEY_ARN variable nao configurado}"
+        : "${MONGODB_CONN_ARN:?MONGODB_CONN_ARN variable nao configurado}"
         envsubst < task-definition.template.json > task-definition.json
 
     - name: Render Amazon ECS task definition
