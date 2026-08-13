@@ -1,7 +1,7 @@
 {
   "family": "gorillaz-discord-bot",
-  "taskRoleArn": "arn:aws:iam::000000000000:role/gorillaz-discord-bot-ecs-task-role",
-  "executionRoleArn": "arn:aws:iam::000000000000:role/gorillaz-discord-bot-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/gorillaz-discord-bot-ecs-task-role",
+  "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/gorillaz-discord-bot-ecs-execution-role",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "256",
@@ -9,7 +9,7 @@
   "containerDefinitions": [
     {
       "name": "bot",
-      "image": "000000000000.dkr.ecr.us-east-1.amazonaws.com/gorillaz-discord-bot:latest",
+      "image": "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/gorillaz-discord-bot:latest",
       "essential": true,
       "environment": [
         { "name": "DOTNET_ENVIRONMENT", "value": "Production" },
@@ -18,9 +18,9 @@
         { "name": "TZ", "value": "America/Sao_Paulo" }
       ],
       "secrets": [
-        { "name": "DISCORD_TOKEN", "valueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:gorillaz-discord-bot/discord-token-PLACEHOLDER" },
-        { "name": "OWM_API_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:gorillaz-discord-bot/owm-api-key-PLACEHOLDER" },
-        { "name": "MONGODB_CONNECTION_STRING", "valueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:gorillaz-discord-bot/mongodb-connection-PLACEHOLDER" }
+        { "name": "DISCORD_TOKEN", "valueFrom": "${DISCORD_TOKEN_ARN}" },
+        { "name": "OWM_API_KEY", "valueFrom": "${OWM_API_KEY_ARN}" },
+        { "name": "MONGODB_CONNECTION_STRING", "valueFrom": "${MONGODB_CONN_ARN}" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",

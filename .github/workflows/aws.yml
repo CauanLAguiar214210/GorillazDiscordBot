@@ -41,6 +41,16 @@ jobs:
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
+    - name: Render task definition from template
+      id: render-template
+      env:
+        AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        DISCORD_TOKEN_ARN: ${{ secrets.DISCORD_TOKEN_ARN }}
+        OWM_API_KEY_ARN: ${{ secrets.OWM_API_KEY_ARN }}
+        MONGODB_CONN_ARN: ${{ secrets.MONGODB_CONN_ARN }}
+      run: |
+        envsubst < task-definition.template.json > task-definition.json
+
     - name: Render Amazon ECS task definition
       id: task-def
       uses: aws-actions/amazon-ecs-render-task-definition@v1
