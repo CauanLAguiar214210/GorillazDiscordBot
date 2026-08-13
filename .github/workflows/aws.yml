@@ -7,34 +7,20 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
-  build-and-test:
-    name: Build & Test
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '9.0.x'
-
-    - name: Restore
-      run: dotnet restore GorillazDiscordBot.sln
-
-    - name: Build
-      run: dotnet build GorillazDiscordBot.sln -c Release --no-restore
-
-    - name: Test
-      run: dotnet test GorillazDiscordBot.sln -c Release --no-build
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
 
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     environment: production
-    needs: build-and-test
+    needs: ci
 
     steps:
     - name: Checkout
@@ -51,18 +37,20 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build, tag, and push image to Amazon ECR
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and push image to Amazon ECR
       id: build-image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: gorillaz-discord-bot
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ steps.login-ecr.outputs.registry }}/gorillaz-discord-bot:${{ github.sha }}
+          ${{ steps.login-ecr.outputs.registry }}/gorillaz-discord-bot:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: Render task definition from template
       id: render-template
@@ -84,7 +72,7 @@ jobs:
       with:
         task-definition: task-definition.json
         container-name: bot
-        image: ${{ steps.build-image.outputs.image }}
+        image: ${{ steps.login-ecr.outputs.registry }}/gorillaz-discord-bot:${{ github.sha }}
 
     - name: Deploy Amazon ECS task definition
       uses: aws-actions/amazon-ecs-deploy-task-definition@v2

@@ -1,8 +1,9 @@
 name: CI
 
 on:
+  workflow_call:
   push:
-    branches: [ "master", "dev" ]
+    branches: [ "dev" ]
   pull_request:
     branches: [ "master" ]
 
@@ -22,6 +23,7 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '9.0.x'
+        cache: true
 
     - name: Restore
       run: dotnet restore GorillazDiscordBot.sln
