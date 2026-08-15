@@ -4,7 +4,6 @@ Bot do Discord em **.NET 9** com comandos de prefixo e interações por servidor
 
 [![CI](https://github.com/CauanLAguiar214210/GorillazDiscordBot/actions/workflows/ci.yml/badge.svg)](https://github.com/CauanLAguiar214210/GorillazDiscordBot/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download/dotnet/9.0)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Recursos
 
