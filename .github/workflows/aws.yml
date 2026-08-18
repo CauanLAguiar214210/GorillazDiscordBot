@@ -3,7 +3,17 @@ name: Deploy to Amazon ECS
 on:
   push:
     branches: [ "master" ]
-
+    paths:
+      - 'GorillazDiscordBot.Api/**'
+      - 'GorillazDiscordBot.Domain/**'
+      - 'GorillazDiscordBot.Infra/Repository/**'
+      - 'GorillazDiscordBot.Infra/Services/**'
+      - 'GorillazDiscordBot.Infra/Configuration/**'
+      - 'GorillazDiscordBot.Tests/**'
+      - 'GorillazDiscordBot.sln'
+      - 'Dockerfile'
+      - 'task-definition.template.json'
+      
 permissions:
   contents: read
 
