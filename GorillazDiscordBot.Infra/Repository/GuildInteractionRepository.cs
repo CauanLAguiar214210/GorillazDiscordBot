@@ -12,8 +12,7 @@ public class GuildInteractionRepository : MongoRepository<GuildInteraction>, IGu
 {
     private static readonly (string Trigger, string Response)[] DefaultInteractions =
     {
-        ("mama", "Glub! Glub! Glub! Glub! Glub! Glub! Glub! Glub! Glub! Glub!\nEngasguei!"),
-        ("banana", "Cadê?! Cadê?! Cadê?!\nBananinha gostosa?!")
+        ("banana", "Cadê?! Cadê?! Cadê?!")
     };
 
     private readonly ConcurrentDictionary<ulong, ConcurrentDictionary<string, GuildInteraction>> _cache = new();
