@@ -104,9 +104,6 @@ docker compose up --build
 | `ajuda` | Lista todos os comandos do bot |
 | `daily` / `saldo` / `bet` / `pagar` / `ranking` | Economia |
 | `gif <categoria>` | Sorteia um GIF |
-| `tempo <cidade>` | Previsão do tempo (OpenWeatherMap) |
-| `cotacao` | Cotação de moedas |
-| `f1` | Classificação de pilotos de F1 |
 | `8ball <pergunta>` | Bola 8 mágica |
 | `welcome` / `goodbye` | Configura boas-vindas e despedidas |
 | `voice setup` | Criação automática de canais de voz |
