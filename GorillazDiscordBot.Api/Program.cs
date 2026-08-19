@@ -85,6 +85,7 @@ if (builder.Configuration.GetValue<string>("AWS_LOG_GROUP") is { Length: > 0 } l
 
 // Hosted Service (gerencia lifecycle do bot)
 builder.Services.AddHostedService<DiscordBotService>();
+builder.Services.AddHostedService<BankTaxService>();
 
 var host = builder.Build();
 await host.RunAsync();
