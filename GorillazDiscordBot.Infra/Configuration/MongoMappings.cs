@@ -23,7 +23,8 @@ public static class MongoMappings
                .SetIdGenerator(StringObjectIdGenerator.Instance);
             map.MapMember(c => c.UserId).SetElementName("UserId");
             map.MapMember(c => c.Username).SetElementName("Username");
-            map.MapMember(c => c.Points).SetElementName("Points");
+            map.MapMember(c => c.Money).SetElementName("Money");
+            map.MapMember(c => c.Bank).SetElementName("Bank");
             map.MapMember(c => c.LastDailyClaim).SetElementName("LastDailyClaim");
         });
 

@@ -27,7 +27,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        await ReplyAsync($"💰 **Daily resgatado!** +100 moedas. Saldo atual: **{newBalance}**");
+        await ReplyAsync($"💰 **Daily resgatado!** +100 moedas na carteira. Saldo atual: **{newBalance}**");
     }
 
     [Command("saldo")]
@@ -35,7 +35,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     public async Task SaldoAsync()
     {
         var user = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
-        await ReplyAsync($"💰 **{Context.User.Username}**, seu saldo é **{user.Points} moedas**.");
+        await ReplyAsync($"💰 **{Context.User.Username}**, seu saldo é **{user.Money} moedas** na carteira.");
     }
 
     [Command("bet")]
@@ -55,9 +55,9 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
         var user = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
 
-        if (user.Points < quantia)
+        if (user.Money < quantia)
         {
-            await ReplyAsync("❌ Você não tem moedas suficientes.");
+            await ReplyAsync("❌ Você não tem moedas suficientes na carteira.");
             return;
         }
 
@@ -65,15 +65,15 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
         if (win)
         {
-            await _userRepository.AddPointsAsync(Context.User.Id, quantia);
+            await _userRepository.AddMoneyAsync(Context.User.Id, quantia);
             var updated = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
-            await ReplyAsync($"🎉 **Você ganhou!** +{quantia} moedas! Saldo: **{updated.Points}**");
+            await ReplyAsync($"🎉 **Você ganhou!** +{quantia} moedas! Saldo: **{updated.Money}**");
         }
         else
         {
-            await _userRepository.AddPointsAsync(Context.User.Id, -quantia);
+            await _userRepository.AddMoneyAsync(Context.User.Id, -quantia);
             var updated = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
-            await ReplyAsync($"😢 **Você perdeu!** -{quantia} moedas! Saldo: **{updated.Points}**");
+            await ReplyAsync($"😢 **Você perdeu!** -{quantia} moedas! Saldo: **{updated.Money}**");
         }
     }
 
@@ -101,17 +101,79 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
         var sender = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
 
-        if (sender.Points < quantia)
+        if (sender.Money < quantia)
         {
-            await ReplyAsync("❌ Você não tem moedas suficientes.");
+            await ReplyAsync("❌ Você não tem moedas suficientes na carteira.");
             return;
         }
 
-        await _userRepository.AddPointsAsync(Context.User.Id, -quantia);
+        await _userRepository.AddMoneyAsync(Context.User.Id, -quantia);
         await _userRepository.GetOrCreateAsync(receiver.Id, receiver.Username);
-        await _userRepository.AddPointsAsync(receiver.Id, quantia);
+        await _userRepository.AddMoneyAsync(receiver.Id, quantia);
 
         await ReplyAsync($"💸 **{Context.User.Username}** pagou **{quantia} moedas** para **{receiver.Username}**!");
+    }
+
+    [Command("depositar")]
+    [Alias("dep", "deposit")]
+    public async Task DepositarAsync(string valor)
+    {
+        if (!int.TryParse(valor, out int quantia))
+        {
+            await ReplyAsync("⚠️ Informe um valor numérico. Exemplo: `depositar 100`");
+            return;
+        }
+
+        if (quantia <= 0)
+        {
+            await ReplyAsync("⚠️ O valor deve ser positivo.");
+            return;
+        }
+
+        var (success, wallet, bank) = await _userRepository.DepositAsync(Context.User.Id, quantia);
+
+        if (!success)
+        {
+            await ReplyAsync("❌ Você não tem moedas suficientes na carteira para depositar.");
+            return;
+        }
+
+        await ReplyAsync($"🏦 **{Context.User.Username}** depositou **{quantia} moedas** no banco!\nCarteira: **{wallet}** | Banco: **{bank}**");
+    }
+
+    [Command("sacar")]
+    [Alias("withdraw", "wd")]
+    public async Task SacarAsync(string valor)
+    {
+        if (!int.TryParse(valor, out int quantia))
+        {
+            await ReplyAsync("⚠️ Informe um valor numérico. Exemplo: `sacar 100`");
+            return;
+        }
+
+        if (quantia <= 0)
+        {
+            await ReplyAsync("⚠️ O valor deve ser positivo.");
+            return;
+        }
+
+        var (success, wallet, bank) = await _userRepository.WithdrawAsync(Context.User.Id, quantia);
+
+        if (!success)
+        {
+            await ReplyAsync("❌ Você não tem moedas suficientes no banco para sacar.");
+            return;
+        }
+
+        await ReplyAsync($"🏧 **{Context.User.Username}** sacou **{quantia} moedas** do banco!\nCarteira: **{wallet}** | Banco: **{bank}**");
+    }
+
+    [Command("banco")]
+    [Alias("bank", "banksaldo")]
+    public async Task BancoAsync()
+    {
+        var user = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
+        await ReplyAsync($"🏦 **{Context.User.Username}**\nCarteira: **{user.Money}** moedas\nBanco: **{user.Bank}** moedas");
     }
 
     [Command("ranking")]
@@ -138,7 +200,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
                 3 => "🥉",
                 _ => $"{pos}º"
             };
-            sb.AppendLine($"{medal} **{u.Username}** — {u.Points} moedas");
+            sb.AppendLine($"{medal} **{u.Username}** — {u.Money} moedas");
             pos++;
         }
 
