@@ -2,13 +2,13 @@ using System.Text;
 using Discord;
 using Discord.Commands;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands;
 
 public class EconomyModule : ModuleBase<SocketCommandContext>
 {
     private readonly IUserRepository _userRepository;
-    private static readonly Random _random = new();
 
     public EconomyModule(IUserRepository userRepository)
     {
@@ -41,15 +41,9 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Command("bet")]
     public async Task BetAsync(string valor)
     {
-        if (!int.TryParse(valor, out int quantia))
+        if (!EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
         {
-            await ReplyAsync("⚠️ Informe um valor numérico Inteiro. Exemplo: `bet 100`");
-            return;
-        }
-
-        if (quantia <= 0)
-        {
-            await ReplyAsync("⚠️ A aposta deve ser um valor positivo.");
+            await ReplyAsync(error!);
             return;
         }
 
@@ -61,7 +55,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        bool win = _random.Next(2) == 0;
+        bool win = Random.Shared.Next(2) == 0;
 
         if (win)
         {
@@ -118,15 +112,9 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Alias("dep", "deposit")]
     public async Task DepositarAsync(string valor)
     {
-        if (!int.TryParse(valor, out int quantia))
+        if (!EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
         {
-            await ReplyAsync("⚠️ Informe um valor numérico. Exemplo: `depositar 100`");
-            return;
-        }
-
-        if (quantia <= 0)
-        {
-            await ReplyAsync("⚠️ O valor deve ser positivo.");
+            await ReplyAsync(error!);
             return;
         }
 
@@ -145,15 +133,9 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Alias("withdraw", "wd")]
     public async Task SacarAsync(string valor)
     {
-        if (!int.TryParse(valor, out int quantia))
+        if (!EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
         {
-            await ReplyAsync("⚠️ Informe um valor numérico. Exemplo: `sacar 100`");
-            return;
-        }
-
-        if (quantia <= 0)
-        {
-            await ReplyAsync("⚠️ O valor deve ser positivo.");
+            await ReplyAsync(error!);
             return;
         }
 

@@ -2,6 +2,7 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Utils;
 using System.Text;
 
 namespace GorillazDiscordBot.Commands;
@@ -11,7 +12,6 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
     private readonly CommandService _commandService;
     private readonly DiscordSocketClient _client;
     private readonly IGuildInteractionRepository _interactionRepository;
-    private static readonly Random _random = new();
 
     private static readonly Dictionary<string, (string Name, string Emoji)> _moduleInfo = new()
     {
@@ -86,10 +86,9 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
             .ToList();
 
         var embed = new EmbedBuilder()
-            .WithColor(new Color(0x5865F2))
+            .WithBlurpleTheme()
             .WithAuthor($"{_client.CurrentUser.Username} — Comandos", _client.CurrentUser.GetAvatarUrl())
-            .WithFooter($"Use {mention} <comando> para mais detalhes")
-            .WithTimestamp(DateTimeOffset.UtcNow);
+            .WithStandardFooter($"Use {mention} <comando> para mais detalhes");
 
         foreach (var module in modules)
         {
@@ -145,7 +144,7 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        int numero = _random.Next(min, max + 1);
+        int numero = Random.Shared.Next(min, max + 1);
         await ReplyAsync($"🎲 Número aleatório entre {min} e {max}: **{numero}**");
     }
 
@@ -174,12 +173,10 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
     [Command("serverinfo")]
     public async Task ServerInfoAsync()
     {
-        var guild = Context.Guild;
-        if (guild == null)
-        {
-            await ReplyAsync("Este comando só pode ser usado dentro de um servidor.");
+        if (!await CommandGuards.GuardGuildOnlyAsync(Context))
             return;
-        }
+
+        var guild = Context.Guild;
 
         var info = new StringBuilder();
         info.AppendLine($"🏰 Nome do servidor: {guild.Name}");

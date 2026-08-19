@@ -4,6 +4,7 @@ using Discord;
 using Discord.Commands;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
+using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands;
 
@@ -23,17 +24,11 @@ public class InteractionModule : ModuleBase<SocketCommandContext>
     [Summary("Adiciona uma interação do servidor. Uso: macaco interaction add <trigger> <resposta>")]
     public async Task InteractionAddAsync(string trigger, [Remainder] string response)
     {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para usar este comando.");
+        if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
-        }
 
-        if (Context.Guild == null)
-        {
-            await ReplyAsync("Este comando só pode ser usado dentro de um servidor.");
+        if (!await CommandGuards.GuardGuildOnlyAsync(Context))
             return;
-        }
 
         trigger = trigger.ToLowerInvariant();
         if (!TriggerRegex.IsMatch(trigger))
@@ -72,17 +67,11 @@ public class InteractionModule : ModuleBase<SocketCommandContext>
     [Summary("Remove uma interação do servidor. Uso: macaco interaction remove <trigger>")]
     public async Task InteractionRemoveAsync(string trigger)
     {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para usar este comando.");
+        if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
-        }
 
-        if (Context.Guild == null)
-        {
-            await ReplyAsync("Este comando só pode ser usado dentro de um servidor.");
+        if (!await CommandGuards.GuardGuildOnlyAsync(Context))
             return;
-        }
 
         trigger = trigger.ToLowerInvariant();
         var removed = await _interactionRepository.RemoveAsync(Context.Guild.Id, trigger);
@@ -99,11 +88,8 @@ public class InteractionModule : ModuleBase<SocketCommandContext>
     [Summary("Lista as interações configuradas no servidor")]
     public async Task InteractionListAsync()
     {
-        if (Context.Guild == null)
-        {
-            await ReplyAsync("Este comando só pode ser usado dentro de um servidor.");
+        if (!await CommandGuards.GuardGuildOnlyAsync(Context))
             return;
-        }
 
         var interactions = await _interactionRepository.GetAllAsync(Context.Guild.Id);
 
@@ -119,16 +105,11 @@ public class InteractionModule : ModuleBase<SocketCommandContext>
 
         var embed = new EmbedBuilder()
             .WithTitle("💬 Interações do servidor")
-            .WithColor(Color.Gold)
+            .WithGoldTheme()
             .WithDescription(sb.ToString())
-            .WithFooter($"Total: {interactions.Count} · Use macaco interaction add <trigger> <resposta>")
+            .WithStandardFooter($"Total: {interactions.Count} · Use macaco interaction add <trigger> <resposta>")
             .Build();
 
         await ReplyAsync(embed: embed);
     }
-
-    private bool HasPermission()
-        => Context.Guild != null &&
-           Context.User is IGuildUser guildUser &&
-           (guildUser.GuildPermissions.ManageGuild || guildUser.GuildPermissions.Administrator);
 }

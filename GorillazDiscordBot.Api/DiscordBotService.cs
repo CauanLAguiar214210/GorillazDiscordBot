@@ -6,6 +6,7 @@ using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Services;
+using GorillazDiscordBot.Utils;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -157,18 +158,18 @@ public class DiscordBotService : IHostedService
             var channel = user.Guild.GetTextChannel(settings.WelcomeChannelId.Value);
             if (channel == null) return;
 
-            var message = settings.WelcomeMessage
-                .Replace("{user}", user.Mention)
-                .Replace("{server}", user.Guild.Name)
-                .Replace("{count}", user.Guild.MemberCount.ToString());
+            var message = MessageTemplateResolver.Resolve(
+                settings.WelcomeMessage,
+                userMention: user.Mention,
+                serverName: user.Guild.Name,
+                memberCount: user.Guild.MemberCount);
 
             var embed = new EmbedBuilder()
                 .WithTitle("🟢 Bem-vindo(a)!")
                 .WithDescription(message)
                 .WithColor(Color.Green)
                 .WithThumbnailUrl(user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl())
-                .WithFooter($"Membro nº {user.Guild.MemberCount}")
-                .WithTimestamp(DateTimeOffset.UtcNow)
+                .WithStandardFooter($"Membro nº {user.Guild.MemberCount}")
                 .Build();
 
             await channel.SendMessageAsync(embed: embed);
@@ -192,18 +193,18 @@ public class DiscordBotService : IHostedService
             var channel = guild.GetTextChannel(settings.GoodbyeChannelId.Value);
             if (channel == null) return;
 
-            var message = settings.GoodbyeMessage
-                .Replace("{user}", user.Username)
-                .Replace("{server}", guild.Name)
-                .Replace("{count}", guild.MemberCount.ToString());
+            var message = MessageTemplateResolver.Resolve(
+                settings.GoodbyeMessage,
+                userMention: user.Username,
+                serverName: guild.Name,
+                memberCount: guild.MemberCount);
 
             var embed = new EmbedBuilder()
                 .WithTitle("🔴 Adeus!")
                 .WithDescription(message)
                 .WithColor(Color.Red)
                 .WithThumbnailUrl(user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl())
-                .WithFooter($"Membros restantes: {guild.MemberCount}")
-                .WithTimestamp(DateTimeOffset.UtcNow)
+                .WithStandardFooter($"Membros restantes: {guild.MemberCount}")
                 .Build();
 
             await channel.SendMessageAsync(embed: embed);
