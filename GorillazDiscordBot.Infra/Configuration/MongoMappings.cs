@@ -40,15 +40,6 @@ public static class MongoMappings
             map.MapMember(c => c.AddedAt).SetElementName("addedAt");
         });
 
-        BsonClassMap.RegisterClassMap<Joke>(map =>
-        {
-            map.MapIdMember(c => c.Id)
-               .SetSerializer(new StringSerializer(BsonType.ObjectId))
-               .SetIdGenerator(StringObjectIdGenerator.Instance);
-            map.MapMember(c => c.Texto).SetElementName("text");
-            map.MapMember(c => c.Categoria).SetElementName("category");
-        });
-
         BsonClassMap.RegisterClassMap<GuildInteraction>(map =>
         {
             map.MapIdMember(c => c.Id)
