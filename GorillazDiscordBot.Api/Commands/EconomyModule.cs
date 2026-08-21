@@ -2,6 +2,7 @@ using System.Text;
 using Discord;
 using Discord.Commands;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands;
 
@@ -34,7 +35,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     public async Task SaldoAsync()
     {
         var user = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
-        await ReplyAsync($"💰 **{Context.User.Username}**, seu saldo é **{user.Money} moedas** na carteira.");
+        await ReplyAsync($"💰 **{Context.User.GetDisplayName()}**, seu saldo é **{user.Money} moedas** na carteira.");
     }
 
     [Command("bet")]
@@ -104,7 +105,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         await _userRepository.GetOrCreateAsync(receiver.Id, receiver.Username);
         await _userRepository.AddMoneyAsync(receiver.Id, quantia);
 
-        await ReplyAsync($"💸 **{Context.User.Username}** pagou **{quantia} moedas** para **{receiver.Username}**!");
+        await ReplyAsync($"💸 **{Context.User.GetDisplayName()}** pagou **{quantia} moedas** para **{receiver.GetDisplayName()}**!");
     }
 
     [Command("depositar")]
@@ -125,7 +126,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        await ReplyAsync($"🏦 **{Context.User.Username}** depositou **{quantia} moedas** no banco!\nCarteira: **{wallet}** | Banco: **{bank}**");
+        await ReplyAsync($"🏦 **{Context.User.GetDisplayName()}** depositou **{quantia} moedas** no banco!\nCarteira: **{wallet}** | Banco: **{bank}**");
     }
 
     [Command("sacar")]
@@ -146,7 +147,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        await ReplyAsync($"🏧 **{Context.User.Username}** sacou **{quantia} moedas** do banco!\nCarteira: **{wallet}** | Banco: **{bank}**");
+        await ReplyAsync($"🏧 **{Context.User.GetDisplayName()}** sacou **{quantia} moedas** do banco!\nCarteira: **{wallet}** | Banco: **{bank}**");
     }
 
     [Command("banco")]
@@ -154,7 +155,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     public async Task BancoAsync()
     {
         var user = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
-        await ReplyAsync($"🏦 **{Context.User.Username}**\nCarteira: **{user.Money}** moedas\nBanco: **{user.Bank}** moedas");
+        await ReplyAsync($"🏦 **{Context.User.GetDisplayName()}**\nCarteira: **{user.Money}** moedas\nBanco: **{user.Bank}** moedas");
     }
 
     [Command("ranking")]

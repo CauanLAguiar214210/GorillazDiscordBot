@@ -177,7 +177,7 @@ public class DiscordBotService : IHostedService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao enviar boas-vindas para {user} no servidor {guild}",
-                user.Username, user.Guild.Name);
+                user.GetDisplayName(), user.Guild.Name);
         }
     }
 
@@ -195,7 +195,7 @@ public class DiscordBotService : IHostedService
 
             var message = MessageTemplateResolver.Resolve(
                 settings.GoodbyeMessage,
-                userMention: user.Username,
+                userMention: user.GetDisplayName(),
                 serverName: guild.Name,
                 memberCount: guild.MemberCount);
 
@@ -212,7 +212,7 @@ public class DiscordBotService : IHostedService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao enviar despedida para {user} no servidor {guild}",
-                user.Username, guild.Name);
+                user.GetDisplayName(), guild.Name);
         }
     }
 

@@ -4,6 +4,7 @@ using Discord;
 using Discord.WebSocket;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
+using GorillazDiscordBot.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace GorillazDiscordBot.Services;
@@ -32,7 +33,7 @@ public class VoiceChannelService : IVoiceChannelService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro ao processar mudança de voz de {user}", user.Username);
+            _logger.LogError(ex, "Erro ao processar mudança de voz de {user}", user.GetDisplayName());
         }
     }
 
@@ -48,14 +49,14 @@ public class VoiceChannelService : IVoiceChannelService
         {
             _logger.LogInformation(
                 "Canal de voz criado para {user} em {guild}",
-                guildUser.Username, creatorChannel.Guild.Name);
+                user.GetDisplayName(), creatorChannel.Guild.Name);
         }
     }
 
     private async Task<bool> CreateAndMoveAsync(IGuildUser user, SocketVoiceChannel creatorChannel)
     {
         var guild = creatorChannel.Guild;
-        var name = BuildChannelName(user.Nickname ?? user.DisplayName ?? user.Username);
+        var name = BuildChannelName(user.GetDisplayName());
         name = ResolveUniqueName(guild, name);
 
         var channel = (IVoiceChannel)await guild.CreateVoiceChannelAsync(name, properties =>
@@ -80,7 +81,7 @@ public class VoiceChannelService : IVoiceChannelService
         {
             _managedChannels.TryRemove(channel.Id, out _);
             await SafeDeleteAsync(channel);
-            _logger.LogWarning(ex, "Não foi possível mover {user} para {channel}", user.Username, channel.Name);
+            _logger.LogWarning(ex, "Não foi possível mover {user} para {channel}", user.GetDisplayName(), channel.Name);
             return false;
         }
     }

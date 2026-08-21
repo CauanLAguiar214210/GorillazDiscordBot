@@ -167,7 +167,7 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
     {
         user ??= Context.User;
         var avatarUrl = user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl();
-        await ReplyAsync($"{user.Username}'s avatar: {avatarUrl}");
+        await ReplyAsync($"{user.GetDisplayName()}'s avatar: {avatarUrl}");
     }
 
     [Command("serverinfo")]
