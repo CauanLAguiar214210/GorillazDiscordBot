@@ -2,6 +2,7 @@ using Discord;
 using Discord.Commands;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
+using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands;
@@ -9,10 +10,49 @@ namespace GorillazDiscordBot.Commands;
 public class VoiceModule : ModuleBase<SocketCommandContext>
 {
     private readonly ISettingsRepository<GuildVoiceSettings> _voiceRepository;
+    private readonly IVoicePresenceService _voicePresence;
 
-    public VoiceModule(ISettingsRepository<GuildVoiceSettings> voiceRepository)
+    public VoiceModule(ISettingsRepository<GuildVoiceSettings> voiceRepository, IVoicePresenceService voicePresence)
     {
         _voiceRepository = voiceRepository;
+        _voicePresence = voicePresence;
+    }
+
+    [Command("join")]
+    [Summary("Entra no seu canal de voz e permanece lá. Uso: macaco join")]
+    public async Task JoinAsync(IVoiceChannel? channel = null)
+    {
+        if (!await CommandGuards.GuardGuildOnlyAsync(Context))
+            return;
+
+        var targetChannel = channel ?? (Context.User as IGuildUser)?.VoiceChannel;
+        if (targetChannel == null)
+        {
+            await ReplyAsync("❌ Entre em um canal de voz e use `macaco join`, ou use `macaco join <#canal>`.");
+            return;
+        }
+
+        var (success, error) = await _voicePresence.JoinAsync(Context.Guild, targetChannel);
+        if (!success)
+        {
+            await ReplyAsync($"❌ Não consegui entrar em **{targetChannel.Name}**: {error}");
+            return;
+        }
+
+        await ReplyAsync(
+            $"✅ Entrei em **{targetChannel.Name}** e vou ficar por aqui!\n" +
+            "Digite o nome de um som cadastrado (`macaco som list`) para eu tocar.");
+    }
+
+    [Command("leave")]
+    [Summary("Sai do canal de voz")]
+    public async Task LeaveAsync()
+    {
+        if (!await CommandGuards.GuardGuildOnlyAsync(Context))
+            return;
+
+        await _voicePresence.LeaveAsync(Context.Guild);
+        await ReplyAsync("👋 Saí do canal de voz.");
     }
 
     [Command("voice setup")]

@@ -52,9 +52,25 @@ public static class MongoMappings
             map.MapMember(c => c.CreatedAt).SetElementName("createdAt");
         });
 
+        BsonClassMap.RegisterClassMap<GuildSoundInteraction>(map =>
+        {
+            map.MapIdMember(c => c.Id)
+               .SetSerializer(new StringSerializer(BsonType.ObjectId))
+               .SetIdGenerator(StringObjectIdGenerator.Instance);
+            map.MapMember(c => c.GuildId).SetElementName("guildId");
+            map.MapMember(c => c.Trigger).SetElementName("trigger");
+            map.MapMember(c => c.FileName).SetElementName("fileName");
+            map.MapMember(c => c.GridFsId).SetElementName("gridFsId");
+            map.MapMember(c => c.FileLengthBytes).SetElementName("fileLengthBytes");
+            map.MapMember(c => c.ContentType).SetElementName("contentType");
+            map.MapMember(c => c.AddedBy).SetElementName("addedBy");
+            map.MapMember(c => c.CreatedAt).SetElementName("createdAt");
+        });
+
         RegisterGuildSettings<GuildWelcomeSettings>();
         RegisterGuildSettings<GuildVoiceSettings>();
         RegisterGuildSettings<GuildPrefixSettings>();
+        RegisterGuildSettings<GuildVoicePresenceSettings>();
     }
 
     private static void RegisterGuildSettings<T>()

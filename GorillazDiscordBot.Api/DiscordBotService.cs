@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.InteropServices;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
@@ -24,6 +25,8 @@ public class DiscordBotService : IHostedService
     private readonly ISettingsRepository<GuildPrefixSettings> _prefixRepository;
     private readonly IVoiceChannelService _voiceChannelService;
     private readonly IChatInteractionService _chatInteractionService;
+    private readonly IVoicePresenceService _voicePresenceService;
+    private readonly ISoundTriggerService _soundTriggerService;
 
     public DiscordBotService(
         DiscordSocketClient client,
@@ -34,7 +37,9 @@ public class DiscordBotService : IHostedService
         ISettingsRepository<GuildWelcomeSettings> welcomeRepository,
         ISettingsRepository<GuildPrefixSettings> prefixRepository,
         IVoiceChannelService voiceChannelService,
-        IChatInteractionService chatInteractionService)
+        IChatInteractionService chatInteractionService,
+        IVoicePresenceService voicePresenceService,
+        ISoundTriggerService soundTriggerService)
     {
         _client = client;
         _commands = commands;
@@ -45,13 +50,18 @@ public class DiscordBotService : IHostedService
         _prefixRepository = prefixRepository;
         _voiceChannelService = voiceChannelService;
         _chatInteractionService = chatInteractionService;
+        _voicePresenceService = voicePresenceService;
+        _soundTriggerService = soundTriggerService;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        CheckAudioNativeLibraries();
+
         _client.Log += LogAsync;
         _commands.Log += LogAsync;
         _client.Ready += ReadyAsync;
+        _client.Connected += OnResumedAsync;
         _client.MessageReceived += HandleCommandAsync;
         _client.UserJoined += OnUserJoinedAsync;
         _client.UserLeft += OnUserLeftAsync;
@@ -78,6 +88,7 @@ public class DiscordBotService : IHostedService
 
         _client.Log -= LogAsync;
         _client.Ready -= ReadyAsync;
+        _client.Connected -= OnResumedAsync;
         _client.MessageReceived -= HandleCommandAsync;
         _client.UserJoined -= OnUserJoinedAsync;
         _client.UserLeft -= OnUserLeftAsync;
@@ -85,6 +96,39 @@ public class DiscordBotService : IHostedService
 
         await _client.StopAsync();
         await _client.LogoutAsync();
+    }
+
+    private void CheckAudioNativeLibraries()
+    {
+        foreach (var library in new[] { "libsodium", "opus" })
+        {
+            if (CanLoadNativeLibrary(library)) continue;
+
+            _logger.LogWarning(
+                "Biblioteca nativa '{library}' não encontrada. Os recursos de áudio/voz não funcionarão. " +
+                "Em desenvolvimento Windows, coloque a DLL junto ao executável ou rode via Docker.",
+                library);
+        }
+    }
+
+    private static bool CanLoadNativeLibrary(string library)
+    {
+        var candidates = OperatingSystem.IsWindows()
+            ? new[] { library }
+            : new[]
+            {
+                library,
+                $"{library}.so",
+                $"{library}.so.0",
+                $"{library}.so.1",
+                $"{library}.so.23",
+                $"lib{library}.so",
+                $"lib{library}.so.0",
+                $"lib{library}.so.1",
+                $"lib{library}.so.23"
+            };
+
+        return candidates.Any(candidate => NativeLibrary.TryLoad(candidate, out _));
     }
 
     private Task LogAsync(LogMessage log)
@@ -100,37 +144,73 @@ public class DiscordBotService : IHostedService
             _client.CurrentUser.Username,
             _client.CurrentUser.Discriminator);
 
+        _ = RunReconnectAllAsync();
         return Task.CompletedTask;
     }
 
-    private async Task HandleCommandAsync(SocketMessage arg)
+    private Task OnResumedAsync()
     {
-        if (arg is not SocketUserMessage message) return;
-        if (string.IsNullOrWhiteSpace(message.Content)) return;
-        if (message.Author.IsBot) return;
+        _ = RunReconnectAllAsync();
+        return Task.CompletedTask;
+    }
 
-        int argPos = 0;
-        var prefix = await GetPrefixAsync(message);
-
-        if (!message.HasStringPrefix(prefix, ref argPos, StringComparison.OrdinalIgnoreCase) &&
-            !message.HasMentionPrefix(_client.CurrentUser, ref argPos))
-            return;
-
-        var context = new SocketCommandContext(_client, message);
-        var result = await _commands.ExecuteAsync(context, argPos, _services);
-
-        if (!result.IsSuccess && result.Error != CommandError.UnknownCommand)
+    private async Task RunReconnectAllAsync()
+    {
+        try
         {
-            _logger.LogWarning("Erro ao executar comando '{command}': {error}",
-                message.Content, result.ErrorReason);
-
-            await context.Channel.SendMessageAsync($"Erro: {result.ErrorReason}");
-            return;
+            await _voicePresenceService.ReconnectAllAsync();
         }
-
-        if (!result.IsSuccess && result.Error == CommandError.UnknownCommand && context.Guild != null)
+        catch (Exception ex)
         {
-            await _chatInteractionService.TryRespondAsync(context, prefix);
+            _logger.LogError(ex, "Erro ao reconectar canais de voz salvos");
+        }
+    }
+
+    private Task HandleCommandAsync(SocketMessage arg)
+    {
+        if (arg is not SocketUserMessage message) return Task.CompletedTask;
+        if (string.IsNullOrWhiteSpace(message.Content)) return Task.CompletedTask;
+        if (message.Author.IsBot) return Task.CompletedTask;
+
+        _ = Task.Run(() => HandleCommandInternalAsync(message));
+
+        return Task.CompletedTask;
+    }
+
+    private async Task HandleCommandInternalAsync(SocketUserMessage message)
+    {
+        try
+        {
+            int argPos = 0;
+            var prefix = await GetPrefixAsync(message);
+
+            if (!message.HasStringPrefix(prefix, ref argPos, StringComparison.OrdinalIgnoreCase) &&
+                !message.HasMentionPrefix(_client.CurrentUser, ref argPos))
+                return;
+
+            var context = new SocketCommandContext(_client, message);
+            var result = await _commands.ExecuteAsync(context, argPos, _services);
+
+            if (!result.IsSuccess && result.Error != CommandError.UnknownCommand)
+            {
+                _logger.LogWarning("Erro ao executar comando '{command}': {error}",
+                    message.Content, result.ErrorReason);
+
+                await context.Channel.SendMessageAsync($"Erro: {result.ErrorReason}");
+                return;
+            }
+
+            if (!result.IsSuccess && result.Error == CommandError.UnknownCommand && context.Guild != null)
+            {
+                if (await _chatInteractionService.TryRespondAsync(context, prefix))
+                    return;
+
+                await _soundTriggerService.TryPlayAsync(message);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro não tratado ao processar mensagem '{content}'", message.Content);
         }
     }
 
@@ -216,6 +296,9 @@ public class DiscordBotService : IHostedService
         }
     }
 
-    private Task OnUserVoiceStateUpdatedAsync(SocketUser user, SocketVoiceState before, SocketVoiceState after)
-        => _voiceChannelService.OnUserVoiceStateUpdatedAsync(user, before, after);
+    private async Task OnUserVoiceStateUpdatedAsync(SocketUser user, SocketVoiceState before, SocketVoiceState after)
+    {
+        await _voiceChannelService.OnUserVoiceStateUpdatedAsync(user, before, after);
+        await _voicePresenceService.OnBotVoiceStateUpdatedAsync(user, before, after);
+    }
 }

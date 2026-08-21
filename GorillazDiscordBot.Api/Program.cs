@@ -6,6 +6,7 @@ using Discord.WebSocket;
 using GorillazDiscordBot;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Data.Repository;
+using GorillazDiscordBot.Data.Services;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Services.Interfaces;
@@ -45,7 +46,12 @@ builder.Services.AddSingleton<DiscordSocketClient>(_ =>
                        | GatewayIntents.GuildMembers
                        | GatewayIntents.GuildVoiceStates,
         AlwaysDownloadUsers = true,
-        MessageCacheSize = 100
+        MessageCacheSize = 100,
+        EnableVoiceDaveEncryption = true,
+        LogLevel = Enum.TryParse<LogSeverity>(
+            Environment.GetEnvironmentVariable("DISCORD_LOG_LEVEL"), ignoreCase: true, out var severity)
+            ? severity
+            : LogSeverity.Info
     };
     return new DiscordSocketClient(config);
 });
@@ -65,6 +71,18 @@ builder.Services.AddSingleton<IVoiceChannelService, VoiceChannelService>();
 // Chat interactions por servidor (cache + MongoDB)
 builder.Services.AddSingleton<IGuildInteractionRepository, GuildInteractionRepository>();
 builder.Services.AddSingleton<IChatInteractionService, ChatInteractionService>();
+
+// Sons de áudio (GridFS + presença em canal de voz + fila de reprodução)
+builder.Services.AddSingleton<ISoundInteractionRepository, GuildSoundInteractionRepository>();
+builder.Services.AddSingleton<IAudioFileStorage, GridFSAudioStorage>();
+builder.Services.AddSingleton<IVoicePresenceService, VoicePresenceService>();
+builder.Services.AddSingleton<IAudioPlaybackService, AudioPlaybackService>();
+builder.Services.AddSingleton<ISoundTriggerService, SoundTriggerService>();
+builder.Services.AddHttpClient("SoundDownload", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.Add("User-Agent", "GorillazDiscordBot/1.0");
+});
 
 // GIF URL Normalization
 builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>

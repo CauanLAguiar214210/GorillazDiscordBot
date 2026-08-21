@@ -69,6 +69,8 @@ public class VoiceChannelService : IVoiceChannelService
             new OverwritePermissions(viewChannel: PermValue.Deny, connect: PermValue.Deny));
         await channel.AddPermissionOverwriteAsync(user,
             new OverwritePermissions(viewChannel: PermValue.Allow, connect: PermValue.Allow));
+        await channel.AddPermissionOverwriteAsync(guild.CurrentUser,
+            new OverwritePermissions(viewChannel: PermValue.Allow, connect: PermValue.Allow));
 
         _managedChannels[channel.Id] = user.Id;
 
