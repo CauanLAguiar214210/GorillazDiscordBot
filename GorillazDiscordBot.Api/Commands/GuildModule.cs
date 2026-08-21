@@ -2,6 +2,7 @@ using Discord;
 using Discord.Commands;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
+using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands;
 
@@ -18,11 +19,8 @@ public class GuildModule : ModuleBase<SocketCommandContext>
     [Summary("Configura o canal de boas-vindas. Uso: macaco welcome #canal")]
     public async Task WelcomeAsync(ITextChannel? channel = null)
     {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para usar este comando.");
+        if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
-        }
 
         if (channel == null)
         {
@@ -42,11 +40,8 @@ public class GuildModule : ModuleBase<SocketCommandContext>
     [Summary("Configura o canal de despedidas. Uso: macaco goodbye #canal")]
     public async Task GoodbyeAsync(ITextChannel? channel = null)
     {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para usar este comando.");
+        if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
-        }
 
         if (channel == null)
         {
@@ -66,11 +61,8 @@ public class GuildModule : ModuleBase<SocketCommandContext>
     [Summary("Define a mensagem de boas-vindas. Variáveis: {user}, {server}, {count}")]
     public async Task WelcomeMessageAsync([Remainder] string message)
     {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para usar este comando.");
+        if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
-        }
 
         var settings = await _welcomeRepository.GetAsync(Context.Guild.Id);
         settings.WelcomeMessage = message;
@@ -83,11 +75,8 @@ public class GuildModule : ModuleBase<SocketCommandContext>
     [Summary("Define a mensagem de despedida. Variáveis: {user}, {server}, {count}")]
     public async Task GoodbyeMessageAsync([Remainder] string message)
     {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para usar este comando.");
+        if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
-        }
 
         var settings = await _welcomeRepository.GetAsync(Context.Guild.Id);
         settings.GoodbyeMessage = message;
@@ -100,11 +89,8 @@ public class GuildModule : ModuleBase<SocketCommandContext>
     [Summary("Desativa as mensagens de boas-vindas")]
     public async Task WelcomeOffAsync()
     {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para usar este comando.");
+        if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
-        }
 
         var settings = await _welcomeRepository.GetAsync(Context.Guild.Id);
         settings.WelcomeEnabled = false;
@@ -117,11 +103,8 @@ public class GuildModule : ModuleBase<SocketCommandContext>
     [Summary("Desativa as mensagens de despedida")]
     public async Task GoodbyeOffAsync()
     {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para usar este comando.");
+        if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
-        }
 
         var settings = await _welcomeRepository.GetAsync(Context.Guild.Id);
         settings.GoodbyeEnabled = false;
@@ -134,40 +117,23 @@ public class GuildModule : ModuleBase<SocketCommandContext>
     [Summary("Mostra a configuração atual de boas-vindas e despedidas")]
     public async Task WelcomeConfigAsync()
     {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para usar este comando.");
+        if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
-        }
 
         var settings = await _welcomeRepository.GetAsync(Context.Guild.Id);
 
-        var welcomeStatus = settings.WelcomeEnabled ? "🟢 Ativado" : "🔴 Desativado";
-        var goodbyeStatus = settings.GoodbyeEnabled ? "🟢 Ativado" : "🔴 Desativado";
-        var welcomeChannel = settings.WelcomeChannelId.HasValue
-            ? $"<#{settings.WelcomeChannelId.Value}>"
-            : "Não definido";
-        var goodbyeChannel = settings.GoodbyeChannelId.HasValue
-            ? $"<#{settings.GoodbyeChannelId.Value}>"
-            : "Não definido";
-
         var embed = new EmbedBuilder()
             .WithTitle("⚙️ Configuração de Boas-vindas & Despedidas")
-            .WithColor(Color.Gold)
-            .AddField("Boas-vindas", welcomeStatus, true)
-            .AddField("Canal", welcomeChannel, true)
+            .WithGoldTheme()
+            .WithStatus("Boas-vindas", settings.WelcomeEnabled)
+            .WithChannelField("Canal", settings.WelcomeChannelId, Context.Guild)
             .AddField("Mensagem", settings.WelcomeMessage, false)
-            .AddField("Despedidas", goodbyeStatus, true)
-            .AddField("Canal", goodbyeChannel, true)
+            .WithStatus("Despedidas", settings.GoodbyeEnabled)
+            .WithChannelField("Canal", settings.GoodbyeChannelId, Context.Guild)
             .AddField("Mensagem", settings.GoodbyeMessage, false)
             .WithFooter("Use {user}, {server}, {count} nas mensagens")
             .Build();
 
         await ReplyAsync(embed: embed);
     }
-
-    private bool HasPermission()
-        => Context.Guild != null &&
-           Context.User is IGuildUser guildUser &&
-           (guildUser.GuildPermissions.ManageGuild || guildUser.GuildPermissions.Administrator);
 }

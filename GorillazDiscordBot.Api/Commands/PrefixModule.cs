@@ -3,6 +3,7 @@ using Discord.Commands;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
+using GorillazDiscordBot.Utils;
 using Microsoft.Extensions.Options;
 
 namespace GorillazDiscordBot.Commands;
@@ -26,11 +27,8 @@ public class PrefixModule : ModuleBase<SocketCommandContext>
     [Summary("Mostra o prefixo de comandos deste servidor")]
     public async Task PrefixAsync()
     {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para usar este comando.");
+        if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
-        }
 
         var settings = await _prefixRepository.GetAsync(Context.Guild.Id);
         var current = GetCurrentPrefix(settings);
@@ -42,11 +40,8 @@ public class PrefixModule : ModuleBase<SocketCommandContext>
     [Summary("Define um novo prefixo de comandos para este servidor")]
     public async Task PrefixSetAsync([Remainder] string novoPrefix)
     {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para usar este comando.");
+        if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
-        }
 
         var prefixo = novoPrefix.Trim();
         if (prefixo.Length == 0)
@@ -75,11 +70,8 @@ public class PrefixModule : ModuleBase<SocketCommandContext>
     [Summary("Volta o prefixo deste servidor ao padrão global")]
     public async Task PrefixResetAsync()
     {
-        if (!HasPermission())
-        {
-            await ReplyAsync("❌ Você precisa da permissão **Gerenciar Servidor** para usar este comando.");
+        if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
-        }
 
         await _prefixRepository.ResetAsync(Context.Guild.Id);
 
@@ -91,9 +83,4 @@ public class PrefixModule : ModuleBase<SocketCommandContext>
         => !string.IsNullOrWhiteSpace(settings.Prefix)
             ? settings.Prefix
             : _botOptions.Value.CommandPrefix;
-
-    private bool HasPermission()
-        => Context.Guild != null &&
-           Context.User is IGuildUser guildUser &&
-           (guildUser.GuildPermissions.ManageGuild || guildUser.GuildPermissions.Administrator);
 }
