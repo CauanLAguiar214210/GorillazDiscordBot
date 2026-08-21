@@ -1,6 +1,7 @@
 using Discord.Commands;
 using Discord.WebSocket;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace GorillazDiscordBot.Services;
@@ -44,7 +45,7 @@ public class ChatInteractionService : IChatInteractionService
         await context.Channel.SendMessageAsync(interaction.Response);
         _logger.LogInformation(
             "Interação '{trigger}' executada no servidor {guild} por {user}",
-            trigger, context.Guild.Name, context.User.Username);
+            trigger, context.Guild.Name, context.User.GetDisplayName());
 
         return true;
     }

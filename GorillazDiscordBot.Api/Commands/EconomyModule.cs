@@ -2,13 +2,13 @@ using System.Text;
 using Discord;
 using Discord.Commands;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands;
 
 public class EconomyModule : ModuleBase<SocketCommandContext>
 {
     private readonly IUserRepository _userRepository;
-    private static readonly Random _random = new();
 
     public EconomyModule(IUserRepository userRepository)
     {
@@ -35,21 +35,15 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     public async Task SaldoAsync()
     {
         var user = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
-        await ReplyAsync($"💰 **{Context.User.Username}**, seu saldo é **{user.Money} moedas** na carteira.");
+        await ReplyAsync($"💰 **{Context.User.GetDisplayName()}**, seu saldo é **{user.Money} moedas** na carteira.");
     }
 
     [Command("bet")]
     public async Task BetAsync(string valor)
     {
-        if (!int.TryParse(valor, out int quantia))
+        if (!EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
         {
-            await ReplyAsync("⚠️ Informe um valor numérico Inteiro. Exemplo: `bet 100`");
-            return;
-        }
-
-        if (quantia <= 0)
-        {
-            await ReplyAsync("⚠️ A aposta deve ser um valor positivo.");
+            await ReplyAsync(error!);
             return;
         }
 
@@ -61,7 +55,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        bool win = _random.Next(2) == 0;
+        bool win = Random.Shared.Next(2) == 0;
 
         if (win)
         {
@@ -111,22 +105,16 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         await _userRepository.GetOrCreateAsync(receiver.Id, receiver.Username);
         await _userRepository.AddMoneyAsync(receiver.Id, quantia);
 
-        await ReplyAsync($"💸 **{Context.User.Username}** pagou **{quantia} moedas** para **{receiver.Username}**!");
+        await ReplyAsync($"💸 **{Context.User.GetDisplayName()}** pagou **{quantia} moedas** para **{receiver.GetDisplayName()}**!");
     }
 
     [Command("depositar")]
     [Alias("dep", "deposit")]
     public async Task DepositarAsync(string valor)
     {
-        if (!int.TryParse(valor, out int quantia))
+        if (!EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
         {
-            await ReplyAsync("⚠️ Informe um valor numérico. Exemplo: `depositar 100`");
-            return;
-        }
-
-        if (quantia <= 0)
-        {
-            await ReplyAsync("⚠️ O valor deve ser positivo.");
+            await ReplyAsync(error!);
             return;
         }
 
@@ -138,22 +126,16 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        await ReplyAsync($"🏦 **{Context.User.Username}** depositou **{quantia} moedas** no banco!\nCarteira: **{wallet}** | Banco: **{bank}**");
+        await ReplyAsync($"🏦 **{Context.User.GetDisplayName()}** depositou **{quantia} moedas** no banco!\nCarteira: **{wallet}** | Banco: **{bank}**");
     }
 
     [Command("sacar")]
     [Alias("withdraw", "wd")]
     public async Task SacarAsync(string valor)
     {
-        if (!int.TryParse(valor, out int quantia))
+        if (!EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
         {
-            await ReplyAsync("⚠️ Informe um valor numérico. Exemplo: `sacar 100`");
-            return;
-        }
-
-        if (quantia <= 0)
-        {
-            await ReplyAsync("⚠️ O valor deve ser positivo.");
+            await ReplyAsync(error!);
             return;
         }
 
@@ -165,7 +147,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        await ReplyAsync($"🏧 **{Context.User.Username}** sacou **{quantia} moedas** do banco!\nCarteira: **{wallet}** | Banco: **{bank}**");
+        await ReplyAsync($"🏧 **{Context.User.GetDisplayName()}** sacou **{quantia} moedas** do banco!\nCarteira: **{wallet}** | Banco: **{bank}**");
     }
 
     [Command("banco")]
@@ -173,7 +155,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     public async Task BancoAsync()
     {
         var user = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
-        await ReplyAsync($"🏦 **{Context.User.Username}**\nCarteira: **{user.Money}** moedas\nBanco: **{user.Bank}** moedas");
+        await ReplyAsync($"🏦 **{Context.User.GetDisplayName()}**\nCarteira: **{user.Money}** moedas\nBanco: **{user.Bank}** moedas");
     }
 
     [Command("ranking")]
@@ -205,5 +187,38 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         }
 
         await ReplyAsync(sb.ToString());
+    }
+
+    public static class EconomyHelper
+    {
+        public static bool TryParsePositiveAmount(string input, out int amount, out string? error)
+        {
+            amount = 0;
+            error = null;
+
+            if (!int.TryParse(input, out amount))
+            {
+                error = "⚠️ Informe um valor numérico. Exemplo: `bet 100`";
+                return false;
+            }
+
+            if (amount <= 0)
+            {
+                error = "⚠️ O valor deve ser positivo.";
+                return false;
+            }
+
+            return true;
+        }
+
+        public static async Task<bool> TryParseAndReplyAsync(string input, ICommandContext context)
+        {
+            if (!TryParsePositiveAmount(input, out _, out var error))
+            {
+                await context.Channel.SendMessageAsync(error!);
+                return false;
+            }
+            return true;
+        }
     }
 }
