@@ -1,6 +1,7 @@
 using System.Reflection;
 using Discord;
 using Discord.Commands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Domain.Interfaces;
@@ -17,6 +18,7 @@ public class DiscordBotService : IHostedService
 {
     private readonly DiscordSocketClient _client;
     private readonly CommandService _commands;
+    private readonly InteractionService _interactions;
     private readonly IOptions<BotOptions> _botOptions;
     private readonly ILogger<DiscordBotService> _logger;
     private readonly IServiceProvider _services;
@@ -28,6 +30,7 @@ public class DiscordBotService : IHostedService
     public DiscordBotService(
         DiscordSocketClient client,
         CommandService commands,
+        InteractionService interactions,
         IOptions<BotOptions> botOptions,
         ILogger<DiscordBotService> logger,
         IServiceProvider services,
@@ -38,6 +41,7 @@ public class DiscordBotService : IHostedService
     {
         _client = client;
         _commands = commands;
+        _interactions = interactions;
         _botOptions = botOptions;
         _logger = logger;
         _services = services;
@@ -51,13 +55,16 @@ public class DiscordBotService : IHostedService
     {
         _client.Log += LogAsync;
         _commands.Log += LogAsync;
+        _interactions.Log += LogAsync;
         _client.Ready += ReadyAsync;
+        _client.InteractionCreated += HandleInteractionAsync;
         _client.MessageReceived += HandleCommandAsync;
         _client.UserJoined += OnUserJoinedAsync;
         _client.UserLeft += OnUserLeftAsync;
         _client.UserVoiceStateUpdated += OnUserVoiceStateUpdatedAsync;
 
         await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
+        await _interactions.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
 
         var token = _botOptions.Value.DiscordToken;
         if (string.IsNullOrEmpty(token))
@@ -77,7 +84,10 @@ public class DiscordBotService : IHostedService
         _logger.LogInformation("Bot desligando...");
 
         _client.Log -= LogAsync;
+        _commands.Log -= LogAsync;
+        _interactions.Log -= LogAsync;
         _client.Ready -= ReadyAsync;
+        _client.InteractionCreated -= HandleInteractionAsync;
         _client.MessageReceived -= HandleCommandAsync;
         _client.UserJoined -= OnUserJoinedAsync;
         _client.UserLeft -= OnUserLeftAsync;
@@ -93,14 +103,63 @@ public class DiscordBotService : IHostedService
         return Task.CompletedTask;
     }
 
-    private Task ReadyAsync()
+    private bool _slashCommandsRegistered;
+
+    private async Task ReadyAsync()
     {
         _logger.LogInformation(
             "Bot conectado como {username}#{discriminator}",
             _client.CurrentUser.Username,
             _client.CurrentUser.Discriminator);
 
-        return Task.CompletedTask;
+        await RegisterSlashCommandsAsync();
+    }
+
+    private async Task RegisterSlashCommandsAsync()
+    {
+        if (_slashCommandsRegistered) return;
+        _slashCommandsRegistered = true;
+
+        try
+        {
+            var devGuildId = Environment.GetEnvironmentVariable("DISCORD_DEV_GUILD_ID");
+
+            if (ulong.TryParse(devGuildId, out var guildId))
+            {
+                await _interactions.RegisterCommandsToGuildAsync(guildId);
+                _logger.LogInformation("Slash commands registrados na guilda de teste {guildId}", guildId);
+            }
+            else
+            {
+                await _interactions.RegisterCommandsGloballyAsync();
+                _logger.LogInformation("Slash commands registrados globalmente (podem levar até 1h para propagar)");
+            }
+        }
+        catch (Exception ex)
+        {
+            _slashCommandsRegistered = false;
+            _logger.LogError(ex, "Falha ao registrar slash commands");
+        }
+    }
+
+    private async Task HandleInteractionAsync(SocketInteraction interaction)
+    {
+        try
+        {
+            var context = new SocketInteractionContext(_client, interaction);
+            var result = await _interactions.ExecuteCommandAsync(context, _services);
+
+            if (!result.IsSuccess)
+                _logger.LogWarning("Erro ao executar interação '{id}': {error}",
+                    interaction.Id, result.ErrorReason);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exceção ao processar interação {id}", interaction.Id);
+
+            if (interaction.Type == InteractionType.ApplicationCommand)
+                await interaction.RespondAsync("Ocorreu um erro inesperado.", ephemeral: true);
+        }
     }
 
     private async Task HandleCommandAsync(SocketMessage arg)

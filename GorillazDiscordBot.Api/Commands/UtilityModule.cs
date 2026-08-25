@@ -13,57 +13,6 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
     private readonly DiscordSocketClient _client;
     private readonly IGuildInteractionRepository _interactionRepository;
 
-    private static readonly Dictionary<string, (string Name, string Emoji)> _moduleInfo = new()
-    {
-        ["FunModule"] = ("Diversão", "🎮"),
-        ["UtilityModule"] = ("Utilidades", "🛠️"),
-        ["EconomyModule"] = ("Economia", "💰"),
-        ["GifManageModule"] = ("GIFs", "🖼️"),
-        ["ApiModule"] = ("APIs Externas", "🌐"),
-        ["GuildModule"] = ("Boas-vindas & Despedidas", "👋"),
-        ["VoiceModule"] = ("Canais de Voz", "🔊"),
-        ["InteractionModule"] = ("Interações", "💬"),
-    };
-
-    private static readonly Dictionary<string, string> _commandDescriptions = new()
-    {
-        ["ping"] = "Responde com Pong!",
-        ["8ball"] = "Bola 8 mágica responde sua pergunta",
-        ["gorila"] = "Curiosidade sobre gorilas",
-        ["dado"] = "Joga um dado de 6 lados",
-        ["flip"] = "Cara ou coroa",
-        ["daily"] = "Reivindica moedas diárias",
-        ["saldo"] = "Ver seu saldo (alias: coins)",
-        ["bet"] = "Aposta 50/50",
-        ["pagar"] = "Transferir moedas para outro usuário",
-        ["ranking"] = "Ranking de riqueza do servidor",
-        ["gif"] = "Buscar, adicionar ou sortear GIFs",
-        ["f1"] = "Classificação de pilotos de F1",
-        ["cotacao"] = "Cotação de moedas",
-        ["tempo"] = "Previsão do tempo por cidade",
-        ["userinfo"] = "Suas informações de usuário",
-        ["random"] = "Número aleatório entre min e max",
-        ["timer"] = "Temporizador com aviso",
-        ["avatar"] = "Avatar de um usuário",
-        ["serverinfo"] = "Informações do servidor",
-        ["horario"] = "Hora atual (UTC)",
-        ["contador"] = "Conta de 1 até N",
-        ["reversa"] = "Inverte o texto informado",
-        ["welcome"] = "Configura o canal de boas-vindas",
-        ["goodbye"] = "Configura o canal de despedidas",
-        ["welcomemsg"] = "Define a mensagem de boas-vindas",
-        ["goodbyemsg"] = "Define a mensagem de despedida",
-        ["welcome off"] = "Desativa as mensagens de boas-vindas",
-        ["goodbye off"] = "Desativa as mensagens de despedida",
-        ["welcome config"] = "Mostra a configuração de boas-vindas",
-        ["voice setup"] = "Define o canal criador de voz",
-        ["voice off"] = "Desativa a criação automática de canais de voz",
-        ["voice config"] = "Mostra a configuração de canais de voz",
-        ["interaction add"] = "Adiciona uma interação do servidor",
-        ["interaction remove"] = "Remove uma interação do servidor",
-        ["interaction list"] = "Lista as interações do servidor",
-    };
-
     public UtilityModule(
         CommandService commandService,
         DiscordSocketClient client,
@@ -92,14 +41,14 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
 
         foreach (var module in modules)
         {
-            var (displayName, emoji) = _moduleInfo.GetValueOrDefault(
+            var (displayName, emoji) = CommandCatalog.ModuleDisplay.GetValueOrDefault(
                 module.Name, (module.Name, "📋"));
 
             var sb = new StringBuilder();
             foreach (var cmd in module.Commands)
             {
                 var name = cmd.Aliases.FirstOrDefault() ?? cmd.Name;
-                var desc = _commandDescriptions.GetValueOrDefault(name, "Sem descrição");
+                var desc = CommandCatalog.Descriptions.GetValueOrDefault(name, "Sem descrição");
                 sb.AppendLine($"`{name}` — {desc}");
             }
 

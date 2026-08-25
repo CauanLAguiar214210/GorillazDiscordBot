@@ -2,6 +2,7 @@
 using AWS.Logger.AspNetCore;
 using Discord;
 using Discord.Commands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using GorillazDiscordBot;
 using GorillazDiscordBot.Configuration;
@@ -53,6 +54,19 @@ builder.Services.AddSingleton<DiscordSocketClient>(_ =>
 // Command Service (singleton)
 builder.Services.AddSingleton<CommandService>();
 
+// Interaction Service (slash commands, botões e select menus)
+builder.Services.AddSingleton(sp =>
+{
+    var config = new InteractionServiceConfig
+    {
+        DefaultRunMode = Discord.Interactions.RunMode.Async,
+        UseCompiledLambda = true,
+        LogLevel = LogSeverity.Info,
+        AutoServiceScopes = true
+    };
+    return new InteractionService(sp.GetRequiredService<DiscordSocketClient>(), config);
+});
+
 // Repository Pattern (MongoDB)
 builder.Services.AddSingleton(typeof(IMongoRepository<>), typeof(MongoRepository<>));
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
@@ -65,6 +79,9 @@ builder.Services.AddSingleton<IVoiceChannelService, VoiceChannelService>();
 // Chat interactions por servidor (cache + MongoDB)
 builder.Services.AddSingleton<IGuildInteractionRepository, GuildInteractionRepository>();
 builder.Services.AddSingleton<IChatInteractionService, ChatInteractionService>();
+
+// Sessões de jogos (memória)
+builder.Services.AddSingleton<GameSessionManager>();
 
 // GIF URL Normalization
 builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>

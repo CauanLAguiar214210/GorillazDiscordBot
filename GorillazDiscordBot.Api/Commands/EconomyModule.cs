@@ -47,9 +47,9 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var user = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
+        var (deducted, balanceAfterBet) = await _userRepository.TryDeductMoneyAsync(Context.User.Id, quantia);
 
-        if (user.Money < quantia)
+        if (!deducted)
         {
             await ReplyAsync("❌ Você não tem moedas suficientes na carteira.");
             return;
@@ -59,15 +59,13 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
         if (win)
         {
-            await _userRepository.AddMoneyAsync(Context.User.Id, quantia);
-            var updated = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
-            await ReplyAsync($"🎉 **Você ganhou!** +{quantia} moedas! Saldo: **{updated.Money}**");
+            int premio = quantia * 2;
+            await _userRepository.AddMoneyAsync(Context.User.Id, premio);
+            await ReplyAsync($"🎉 **Você ganhou!** +{quantia} moedas! Saldo: **{balanceAfterBet + premio}**");
         }
         else
         {
-            await _userRepository.AddMoneyAsync(Context.User.Id, -quantia);
-            var updated = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
-            await ReplyAsync($"😢 **Você perdeu!** -{quantia} moedas! Saldo: **{updated.Money}**");
+            await ReplyAsync($"😢 **Você perdeu!** -{quantia} moedas! Saldo: **{balanceAfterBet}**");
         }
     }
 
@@ -93,15 +91,14 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var sender = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
+        var (deducted, _) = await _userRepository.TryDeductMoneyAsync(Context.User.Id, quantia);
 
-        if (sender.Money < quantia)
+        if (!deducted)
         {
             await ReplyAsync("❌ Você não tem moedas suficientes na carteira.");
             return;
         }
 
-        await _userRepository.AddMoneyAsync(Context.User.Id, -quantia);
         await _userRepository.GetOrCreateAsync(receiver.Id, receiver.Username);
         await _userRepository.AddMoneyAsync(receiver.Id, quantia);
 
