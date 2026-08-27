@@ -1,4 +1,4 @@
-namespace GorillazDiscordBot.Domain.Games;
+namespace GorillazDiscordBot.Domain.Entity.Games;
 
 /// <summary>Caça-níqueis com tema da selva (macacos, bananas, etc.).</summary>
 public sealed class SlotGame

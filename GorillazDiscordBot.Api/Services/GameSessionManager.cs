@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using GorillazDiscordBot.Domain.Games;
+using GorillazDiscordBot.Domain.Entity.Games;
 
 namespace GorillazDiscordBot.Services;
 
