@@ -1,4 +1,4 @@
-namespace GorillazDiscordBot.Economy;
+namespace GorillazDiscordBot.Domain.Entity.Economy;
 
 public sealed record Job(string Key, string Name, string Emoji, int Hours, int HourlyPay)
 {

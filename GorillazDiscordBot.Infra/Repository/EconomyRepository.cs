@@ -1,7 +1,6 @@
 using GorillazDiscordBot.Configuration;
+using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Interfaces;
-using GorillazDiscordBot.Economy;
-using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Infra.Configuration;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;

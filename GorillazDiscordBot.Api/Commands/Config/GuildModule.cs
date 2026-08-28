@@ -4,7 +4,7 @@ using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Utils;
 
-namespace GorillazDiscordBot.Commands;
+namespace GorillazDiscordBot.Api.Commands.Config;
 
 public class GuildModule : ModuleBase<SocketCommandContext>
 {

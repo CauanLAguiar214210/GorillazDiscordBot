@@ -3,7 +3,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using GorillazDiscordBot.Utils;
 
-namespace GorillazDiscordBot.Commands.Slash;
+namespace GorillazDiscordBot.Api.Commands;
 
 public class HelpSlashModule : InteractionModuleBase<SocketInteractionContext>
 {

@@ -4,6 +4,7 @@ using MongoDB.Bson.Serialization.IdGenerators;
 using MongoDB.Bson.Serialization.Serializers;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
+using GorillazDiscordBot.Domain.Entity.Economy;
 
 namespace GorillazDiscordBot.Infra.Configuration;
 

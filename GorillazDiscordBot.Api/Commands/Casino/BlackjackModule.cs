@@ -1,12 +1,13 @@
 using Discord;
 using Discord.Commands;
-using GorillazDiscordBot.Domain.Games;
+using GorillazDiscordBot.Commands;
+using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Entity.Games;
 using GorillazDiscordBot.Domain.Interfaces;
-using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
 
-namespace GorillazDiscordBot.Commands;
+namespace GorillazDiscordBot.Api.Commands.Casino;
 
 public class BlackjackModule : ModuleBase<SocketCommandContext>
 {

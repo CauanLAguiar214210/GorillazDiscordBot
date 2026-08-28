@@ -1,10 +1,10 @@
 using FluentAssertions;
-using GorillazDiscordBot.Commands;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Domain.Interfaces;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using GorillazDiscordBot.Api.Commands.Config;
 
 namespace GorillazDiscordBot.Tests;
 

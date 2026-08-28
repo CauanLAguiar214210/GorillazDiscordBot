@@ -1,4 +1,4 @@
-namespace GorillazDiscordBot.Entity;
+namespace GorillazDiscordBot.Domain.Entity.Economy;
 
 public class EconomyProfile
 {
