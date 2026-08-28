@@ -66,6 +66,23 @@ public class UserRepository : MongoRepository<DiscordUserProfile>, IUserReposito
         return result.ModifiedCount > 0;
     }
 
+    public async Task<(bool success, int newBalance)> TryDeductMoneyAsync(ulong userId, int amount)
+    {
+        var filter = Builders<DiscordUserProfile>.Filter.Eq(u => u.UserId, userId)
+            & Builders<DiscordUserProfile>.Filter.Gte(u => u.Money, amount);
+
+        var update = Builders<DiscordUserProfile>.Update.Inc(u => u.Money, -amount);
+
+        var result = await Collection.FindOneAndUpdateAsync(filter, update,
+            new FindOneAndUpdateOptions<DiscordUserProfile>
+            {
+                ReturnDocument = ReturnDocument.After
+            });
+
+        if (result == null) return (false, 0);
+        return (true, result.Money);
+    }
+
     public async Task<(bool success, int wallet, int bank)> DepositAsync(ulong userId, int amount)
     {
         var filter = Builders<DiscordUserProfile>.Filter.Eq(u => u.UserId, userId)
