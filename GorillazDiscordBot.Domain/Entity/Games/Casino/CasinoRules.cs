@@ -1,4 +1,4 @@
-namespace GorillazDiscordBot.Domain.Games;
+namespace GorillazDiscordBot.Domain.Entity.Games.Casino;
 
 public static class CasinoRules
 {

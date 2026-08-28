@@ -1,6 +1,6 @@
 using System.Text;
 using Discord;
-using GorillazDiscordBot.Domain.Games;
+using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Utils;

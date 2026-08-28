@@ -1,6 +1,6 @@
 using Discord;
 using Discord.Interactions;
-using GorillazDiscordBot.Domain.Games;
+using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
 

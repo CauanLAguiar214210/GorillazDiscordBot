@@ -1,5 +1,5 @@
 using FluentAssertions;
-using GorillazDiscordBot.Economy;
+using GorillazDiscordBot.Domain.Entity.Economy;
 
 namespace GorillazDiscordBot.Tests;
 

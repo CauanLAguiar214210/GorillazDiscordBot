@@ -1,9 +1,8 @@
 using System.Text;
 using Discord;
 using Discord.Commands;
+using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Interfaces;
-using GorillazDiscordBot.Economy;
-using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands;
@@ -122,15 +121,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("banco")]
-    [Alias("bank", "banksaldo")]
-    public async Task BancoAsync()
-    {
-        var user = await _economy.GetOrCreateAsync(Context.User.Id, Context.User.Username);
-        await ReplyAsync($"🏦 **{Context.User.GetDisplayName()}**\nCarteira: **{user.Money}** moedas\nBanco: **{user.Bank}** moedas");
-    }
-
-    [Command("poupanca")]
-    [Alias("savings")]
+    [Alias("savings", "bank", "banksaldo")]
     public async Task PoupancaAsync()
     {
         var user = await _economy.GetOrCreateAsync(Context.User.Id, Context.User.Username);

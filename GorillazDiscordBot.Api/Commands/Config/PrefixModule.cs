@@ -6,7 +6,7 @@ using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Utils;
 using Microsoft.Extensions.Options;
 
-namespace GorillazDiscordBot.Commands;
+namespace GorillazDiscordBot.Api.Commands.Config;
 
 public class PrefixModule : ModuleBase<SocketCommandContext>
 {

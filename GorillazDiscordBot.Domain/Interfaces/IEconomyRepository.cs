@@ -1,4 +1,4 @@
-using GorillazDiscordBot.Entity;
+using GorillazDiscordBot.Domain.Entity.Economy;
 
 namespace GorillazDiscordBot.Domain.Interfaces;
 

@@ -1,6 +1,6 @@
-using GorillazDiscordBot.Domain.Games;
+using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Entity.Games;
 using GorillazDiscordBot.Domain.Interfaces;
-using GorillazDiscordBot.Entity;
 
 namespace GorillazDiscordBot.Services;
 

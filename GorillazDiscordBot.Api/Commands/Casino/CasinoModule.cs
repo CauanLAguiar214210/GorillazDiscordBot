@@ -1,6 +1,6 @@
 using Discord;
 using Discord.Commands;
-using GorillazDiscordBot.Domain.Games;
+using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
 
@@ -36,6 +36,7 @@ public class CasinoModule : ModuleBase<SocketCommandContext>
             .Build());
     }
 
+    #region Roleta
     [Command("roleta")]
     [Alias("roulette")]
     [Summary("Aposta na roleta. Uso: macaco roleta <valor> [tipo] [alvo]")]
@@ -86,69 +87,7 @@ public class CasinoModule : ModuleBase<SocketCommandContext>
             components: CasinoTableBuilder.BuildRouletteComponents(game.Bets.Count > 0));
     }
 
-    [Command("cacaniquel")]
-    [Alias("slot", "slots")]
-    [Summary("Joga na caça-níquel. Uso: macaco cacaniquel <valor>")]
-    public async Task SlotAsync(string valor)
-    {
-        if (!EconomyModule.EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
-        {
-            await ReplyAsync(error!);
-            return;
-        }
-
-        await TryResolveExpiredAsync();
-
-        if (_sessions.GetActive(Context.User.Id) != null)
-        {
-            await ReplyAsync("🎰 Você já tem uma máquina em andamento! Use o botão da máquina aberta.");
-            return;
-        }
-
-        var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, quantia, Context.User.Username, "Aposta na caça-níquel");
-
-        if (!deducted)
-        {
-            await ReplyAsync("❌ Você não tem moedas suficientes na carteira.");
-            return;
-        }
-
-        var slots = new SlotMachineGame();
-        var session = CasinoSession.ForSlots(quantia, slots);
-        _sessions.Add(Context.User.Id, session);
-
-        var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
-
-        await ReplyAsync(
-            embed: CasinoTableBuilder.BuildSlotTable(slots, quantia, Context.User, balance),
-            components: CasinoTableBuilder.BuildSlotComponents(slots.HasSpun));
-    }
-
-    private async Task TryResolveExpiredAsync()
-    {
-        var expired = _sessions.TakeExpired(Context.User.Id);
-        if (expired == null) return;
-
-        if (expired.Roulette != null && expired.Roulette.Bets.Count > 0)
-        {
-            expired.Roulette.Spin();
-            var returnAmount = expired.Roulette.CalculateTotalReturn();
-            var balance = await _play.PayOutAsync(
-                Context.User.Id, returnAmount, Context.User.Username, "Roleta expirada");
-        }
-        else if (expired.Slots != null && !expired.Slots.HasSpun)
-        {
-            expired.Slots.Spin();
-            var returnAmount = SlotMachineGame.CalculateReturn(expired.Bet, expired.Slots.Reels);
-            await _play.PayOutAsync(
-                Context.User.Id, returnAmount, Context.User.Username, "Caça-níquel expirada");
-        }
-    }
-
-    private static bool TryParseBetType(
-        string? tipo, string? alvo,
-        out RouletteBetType betType, out int target, out string? error)
+    private static bool TryParseBetType(string? tipo, string? alvo, out RouletteBetType betType, out int target, out string? error)
     {
         betType = RouletteBetType.Number;
         target = 0;
@@ -211,6 +150,75 @@ public class CasinoModule : ModuleBase<SocketCommandContext>
             default:
                 error = "⚠️ Tipo inválido. Use `numero`, `vermelho`, `preto`, `par`, `impar`, `baixa`, `alta`.";
                 return false;
+        }
+    }
+    #endregion
+
+    #region Cacaniquel
+    [Command("cacaniquel")]
+    [Alias("slot", "slots")]
+    [Summary("Joga na caça-níquel. Uso: macaco cacaniquel <valor>")]
+    public async Task SlotAsync(string valor)
+    {
+        if (!EconomyModule.EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
+        {
+            await ReplyAsync(error!);
+            return;
+        }
+
+        await TryResolveExpiredAsync();
+
+        if (_sessions.GetActive(Context.User.Id) != null)
+        {
+            await ReplyAsync("🎰 Você já tem uma máquina em andamento! Use o botão da máquina aberta.");
+            return;
+        }
+
+        var (deducted, _) = await _play.DeductBetAsync(
+            Context.User.Id, quantia, Context.User.Username, "Aposta na caça-níquel");
+
+        if (!deducted)
+        {
+            await ReplyAsync("❌ Você não tem moedas suficientes na carteira.");
+            return;
+        }
+
+        var slots = new SlotMachineGame();
+        var session = CasinoSession.ForSlots(quantia, slots);
+        _sessions.Add(Context.User.Id, session);
+
+        var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
+
+        await ReplyAsync(
+            embed: CasinoTableBuilder.BuildSlotTable(slots, quantia, Context.User, balance),
+            components: CasinoTableBuilder.BuildSlotComponents(slots.HasSpun));
+    }
+
+    #endregion
+
+    #region BlackJack
+
+
+    #endregion
+
+    private async Task TryResolveExpiredAsync()
+    {
+        var expired = _sessions.TakeExpired(Context.User.Id);
+        if (expired == null) return;
+
+        if (expired.Roulette != null && expired.Roulette.Bets.Count > 0)
+        {
+            expired.Roulette.Spin();
+            var returnAmount = expired.Roulette.CalculateTotalReturn();
+            var balance = await _play.PayOutAsync(
+                Context.User.Id, returnAmount, Context.User.Username, "Roleta expirada");
+        }
+        else if (expired.Slots != null && !expired.Slots.HasSpun)
+        {
+            expired.Slots.Spin();
+            var returnAmount = SlotMachineGame.CalculateReturn(expired.Bet, expired.Slots.Reels);
+            await _play.PayOutAsync(
+                Context.User.Id, returnAmount, Context.User.Username, "Caça-níquel expirada");
         }
     }
 }
