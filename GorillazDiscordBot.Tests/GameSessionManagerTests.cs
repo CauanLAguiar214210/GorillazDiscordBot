@@ -1,5 +1,5 @@
 using FluentAssertions;
-using GorillazDiscordBot.Domain.Entity.Games;
+using GorillazDiscordBot.Domain.Games;
 using GorillazDiscordBot.Services;
 
 namespace GorillazDiscordBot.Tests;

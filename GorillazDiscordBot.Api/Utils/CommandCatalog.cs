@@ -18,7 +18,7 @@ public static class CommandCatalog
         ["GuildModule"] = ("Boas-vindas & Despedidas", "👋"),
         ["VoiceModule"] = ("Canais de Voz", "🔊"),
         ["InteractionModule"] = ("Interações", "💬"),
-        ["CasinoModule"] = ("Cassino", "🎰"),
+        ["BlackjackModule"] = ("Blackjack", "🃏"),
     };
 
     /// <summary>Descrições dos comandos (chave = primeiro alias).</summary>
@@ -31,10 +31,8 @@ public static class CommandCatalog
         ["flip"] = "Cara ou coroa",
         ["daily"] = "Reivindica moedas diárias",
         ["saldo"] = "Ver seu saldo (alias: coins)",
-        ["bet"] = "Aposta 50/50 (use 'all' para apostar tudo)",
-        ["blackjack"] = "Inicia uma mão de Blackjack (use 'all' para apostar tudo)",
-        ["roleta"] = "Roleta da Selva (use 'all' para apostar tudo)",
-        ["slots"] = "Caça-níqueis da Selva (use 'all' para apostar tudo)",
+        ["bet"] = "Aposta 50/50",
+        ["blackjack"] = "Inicia uma mão de Blackjack (alias: bj)",
         ["hit"] = "Pede mais uma carta no Blackjack (alias: pedir)",
         ["stand"] = "Para e encerra a mão de Blackjack (alias: parar)",
         ["double"] = "Dobra a aposta no Blackjack (alias: dobrar)",
@@ -81,18 +79,18 @@ public static class CommandCatalog
         {
             new CommandEntry("daily", "Reivindica moedas diárias"),
             new CommandEntry("saldo", "Ver seu saldo (alias: carteira)"),
+            new CommandEntry("bet <valor>", "Aposta 50/50"),
             new CommandEntry("pagar <usuário> <valor>", "Transferir moedas para outro usuário"),
             new CommandEntry("depositar <valor>", "Move moedas da carteira para o banco"),
             new CommandEntry("sacar <valor>", "Move moedas do banco para a carteira"),
             new CommandEntry("banco", "Consulta seu banco"),
             new CommandEntry("ranking", "Ranking de riqueza do servidor"),
         }),
-        new("cassino", "🎰", "Cassino", new[]
+        new("jogos", "🃏", "Jogos", new[]
         {
-            new CommandEntry("bet <valor>", "Aposta 50/50 (cara ou coroa) — por prefixo"),
-            new CommandEntry("/blackjack <valor>", "Blackjack com botões na mesa"),
-            new CommandEntry("/roleta <tipo> <valor> [numero]", "Roleta da Selva (cor, par/ímpar, alto/baixo ou número)"),
-            new CommandEntry("/slots <valor>", "Caça-níqueis da Selva 🐵🍌"),
+            new CommandEntry("/blackjack <valor>", "Inicia uma mão de Blackjack com botões!"),
+            new CommandEntry("Pedir / Parar / Dobrar", "Botões na própria mesa — sem digitar nada"),
+            new CommandEntry("hit · stand · double", "Alternativa por prefixo (aliases: pedir, parar, dobrar)"),
         }),
         new("utilidade", "🛠️", "Utilidades", new[]
         {
@@ -129,7 +127,7 @@ public static class CommandCatalog
             .WithTitle("Central de Ajuda")
             .WithDescription(
                 "Selecione uma categoria no menu abaixo.\n\n" +
-                "✨ **Já disponíveis por `/`:** `blackjack`, `roleta`, `slots`, `ajuda`\n" +
+                "✨ **Já disponíveis por `/`:** `blackjack`, `ajuda`\n" +
                 "Os demais comandos usem com o prefixo do servidor (padrão: `macaco`).");
 
         embed.WithStandardFooter("Clique no menu para navegar entre as categorias");
