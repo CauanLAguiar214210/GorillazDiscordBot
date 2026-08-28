@@ -83,9 +83,6 @@ builder.Services.AddSingleton<IChatInteractionService, ChatInteractionService>()
 // Sessões de jogos (memória)
 builder.Services.AddSingleton<GameSessionManager>();
 
-// Cassino (orquestração de apostas e moedas)
-builder.Services.AddSingleton<CasinoService>();
-
 // GIF URL Normalization
 builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>
 {
