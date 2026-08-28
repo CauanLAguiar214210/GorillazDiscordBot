@@ -70,6 +70,7 @@ builder.Services.AddSingleton(sp =>
 // Repository Pattern (MongoDB)
 builder.Services.AddSingleton(typeof(IMongoRepository<>), typeof(MongoRepository<>));
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
+builder.Services.AddSingleton<IEconomyRepository, EconomyRepository>();
 builder.Services.AddSingleton<IGifRepository, GifRepository>();
 
 // Guild settings (cache + MongoDB, um documento por servidor)
@@ -102,7 +103,7 @@ if (builder.Configuration.GetValue<string>("AWS_LOG_GROUP") is { Length: > 0 } l
 
 // Hosted Service (gerencia lifecycle do bot)
 builder.Services.AddHostedService<DiscordBotService>();
-builder.Services.AddHostedService<BankTaxService>();
+builder.Services.AddHostedService<EconomyMaintenanceService>();
 
 var host = builder.Build();
 await host.RunAsync();

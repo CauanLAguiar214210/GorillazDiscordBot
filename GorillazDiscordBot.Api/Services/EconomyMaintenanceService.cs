@@ -4,16 +4,16 @@ using Microsoft.Extensions.Logging;
 
 namespace GorillazDiscordBot.Services;
 
-public class BankTaxService : IHostedService
+public class EconomyMaintenanceService : IHostedService
 {
-    private readonly IUserRepository _userRepository;
-    private readonly ILogger<BankTaxService> _logger;
+    private readonly IEconomyRepository _economyRepository;
+    private readonly ILogger<EconomyMaintenanceService> _logger;
     private readonly CancellationTokenSource _cts = new();
     private Task? _task;
 
-    public BankTaxService(IUserRepository userRepository, ILogger<BankTaxService> logger)
+    public EconomyMaintenanceService(IEconomyRepository economyRepository, ILogger<EconomyMaintenanceService> logger)
     {
-        _userRepository = userRepository;
+        _economyRepository = economyRepository;
         _logger = logger;
     }
 
@@ -37,7 +37,7 @@ public class BankTaxService : IHostedService
             var nextMidnight = now.Date.AddDays(1);
             var delay = nextMidnight - now;
 
-            _logger.LogInformation("Bank tax agendado para {time} (daqui {delay})", nextMidnight, delay);
+            _logger.LogInformation("Manutenção econômica agendada para {time} (daqui {delay})", nextMidnight, delay);
 
             try
             {
@@ -50,12 +50,12 @@ public class BankTaxService : IHostedService
 
             try
             {
-                var affected = await _userRepository.ApplyBankTaxAsync();
-                _logger.LogInformation("Bank tax aplicado: {count} usuários afetados", affected);
+                var affected = await _economyRepository.ApplyDailyMaintenanceAsync();
+                _logger.LogInformation("Manutenção econômica aplicada: {count} usuários afetados", affected);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Erro ao aplicar bank tax");
+                _logger.LogError(ex, "Erro ao aplicar manutenção econômica");
             }
         }
     }
