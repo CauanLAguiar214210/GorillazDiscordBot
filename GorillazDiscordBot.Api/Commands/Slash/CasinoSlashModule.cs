@@ -1,11 +1,10 @@
-using System;
 using Discord;
 using Discord.Interactions;
-using Discord.WebSocket;
-using GorillazDiscordBot.Domain.Entity.Games;
+using GorillazDiscordBot.Domain.Games;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
+using System.Text;
 
 namespace GorillazDiscordBot.Commands.Slash;
 
@@ -20,6 +19,30 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         _userRepository = userRepository;
         _casino = casino;
         _sessions = sessions;
+    }
+
+    public static class CasinoTableBuilder
+    {
+        public const string CustomIdPrefix = "casino:";
+
+        /// <summary>Botões "Tentar de novo" e "All-in" reaproveitados por todos os jogos do cassino.</summary>
+        public static MessageComponent BuildReplayComponents(string gameKey, string encodedParams)
+        {
+            return new ComponentBuilder()
+                .WithButton("🎰 Tentar de novo", $"{CustomIdPrefix}again:{gameKey}:{encodedParams}", ButtonStyle.Primary, new Emoji("🎰"))
+                .WithButton("💰 All-in", $"{CustomIdPrefix}allin:{gameKey}:{encodedParams}", ButtonStyle.Danger, new Emoji("💰"))
+                .Build();
+        }
+
+        /// <summary>Decodifica o customId de replay. Ex.: "again:slots:100" ou "allin:roleta:vermelho:100:-1".</summary>
+        public static (string Mode, string GameKey, string[] Params) Decode(string data)
+        {
+            var segments = data.Split(':');
+            var mode = segments[0];
+            var gameKey = segments[1];
+            var pars = segments.Length > 2 ? segments[2..] : Array.Empty<string>();
+            return (mode, gameKey, pars);
+        }
     }
 
     [SlashCommand("bet", "Aposte moedas em cara ou coroa (50/50)")]
@@ -45,6 +68,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
             components: CasinoTableBuilder.BuildReplayComponents("bet", amount.ToString()));
     }
 
+    #region BlackJack
     [SlashCommand("blackjack", "Inicia uma mão de Blackjack com botões")]
     public async Task BlackjackAsync([Summary("valor", "Valor da aposta ou 'all' para apostar tudo")] string valor)
     {
@@ -162,6 +186,85 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         }
     }
 
+    private static class BlackjackTableBuilder
+    {
+        private const string CardBackSymbol = "\U0001F0A0";
+
+        public const string CustomIdPrefix = "bj:";
+
+        public const string HitAction = "hit";
+        public const string StandAction = "stand";
+        public const string DoubleAction = "double";
+
+        public static bool CanDouble(BlackjackGame game)
+            => game.Player.Cards.Count == 2 && !game.Doubled;
+
+        public static Embed BuildTable(BlackjackGame game, IUser player, string? resultSection = null)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"\U0001FA99 Aposta: **{game.Bet}** moedas");
+            sb.AppendLine();
+            sb.AppendLine("🏦 **Dealer**");
+            sb.AppendLine(FormatDealerHand(game));
+            sb.AppendLine();
+            sb.AppendLine($"🐒 **{player.GetDisplayName()}**");
+            sb.AppendLine(FormatFullHand(game.Player));
+
+            if (resultSection != null)
+            {
+                sb.AppendLine();
+                sb.Append(resultSection);
+            }
+
+            var embed = new EmbedBuilder()
+                .WithTitle("\U0001F0CF Blackjack")
+                .WithGoldTheme()
+                .WithDescription(sb.ToString())
+                .WithAuthor($"{player.GetDisplayName()} na mesa", player.GetAvatarUrl());
+
+            embed.WithStandardFooter(resultSection == null
+                ? "Use os botões abaixo para jogar"
+                : "Nova mão: `/blackjack <valor>`");
+
+            return embed.Build();
+        }
+
+        public static MessageComponent BuildActionComponents(BlackjackGame game)
+        {
+            return new ComponentBuilder()
+                .WithButton("Pedir", $"{CustomIdPrefix}{HitAction}", ButtonStyle.Primary, new Emoji("🃏"))
+                .WithButton("Parar", $"{CustomIdPrefix}{StandAction}", ButtonStyle.Success, new Emoji("✋"))
+                .WithButton("Dobrar", $"{CustomIdPrefix}{DoubleAction}", ButtonStyle.Secondary, new Emoji("💰"), disabled: !CanDouble(game))
+                .Build();
+        }
+
+        private static string FormatDealerHand(BlackjackGame game)
+        {
+            return game.DealerHoleHidden
+                ? $"`{game.Dealer.Cards[0].Symbol}` `{CardBackSymbol}`"
+                : FormatFullHand(game.Dealer);
+        }
+
+        private static string FormatFullHand(BlackjackHand hand)
+        {
+            var cards = string.Join(" ", hand.Cards.Select(c => $"`{c.Symbol}`"));
+            var value = hand.IsBust ? $"**{hand.Value}** 💥" : $"**{hand.Value}**";
+            return $"{cards} — {value}";
+        }
+
+        public static string DescribeResult(BlackjackGame game, int totalReturn) => game.Outcome switch
+        {
+            BlackjackOutcome.PlayerBlackjack => $"\U0001F0CF **BLACKJACK!** Pagamento 3:2! Você recebeu **{totalReturn}** moedas.",
+            BlackjackOutcome.PlayerWin when game.Dealer.IsBust => $"💥 O dealer estourou! **Você venceu!** Recebeu **{totalReturn}** moedas.",
+            BlackjackOutcome.PlayerWin => $"🎉 **Você venceu!** Recebeu **{totalReturn}** moedas.",
+            BlackjackOutcome.Push => "🤝 **Empate!** Sua aposta foi devolvida.",
+            BlackjackOutcome.DealerWin when game.Player.IsBust => $"💥 Você estourou! Perdeu **{game.Bet}** moedas.",
+            _ => $"😢 **A casa venceu.** Perdeu **{game.Bet}** moedas."
+        };
+    }
+    #endregion
+
+    #region Roleta
     [SlashCommand("roleta", "Roleta da Selva")]
     public async Task RoletaAsync(
         [Summary("tipo", "Tipo de aposta")]
@@ -210,6 +313,8 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
             components: CasinoTableBuilder.BuildReplayComponents("roleta", $"{tipo}:{amount}:{numero}"));
     }
 
+    #endregion
+
     [SlashCommand("slots", "Caça-níqueis da Selva")]
     public async Task SlotsAsync([Summary("valor", "Valor da aposta ou 'all' para apostar tudo")] string valor)
     {
@@ -239,60 +344,32 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
             components: CasinoTableBuilder.BuildReplayComponents("slots", amount.ToString()));
     }
 
-    [ComponentInteraction("casino:again:*", true)]
-    public async Task CasinoAgainModalAsync(string data)
-    {
-        var (_, gameKey, parts) = CasinoTableBuilder.Decode($"again:{data}");
-        var customId = $"casino:submit:{gameKey}:{string.Join(":", parts)}";
-
-        var modal = new ModalBuilder()
-            .WithCustomId(customId)
-            .WithTitle("🎰 Nova aposta")
-            .AddTextInput(new TextInputBuilder(
-                "Valor da aposta", "valor", TextInputStyle.Short, "100 ou all", 1, 20, true, null))
-            .Build();
-
-        await RespondWithModalAsync(modal);
-    }
-
-    [ComponentInteraction("casino:allin:*", true)]
-    public async Task CasinoAllInAsync(string data)
+    [ComponentInteraction("casino:*", true)]
+    public async Task CasinoReplayAsync(string data)
     {
         await DeferAsync();
 
-        var (_, gameKey, parts) = CasinoTableBuilder.Decode($"allin:{data}");
-        var wallet = (await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username)).Money;
+        var (mode, gameKey, parts) = CasinoTableBuilder.Decode(data);
+        var userId = Context.User.Id;
 
-        if (wallet <= 0)
+        int amount;
+        if (mode == "allin")
         {
-            await FailAsync("❌ Você não tem moedas na carteira para apostar tudo.");
-            return;
+            var wallet = (await _userRepository.GetOrCreateAsync(userId, Context.User.Username)).Money;
+            if (wallet <= 0)
+            {
+                await FailAsync("❌ Você não tem moedas na carteira para apostar tudo.");
+                return;
+            }
+
+            amount = wallet;
+        }
+        else
+        {
+            amount = int.Parse(parts[0]);
         }
 
-        await PlayGameAsync(gameKey, parts, wallet);
-    }
-
-    [ModalInteraction("casino:submit:*", true)]
-    public async Task CasinoSubmitAsync(string data)
-    {
-        var modal = (SocketModal)Context.Interaction;
-        var valor = modal.Data.Components.First(c => c.CustomId == "valor").Value;
-
-        var (_, gameKey, parts) = CasinoTableBuilder.Decode($"submit:{data}");
-        var (amount, error) = await ResolveAmountAsync(Context.User.Id, valor.Trim());
-
-        if (error != null)
-        {
-            await FailAsync(error);
-            return;
-        }
-
-        await PlayGameAsync(gameKey, parts, amount);
-    }
-
-    private async Task PlayGameAsync(string gameKey, string[] parts, int amount)
-    {
-        var (deducted, _, error) = await _casino.ReserveAsync(Context.User.Id, amount);
+        var (deducted, _, error) = await _casino.ReserveAsync(userId, amount);
         if (!deducted)
         {
             await FailAsync(error!);
@@ -473,29 +550,5 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
     {
         var embed = await SettleAndBuildAsync(expired, "⌛ Sua mão anterior expirou e o dealer jogou por você.\n\n");
         await FollowupAsync(embed: embed, ephemeral: true);
-    }
-
-    public static class CasinoTableBuilder
-    {
-        public static MessageComponent BuildReplayComponents(string gameKey, string encodedParams)
-        {
-            var againId = $"casino:again:{gameKey}:{encodedParams}";
-            var allInId = $"casino:allin:{gameKey}:{encodedParams}";
-
-            return new ComponentBuilder()
-                .WithButton("🎰 Tentar de novo", againId, ButtonStyle.Primary)
-                .WithButton("💰 All-in", allInId, ButtonStyle.Danger)
-                .Build();
-        }
-
-        public static (string mode, string gameKey, string[] parts) Decode(string data)
-        {
-            var segments = data.Split(':', StringSplitOptions.RemoveEmptyEntries);
-
-            if (segments.Length == 0)
-                return (string.Empty, string.Empty, Array.Empty<string>());
-
-            return (segments[0], segments[1], segments.Skip(2).ToArray());
-        }
     }
 }
