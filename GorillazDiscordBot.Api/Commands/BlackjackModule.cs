@@ -2,6 +2,7 @@ using Discord;
 using Discord.Commands;
 using GorillazDiscordBot.Domain.Games;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
 
@@ -9,12 +10,12 @@ namespace GorillazDiscordBot.Commands;
 
 public class BlackjackModule : ModuleBase<SocketCommandContext>
 {
-    private readonly IUserRepository _userRepository;
+    private readonly IEconomyRepository _economy;
     private readonly GameSessionManager _sessions;
 
-    public BlackjackModule(IUserRepository userRepository, GameSessionManager sessions)
+    public BlackjackModule(IEconomyRepository economy, GameSessionManager sessions)
     {
-        _userRepository = userRepository;
+        _economy = economy;
         _sessions = sessions;
     }
 
@@ -37,7 +38,8 @@ public class BlackjackModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var (deducted, _) = await _userRepository.TryDeductMoneyAsync(Context.User.Id, quantia);
+        var (deducted, _) = await _economy.TryDeductMoneyAsync(
+            Context.User.Id, quantia, EconomyTransactionType.Bet, "Aposta no blackjack");
 
         if (!deducted)
         {
@@ -101,7 +103,8 @@ public class BlackjackModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var (deducted, _) = await _userRepository.TryDeductMoneyAsync(Context.User.Id, game.Bet);
+        var (deducted, _) = await _economy.TryDeductMoneyAsync(
+            Context.User.Id, game.Bet, EconomyTransactionType.Bet, "Double no blackjack");
 
         if (!deducted)
         {
@@ -139,9 +142,9 @@ public class BlackjackModule : ModuleBase<SocketCommandContext>
         var totalReturn = game.CalculateTotalReturn();
 
         if (totalReturn > 0)
-            await _userRepository.AddMoneyAsync(Context.User.Id, totalReturn);
+            await _economy.AddMoneyAsync(Context.User.Id, totalReturn, EconomyTransactionType.Bet, "Pagamento do blackjack");
 
-        var user = await _userRepository.GetOrCreateAsync(Context.User.Id, Context.User.Username);
+        var user = await _economy.GetOrCreateAsync(Context.User.Id, Context.User.Username);
 
         var resultSection = prefix
             + BlackjackTableBuilder.DescribeResult(game, totalReturn)
