@@ -1,4 +1,4 @@
-namespace GorillazDiscordBot.Domain.Entity.Games;
+namespace GorillazDiscordBot.Domain.Games;
 
 public enum RouletteColor
 {

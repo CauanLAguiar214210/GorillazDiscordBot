@@ -1,6 +1,6 @@
 using System.Text;
 using Discord;
-using GorillazDiscordBot.Domain.Entity.Games;
+using GorillazDiscordBot.Domain.Games;
 using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Utils;
