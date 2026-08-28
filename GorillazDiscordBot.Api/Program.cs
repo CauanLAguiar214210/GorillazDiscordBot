@@ -83,6 +83,8 @@ builder.Services.AddSingleton<IChatInteractionService, ChatInteractionService>()
 
 // Sessões de jogos (memória)
 builder.Services.AddSingleton<GameSessionManager>();
+builder.Services.AddSingleton<CasinoSessionManager>();
+builder.Services.AddSingleton<CasinoPlayService>();
 
 // GIF URL Normalization
 builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>

@@ -40,38 +40,6 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         await ReplyAsync($"💰 **{Context.User.GetDisplayName()}**, seu saldo é **{user.Money} moedas** na carteira.");
     }
 
-    [Command("bet")]
-    public async Task BetAsync(string valor)
-    {
-        if (!EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
-        {
-            await ReplyAsync(error!);
-            return;
-        }
-
-        var (deducted, balanceAfterBet) = await _economy.TryDeductMoneyAsync(
-            Context.User.Id, quantia, EconomyTransactionType.Bet, "Aposta");
-
-        if (!deducted)
-        {
-            await ReplyAsync("❌ Você não tem moedas suficientes na carteira.");
-            return;
-        }
-
-        bool win = Random.Shared.Next(2) == 0;
-
-        if (win)
-        {
-            int premio = quantia * 2;
-            await _economy.AddMoneyAsync(Context.User.Id, premio, EconomyTransactionType.Bet, "Aposta ganha");
-            await ReplyAsync($"🎉 **Você ganhou!** +{quantia} moedas! Saldo: **{balanceAfterBet + premio}**");
-        }
-        else
-        {
-            await ReplyAsync($"😢 **Você perdeu!** -{quantia} moedas! Saldo: **{balanceAfterBet}**");
-        }
-    }
-
     [Command("pagar")]
     [Alias("pay")]
     public async Task PagarAsync(IUser receiver, int quantia)

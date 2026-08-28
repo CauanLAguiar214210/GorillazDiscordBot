@@ -8,7 +8,8 @@ Bot do Discord em **.NET 9** com comandos de prefixo e interações por servidor
 ## Recursos
 
 - 🎮 **Comandos de prefixo** (`macaco <comando>`) e slash commands
-- 💰 **Economia**: daily, saldo, apostas, transferências e ranking
+- 💰 **Economia**: daily, saldo, transferências, poupança e ranking
+- 🎰 **Cassino**: blackjack, roleta (número, cor, par/ímpar, metade) e caça-níquel com multiplicadores
 - 🖼️ **GIFs**: adicionar, sortear e buscar GIFs (com suporte a Tenor)
 - 💬 **Interações personalizadas** por servidor
 - 👋 **Boas-vindas e despedidas** configuráveis
@@ -83,7 +84,7 @@ Config via `.env` (carregado por DotNetEnv em `GorillazDiscordBot.Api/.env`, tem
 ```bash
 dotnet restore GorillazDiscordBot.sln
 dotnet build GorillazDiscordBot.sln -c Release
-dotnet test GorillazDiscordBot.sln          # 27 testes
+dotnet test GorillazDiscordBot.sln          # 88 testes
 dotnet run --project GorillazDiscordBot.Api
 ```
 
@@ -102,7 +103,8 @@ docker compose up --build
 | Comando | Descrição |
 |---|---|
 | `ajuda` | Lista todos os comandos do bot |
-| `daily` / `saldo` / `bet` / `pagar` / `ranking` | Economia |
+| `daily` / `saldo` / `pagar` / `ranking` | Economia |
+| `blackjack <valor>` / `roleta <valor>` / `cacaniquel <valor>` | Cassino (blackjack, roleta e caça-níquel) |
 | `gif <categoria>` | Sorteia um GIF |
 | `8ball <pergunta>` | Bola 8 mágica |
 | `welcome` / `goodbye` | Configura boas-vindas e despedidas |

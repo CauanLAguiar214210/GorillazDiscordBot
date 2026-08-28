@@ -19,6 +19,7 @@ public static class CommandCatalog
         ["VoiceModule"] = ("Canais de Voz", "🔊"),
         ["InteractionModule"] = ("Interações", "💬"),
         ["BlackjackModule"] = ("Blackjack", "🃏"),
+        ["CasinoModule"] = ("Cassino", "🎰"),
     };
 
     /// <summary>Descrições dos comandos (chave = primeiro alias).</summary>
@@ -31,11 +32,13 @@ public static class CommandCatalog
         ["flip"] = "Cara ou coroa",
         ["daily"] = "Reivindica moedas diárias",
         ["saldo"] = "Ver seu saldo (alias: coins)",
-        ["bet"] = "Aposta 50/50",
         ["blackjack"] = "Inicia uma mão de Blackjack (alias: bj)",
         ["hit"] = "Pede mais uma carta no Blackjack (alias: pedir)",
         ["stand"] = "Para e encerra a mão de Blackjack (alias: parar)",
         ["double"] = "Dobra a aposta no Blackjack (alias: dobrar)",
+        ["roleta"] = "Aposta na roleta (número, cor, par/ímpar ou metade)",
+        ["cacaniquel"] = "Joga na caça-níquel (alias: slot)",
+        ["casino"] = "Mostra os jogos do cassino (alias: cassino)",
         ["pagar"] = "Transferir moedas para outro usuário",
         ["poupanca"] = "Ver seu saldo na poupança",
         ["poupar"] = "Deposita moedas na poupança com juros",
@@ -85,7 +88,6 @@ public static class CommandCatalog
         {
             new CommandEntry("daily", "Reivindica moedas diárias"),
             new CommandEntry("saldo", "Ver seu saldo (alias: carteira)"),
-            new CommandEntry("bet <valor>", "Aposta 50/50"),
             new CommandEntry("pagar <usuário> <valor>", "Transferir moedas para outro usuário"),
             new CommandEntry("depositar <valor>", "Move moedas da carteira para o banco"),
             new CommandEntry("sacar <valor>", "Move moedas do banco para a carteira"),
@@ -103,6 +105,14 @@ public static class CommandCatalog
             new CommandEntry("/blackjack <valor>", "Inicia uma mão de Blackjack com botões!"),
             new CommandEntry("Pedir / Parar / Dobrar", "Botões na própria mesa — sem digitar nada"),
             new CommandEntry("hit · stand · double", "Alternativa por prefixo (aliases: pedir, parar, dobrar)"),
+        }),
+        new("cassino", "🎰", "Cassino", new[]
+        {
+            new CommandEntry("/roleta <valor>", "Aposta na roleta com botões (número, cor, par/ímpar, metade)"),
+            new CommandEntry("roleta <valor> <tipo> <alvo>", "Aposta por prefixo na roleta"),
+            new CommandEntry("/cacaniquel <valor>", "Caça-níquel com botões"),
+            new CommandEntry("cacaniquel <valor>", "Caça-níquel por prefixo (alias: slot)"),
+            new CommandEntry("casino", "Mostra os jogos do cassino (alias: cassino)"),
         }),
         new("utilidade", "🛠️", "Utilidades", new[]
         {
