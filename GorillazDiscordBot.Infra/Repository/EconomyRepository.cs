@@ -209,11 +209,25 @@ public class EconomyRepository : IEconomyRepository
 
     public async Task<List<EconomyProfile>> GetTopUsersAsync(int limit)
     {
-        return await _collection.Find(_ => true)
-            .SortByDescending(p => p.Money)
-            .Limit(limit)
-            .ToListAsync();
+        var pipeline = new[]
+        {
+            new BsonDocument("$addFields", NetWorthProjection()),
+            new BsonDocument("$match", new BsonDocument("NetWorth", new BsonDocument("$gt", new BsonDecimal128(0m)))),
+            new BsonDocument("$sort", new BsonDocument("NetWorth", -1).Add("Money", -1)),
+            new BsonDocument("$limit", limit),
+            new BsonDocument("$project", new BsonDocument("NetWorth", 0))
+        };
+
+        return await _collection.Aggregate<EconomyProfile>(pipeline).ToListAsync();
     }
+
+    private static BsonDocument NetWorthProjection()
+        => new("NetWorth", new BsonDocument("$add", new BsonArray
+        {
+            new BsonDocument("$toDecimal", "$Money"),
+            new BsonDocument("$toDecimal", "$Bank"),
+            new BsonDocument("$toDecimal", "$Savings")
+        }));
 
     public async Task<int> ApplyDailyMaintenanceAsync()
     {
