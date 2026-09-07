@@ -10,10 +10,14 @@ public static class BlackjackTableBuilder
     private const string CardBackSymbol = "\U0001F0A0";
 
     public const string CustomIdPrefix = "bj:";
+    public const string ResultCustomIdPrefix = "bjk:";
 
     public const string HitAction = "hit";
     public const string StandAction = "stand";
     public const string DoubleAction = "double";
+    public const string PaytableAction = "paytable";
+    public const string ReplayAction = "replay";
+    public const string LeaveAction = "leave";
 
     public static bool CanDouble(BlackjackGame game)
         => game.Player.Cards.Count == 2 && !game.Doubled;
@@ -54,6 +58,41 @@ public static class BlackjackTableBuilder
             .WithButton("Pedir", $"{CustomIdPrefix}{HitAction}", ButtonStyle.Primary, new Emoji("🃏"))
             .WithButton("Parar", $"{CustomIdPrefix}{StandAction}", ButtonStyle.Success, new Emoji("✋"))
             .WithButton("Dobrar", $"{CustomIdPrefix}{DoubleAction}", ButtonStyle.Secondary, new Emoji("💰"), disabled: !CanDouble(game))
+            .WithButton("Pagamentos", $"{CustomIdPrefix}{PaytableAction}", ButtonStyle.Secondary, new Emoji("📊"))
+            .Build();
+    }
+
+    public static MessageComponent BuildResultComponents(ulong ownerId, int bet)
+    {
+        return new ComponentBuilder()
+            .WithButton("Continuar", $"{ResultCustomIdPrefix}{ReplayAction}:{ownerId}:{bet}", ButtonStyle.Success, new Emoji("🔄"))
+            .WithButton("Pagamentos", $"{ResultCustomIdPrefix}{PaytableAction}", ButtonStyle.Secondary, new Emoji("📊"))
+            .WithButton("Sair", $"{ResultCustomIdPrefix}{LeaveAction}:{ownerId}", ButtonStyle.Danger, new Emoji("🚪"))
+            .Build();
+    }
+
+    public static Embed BuildBlackjackPaytable()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("**Resultados e Pagamentos**");
+        sb.AppendLine();
+        sb.AppendLine("```\nResultado            Pagamento");
+        sb.AppendLine("──────────────────────────────");
+        sb.AppendLine("Blackjack (inicial)      3:2 (2.5x)");
+        sb.AppendLine("Vitória                   1:1 (2x)");
+        sb.AppendLine("Empate (Push)          Devolve");
+        sb.AppendLine("Derrota                  Perde");
+        sb.AppendLine("```");
+
+        sb.AppendLine("**Regras:**");
+        sb.AppendLine("• Dealer deve parar em 17 ou mais");
+        sb.AppendLine("• Dealer pede em 16 ou menos");
+        sb.AppendLine("• Dobrar só é permitido nas duas primeiras cartas");
+
+        return new EmbedBuilder()
+            .WithTitle("🃏 Blackjack — Tabela de Pagamentos")
+            .WithGoldTheme()
+            .WithDescription(sb.ToString())
             .Build();
     }
 

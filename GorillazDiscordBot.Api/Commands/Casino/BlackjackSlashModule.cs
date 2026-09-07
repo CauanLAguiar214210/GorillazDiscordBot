@@ -55,7 +55,9 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
         if (game.Phase == BlackjackPhase.Finished)
         {
             var settledEmbed = await SettleAndBuildAsync(game);
-            await RespondAsync(embed: settledEmbed, components: new ComponentBuilder().Build());
+            await RespondAsync(
+                embed: settledEmbed,
+                components: BlackjackTableBuilder.BuildResultComponents(Context.User.Id, game.Bet));
 
             if (expired != null)
                 await ReportExpiredAsync(expired);
@@ -84,8 +86,8 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
         if (expired != null)
         {
             expired.Stand();
-            var expiredEmbed = await SettleAndBuildAsync(expired, "⌛ Sua mão anterior expirou e o dealer jogou por você.\n\n");
-            await ReplaceWithResultAsync(expiredEmbed);
+            var expiredEmbed = await SettleAndBuildAsync(expired, "⏳ Sua mão anterior expirou e o dealer jogou por você.\n\n");
+            await ReplaceWithResultAsync(expiredEmbed, Context.User.Id, expired.Bet);
             return;
         }
 
@@ -99,6 +101,10 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
 
         switch (action)
         {
+            case BlackjackTableBuilder.PaytableAction:
+                await FollowupAsync(embed: BlackjackTableBuilder.BuildBlackjackPaytable(), ephemeral: true);
+                return;
+
             case BlackjackTableBuilder.HitAction:
                 game.Hit();
                 _sessions.Touch(userId);
@@ -135,7 +141,7 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
         if (game.Phase == BlackjackPhase.Finished)
         {
             var embed = await SettleAndBuildAsync(game);
-            await ReplaceWithResultAsync(embed);
+            await ReplaceWithResultAsync(embed, Context.User.Id, game.Bet);
         }
         else
         {
@@ -146,6 +152,84 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
             });
         }
     }
+
+    [ComponentInteraction(BlackjackTableBuilder.ResultCustomIdPrefix + BlackjackTableBuilder.ReplayAction + ":*:*", true)]
+    public async Task BlackjackReplayAsync(ulong ownerId, int bet)
+    {
+        await DeferAsync();
+
+        if (ownerId != Context.User.Id)
+        {
+            await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
+            return;
+        }
+
+        var userId = Context.User.Id;
+
+        var expired = _sessions.TakeExpired(userId);
+        if (expired != null)
+        {
+            expired.Stand();
+            var expiredEmbed = await SettleAndBuildAsync(expired, "⏳ Sua mão anterior expirou e o dealer jogou por você.\n\n");
+            await ReplaceWithResultAsync(expiredEmbed, ownerId, expired.Bet);
+            return;
+        }
+
+        if (_sessions.GetActive(userId) != null)
+        {
+            await FollowupAsync("🃏 Você já tem uma mão em andamento! Use os botões da mesa aberta.", ephemeral: true);
+            return;
+        }
+
+        var (deducted, _) = await _economy.TryDeductMoneyAsync(
+            userId, bet, EconomyTransactionType.Bet, "Nova mão no blackjack");
+
+        if (!deducted)
+        {
+            await FollowupAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
+            return;
+        }
+
+        var game = new BlackjackGame(bet);
+
+        if (game.Phase == BlackjackPhase.Finished)
+        {
+            var settledEmbed = await SettleAndBuildAsync(game);
+            await ReplaceWithResultAsync(settledEmbed, ownerId, game.Bet);
+            return;
+        }
+
+        _sessions.Add(userId, game);
+
+        await Context.Interaction.ModifyOriginalResponseAsync(m =>
+        {
+            m.Embed = BlackjackTableBuilder.BuildTable(game, Context.User);
+            m.Components = BlackjackTableBuilder.BuildActionComponents(game);
+        });
+    }
+
+    [ComponentInteraction(BlackjackTableBuilder.ResultCustomIdPrefix + BlackjackTableBuilder.LeaveAction + ":*", true)]
+    public async Task BlackjackLeaveAsync(ulong ownerId)
+    {
+        await DeferAsync();
+
+        if (ownerId != Context.User.Id)
+        {
+            await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
+            return;
+        }
+
+        _sessions.Remove(Context.User.Id);
+
+        await Context.Interaction.ModifyOriginalResponseAsync(m =>
+        {
+            m.Components = new ComponentBuilder().Build();
+        });
+    }
+
+    [ComponentInteraction(BlackjackTableBuilder.ResultCustomIdPrefix + BlackjackTableBuilder.PaytableAction, true)]
+    public async Task BlackjackResultPaytableAsync()
+        => await RespondAsync(embed: BlackjackTableBuilder.BuildBlackjackPaytable(), ephemeral: true);
 
     private async Task<Embed> SettleAndBuildAsync(BlackjackGame game, string prefix = "")
     {
@@ -165,16 +249,16 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
         return BlackjackTableBuilder.BuildTable(game, Context.User, resultSection);
     }
 
-    private Task ReplaceWithResultAsync(Embed embed)
+    private Task ReplaceWithResultAsync(Embed embed, ulong ownerId, int bet)
         => Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
             m.Embed = embed;
-            m.Components = new ComponentBuilder().Build();
+            m.Components = BlackjackTableBuilder.BuildResultComponents(ownerId, bet);
         });
 
     private async Task ReportExpiredAsync(BlackjackGame expired)
     {
-        var embed = await SettleAndBuildAsync(expired, "⌛ Sua mão anterior expirou e o dealer jogou por você.\n\n");
+        var embed = await SettleAndBuildAsync(expired, "⏳ Sua mão anterior expirou e o dealer jogou por você.\n\n");
         await FollowupAsync(embed: embed, ephemeral: true);
     }
 }

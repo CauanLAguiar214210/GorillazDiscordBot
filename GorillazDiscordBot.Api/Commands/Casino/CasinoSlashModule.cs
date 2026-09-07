@@ -108,6 +108,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         var game = session.Roulette;
+        var firstBet = game.Bets.FirstOrDefault();
         game.Spin();
         _sessions.Remove(Context.User.Id);
 
@@ -118,7 +119,9 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
             m.Embed = CasinoTableBuilder.BuildRouletteTable(game, Context.User, balance, resultSection);
-            m.Components = new ComponentBuilder().Build();
+            m.Components = firstBet == null
+                ? new ComponentBuilder().Build()
+                : CasinoTableBuilder.BuildRouletteReplayComponents(Context.User.Id, session.Bet, firstBet.Type, firstBet.Target);
         });
     }
 
@@ -209,6 +212,145 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
             m.Embed = CasinoTableBuilder.BuildSlotTable(slots, session.Bet, Context.User, balance, resultSection);
+            m.Components = CasinoTableBuilder.BuildSlotReplayComponents(Context.User.Id, session.Bet);
+        });
+    }
+
+    [ComponentInteraction(CasinoTableBuilder.SlotCustomIdPrefix + CasinoTableBuilder.SlotReplayAction + ":*:*", true)]
+    public async Task SlotReplayAsync(ulong ownerId, int bet)
+    {
+        await DeferAsync();
+
+        if (ownerId != Context.User.Id)
+        {
+            await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
+            return;
+        }
+
+        var expired = _sessions.TakeExpired(Context.User.Id);
+        if (expired != null)
+            await SettleExpiredAsync(expired);
+
+        if (_sessions.GetActive(Context.User.Id) != null)
+        {
+            await FollowupAsync("🎰 Você já tem uma máquina em andamento! Use o botão da máquina aberta.", ephemeral: true);
+            return;
+        }
+
+        var (deducted, _) = await _play.DeductBetAsync(
+            Context.User.Id, bet, Context.User.Username, "Nova rodada na caça-níquel");
+
+        if (!deducted)
+        {
+            await FollowupAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
+            return;
+        }
+
+        var slots = new SlotMachineGame();
+        slots.Spin();
+
+        var returnAmount = SlotMachineGame.CalculateReturn(bet, slots.Reels);
+        var balance = await _play.PayOutAsync(
+            Context.User.Id, returnAmount, Context.User.Username, "Pagamento da caça-níquel");
+
+        var resultSection = returnAmount > 0
+            ? $"🎉 **Você ganhou!** Recebeu **{returnAmount}** moedas."
+            : "😢 Você não acertou nenhuma combinação. Boa sorte na próxima!";
+
+        await Context.Interaction.ModifyOriginalResponseAsync(m =>
+        {
+            m.Embed = CasinoTableBuilder.BuildSlotTable(slots, bet, Context.User, balance, resultSection);
+            m.Components = CasinoTableBuilder.BuildSlotReplayComponents(ownerId, bet);
+        });
+    }
+
+    [ComponentInteraction(CasinoTableBuilder.RoulCustomIdPrefix + CasinoTableBuilder.RoulReplayAction + ":*:*:*:*", true)]
+    public async Task RouletteReplayAsync(ulong ownerId, int bet, int type, int target)
+    {
+        await DeferAsync();
+
+        if (ownerId != Context.User.Id)
+        {
+            await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
+            return;
+        }
+
+        var expired = _sessions.TakeExpired(Context.User.Id);
+        if (expired != null)
+            await SettleExpiredAsync(expired);
+
+        if (_sessions.GetActive(Context.User.Id) != null)
+        {
+            await FollowupAsync("🎰 Você já tem uma roleta em andamento! Use os botões da mesa aberta.", ephemeral: true);
+            return;
+        }
+
+        var (deducted, _) = await _play.DeductBetAsync(
+            Context.User.Id, bet, Context.User.Username, "Nova rodada na roleta");
+
+        if (!deducted)
+        {
+            await FollowupAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
+            return;
+        }
+
+        var game = new RouletteGame();
+        game.AddBet(bet, (RouletteBetType)type, target);
+
+        var session = CasinoSession.ForRoulette(bet, game);
+        _sessions.Add(Context.User.Id, session);
+
+        var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
+
+        await Context.Interaction.ModifyOriginalResponseAsync(m =>
+        {
+            m.Embed = CasinoTableBuilder.BuildRouletteTable(game, Context.User, balance);
+            m.Components = CasinoTableBuilder.BuildRouletteComponents(game.Bets.Count > 0);
+        });
+    }
+
+    [ComponentInteraction(CasinoTableBuilder.RoulCustomIdPrefix + CasinoTableBuilder.RoulPaytableAction, true)]
+    public async Task RoulettePaytableAsync()
+        => await RespondAsync(embed: CasinoTableBuilder.BuildRoulettePaytable(), ephemeral: true);
+
+    [ComponentInteraction(CasinoTableBuilder.SlotCustomIdPrefix + CasinoTableBuilder.SlotPaytableAction, true)]
+    public async Task SlotPaytableAsync()
+        => await RespondAsync(embed: CasinoTableBuilder.BuildSlotPaytable(), ephemeral: true);
+
+    [ComponentInteraction(CasinoTableBuilder.RoulCustomIdPrefix + CasinoTableBuilder.RoulLeaveAction + ":*", true)]
+    public async Task RouletteLeaveAsync(ulong ownerId)
+    {
+        await DeferAsync();
+
+        if (ownerId != Context.User.Id)
+        {
+            await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
+            return;
+        }
+
+        _sessions.Remove(Context.User.Id);
+
+        await Context.Interaction.ModifyOriginalResponseAsync(m =>
+        {
+            m.Components = new ComponentBuilder().Build();
+        });
+    }
+
+    [ComponentInteraction(CasinoTableBuilder.SlotCustomIdPrefix + CasinoTableBuilder.SlotLeaveAction + ":*", true)]
+    public async Task SlotLeaveAsync(ulong ownerId)
+    {
+        await DeferAsync();
+
+        if (ownerId != Context.User.Id)
+        {
+            await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
+            return;
+        }
+
+        _sessions.Remove(Context.User.Id);
+
+        await Context.Interaction.ModifyOriginalResponseAsync(m =>
+        {
             m.Components = new ComponentBuilder().Build();
         });
     }
