@@ -284,7 +284,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
         if (top.Count == 0)
         {
-            await ReplyAsync("📭 Ninguém tem moedas ainda.");
+            await ReplyAsync("📭 Ninguém tem patrimônio ainda.");
             return;
         }
 
@@ -300,11 +300,18 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
                 3 => "🥉",
                 _ => $"{pos}º"
             };
-            sb.AppendLine($"{medal} **{u.Username}** — {u.Money} moedas");
+            sb.AppendLine($"{medal} **{await ResolveGlobalNameAsync(u)}** — {EconomyFormat.Compact(u.NetWorth)}");
             pos++;
         }
 
         await ReplyAsync(sb.ToString());
+    }
+
+    private async Task<string> ResolveGlobalNameAsync(EconomyProfile profile)
+    {
+        IUser? cached = Context.Client.GetUser(profile.UserId);
+        var user = cached ?? await Context.Client.GetUserAsync(profile.UserId);
+        return user?.GetDisplayName() ?? profile.Username;
     }
 
     [Command("historico")]

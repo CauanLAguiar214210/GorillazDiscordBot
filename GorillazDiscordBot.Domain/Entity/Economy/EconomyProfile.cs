@@ -14,4 +14,12 @@ public class EconomyProfile
     public DateTime? LastWorkTime { get; set; }
     public DateTime? LastRobTime { get; set; }
     public DateTime? RobCaughtUntil { get; set; }
+
+    public ulong NetWorth => AddSafe(Money, AddSafe(Bank, Savings));
+
+    private static ulong AddSafe(ulong a, ulong b)
+    {
+        var sum = a + b;
+        return sum < a ? ulong.MaxValue : sum;
+    }
 }

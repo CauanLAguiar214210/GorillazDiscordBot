@@ -46,7 +46,7 @@ public static class CommandCatalog
         ["trabalhar"] = "Trabalha em um serviço para ganhar moedas",
         ["roubar"] = "Tenta roubar moedas de outro usuário",
         ["historico"] = "Mostra o histórico de transações",
-        ["ranking"] = "Ranking de riqueza do servidor",
+        ["ranking"] = "Ranking global de riqueza",
         ["gif"] = "Buscar, adicionar ou sortear GIFs",
         ["userinfo"] = "Suas informações de usuário",
         ["random"] = "Número aleatório entre min e max",
@@ -98,7 +98,7 @@ public static class CommandCatalog
             new CommandEntry("trabalhar [serviço]", "Trabalha em um serviço e ganha moedas"),
             new CommandEntry("roubar <usuário>", "Tenta roubar moedas de outro usuário"),
             new CommandEntry("historico [n]", "Mostra o histórico de transações"),
-            new CommandEntry("ranking", "Ranking de riqueza do servidor"),
+            new CommandEntry("ranking", "Ranking global de riqueza"),
         }),
         new("jogos", "🃏", "Jogos", new[]
         {
