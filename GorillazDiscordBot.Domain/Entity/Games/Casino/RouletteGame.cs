@@ -15,7 +15,7 @@ public enum RouletteColor
     Zero
 }
 
-public sealed record RouletteBet(int Amount, RouletteBetType Type, int Target);
+public sealed record RouletteBet(ulong Amount, RouletteBetType Type, int Target);
 
 public sealed class RouletteGame
 {
@@ -32,7 +32,7 @@ public sealed class RouletteGame
         _roll = roll ?? (() => Random.Shared.Next(CasinoRules.RouletteNumberCount));
     }
 
-    public RouletteBet AddBet(int amount, RouletteBetType type, int target)
+    public RouletteBet AddBet(ulong amount, RouletteBetType type, int target)
     {
         if (amount <= 0)
             throw new ArgumentOutOfRangeException(nameof(amount), "A aposta deve ser positiva.");
@@ -69,28 +69,28 @@ public sealed class RouletteGame
         };
     }
 
-    public int CalculateReturn(RouletteBet bet)
+    public ulong CalculateReturn(RouletteBet bet)
     {
         if (!HasSpun || !IsWin(bet))
             return 0;
 
         return bet.Type == RouletteBetType.Number
-            ? bet.Amount * CasinoRules.RouletteStraightPayout
-            : (int)Math.Floor(bet.Amount * CasinoRules.RouletteEvenMoneyPayout);
+            ? bet.Amount * (ulong)CasinoRules.RouletteStraightPayout
+            : (ulong)Math.Floor(bet.Amount * CasinoRules.RouletteEvenMoneyPayout);
     }
 
-    public int CalculateTotalReturn()
+    public ulong CalculateTotalReturn()
     {
         if (!HasSpun)
             return 0;
 
-        var total = 0;
+        ulong total = 0;
         foreach (var bet in Bets)
             total += CalculateReturn(bet);
         return total;
     }
 
-    public int TotalBet => Bets.Sum(b => b.Amount);
+    public ulong TotalBet => Bets.Aggregate(0ul, (total, bet) => total + bet.Amount);
 
     public static RouletteColor ColorOf(int number)
     {

@@ -65,18 +65,18 @@ public sealed class CasinoSession
 
     public SlotMachineGame? Slots { get; }
 
-    public int Bet { get; }
+    public ulong Bet { get; }
 
-    private CasinoSession(int bet, RouletteGame? roulette, SlotMachineGame? slots)
+    private CasinoSession(ulong bet, RouletteGame? roulette, SlotMachineGame? slots)
     {
         Bet = bet;
         Roulette = roulette;
         Slots = slots;
     }
 
-    public static CasinoSession ForRoulette(int bet, RouletteGame roulette)
+    public static CasinoSession ForRoulette(ulong bet, RouletteGame roulette)
         => new(bet, roulette, null);
 
-    public static CasinoSession ForSlots(int bet, SlotMachineGame slots)
+    public static CasinoSession ForSlots(ulong bet, SlotMachineGame slots)
         => new(bet, null, slots);
 }

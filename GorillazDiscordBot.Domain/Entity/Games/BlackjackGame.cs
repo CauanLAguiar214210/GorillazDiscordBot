@@ -69,7 +69,7 @@ public sealed class BlackjackGame
 
     private readonly Deck _deck;
 
-    public int Bet { get; private set; }
+    public ulong Bet { get; private set; }
     public BlackjackHand Player { get; } = new();
     public BlackjackHand Dealer { get; } = new();
     public BlackjackPhase Phase { get; private set; } = BlackjackPhase.PlayerTurn;
@@ -78,7 +78,7 @@ public sealed class BlackjackGame
 
     public bool DealerHoleHidden => Phase == BlackjackPhase.PlayerTurn;
 
-    public BlackjackGame(int bet, Deck? deck = null)
+    public BlackjackGame(ulong bet, Deck? deck = null)
     {
         if (bet <= 0)
             throw new ArgumentOutOfRangeException(nameof(bet), "A aposta deve ser positiva.");
@@ -131,7 +131,7 @@ public sealed class BlackjackGame
         if (Player.Cards.Count != 2 || Doubled)
             throw new InvalidOperationException("Dobrar é permitido apenas nas duas primeiras cartas.");
 
-        Bet *= 2;
+        Bet *= 2UL;
         Doubled = true;
 
         Player.Add(_deck.Draw());
@@ -145,10 +145,10 @@ public sealed class BlackjackGame
         Stand();
     }
 
-    public int CalculateTotalReturn() => Outcome switch
+    public ulong CalculateTotalReturn() => Outcome switch
     {
-        BlackjackOutcome.PlayerBlackjack => Bet + (int)Math.Floor(Bet * 1.5m),
-        BlackjackOutcome.PlayerWin => Bet * 2,
+        BlackjackOutcome.PlayerBlackjack => Bet + (ulong)Math.Floor(Bet * 1.5m),
+        BlackjackOutcome.PlayerWin => Bet * 2UL,
         BlackjackOutcome.Push => Bet,
         _ => 0
     };

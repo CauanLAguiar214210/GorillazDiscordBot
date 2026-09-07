@@ -13,11 +13,11 @@ public class CasinoPlayService
         _economy = economy;
     }
 
-    public async Task<int> GetBalanceAsync(ulong userId, string username)
+    public async Task<ulong> GetBalanceAsync(ulong userId, string username)
         => (await _economy.GetOrCreateAsync(userId, username)).Money;
 
-    public async Task<(bool success, int balance)> DeductBetAsync(
-        ulong userId, int amount, string username, string description)
+    public async Task<(bool success, ulong balance)> DeductBetAsync(
+        ulong userId, ulong amount, string username, string description)
     {
         await _economy.GetOrCreateAsync(userId, username);
         var (success, balance) = await _economy.TryDeductMoneyAsync(
@@ -25,8 +25,8 @@ public class CasinoPlayService
         return (success, balance);
     }
 
-    public async Task<int> PayOutAsync(
-        ulong userId, int returnAmount, string username, string description)
+    public async Task<ulong> PayOutAsync(
+        ulong userId, ulong returnAmount, string username, string description)
     {
         if (returnAmount > 0)
         {

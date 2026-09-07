@@ -2,7 +2,7 @@ namespace GorillazDiscordBot.Domain.Entity.Economy;
 
 public sealed record Job(string Key, string Name, string Emoji, int Hours, int HourlyPay)
 {
-    public int TotalPay => Hours * HourlyPay;
+    public ulong TotalPay => (ulong)(Hours * HourlyPay);
 }
 
 public static class EconomyJobs
@@ -54,9 +54,9 @@ public static class EconomyRules
     public static bool ShouldRobSucceed(Random rng)
         => rng.NextDouble() < RobSuccessChance;
 
-    public static int ComputeRobAmount(int victimMoney, Random rng)
+    public static ulong ComputeRobAmount(ulong victimMoney, Random rng)
     {
-        var amount = (int)Math.Floor(victimMoney * RobVictimShare);
+        var amount = (ulong)Math.Floor(victimMoney * RobVictimShare);
         amount = Math.Min(amount, RobMaxSteal);
         return Math.Max(1, amount);
     }

@@ -41,7 +41,7 @@ public class SlotMachineGameTests
     {
         var reels = Rows(symbol, symbol, symbol);
 
-        SlotMachineGame.CalculateReturn(100, reels).Should().Be(100 * multiplier);
+        SlotMachineGame.CalculateReturn(100UL, reels).Should().Be(100UL * (ulong)multiplier);
     }
 
     [Theory]
@@ -56,7 +56,7 @@ public class SlotMachineGameTests
         var other = symbol == SlotSymbol.Diamond ? SlotSymbol.Cherry : SlotSymbol.Diamond;
         var reels = Rows(symbol, symbol, other);
 
-        SlotMachineGame.CalculateReturn(100, reels).Should().Be(100 * multiplier);
+        SlotMachineGame.CalculateReturn(100UL, reels).Should().Be(100UL * (ulong)multiplier);
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class SlotMachineGameTests
     {
         var reels = Rows(SlotSymbol.Cherry, SlotSymbol.Lemon, SlotSymbol.Cherry);
 
-        SlotMachineGame.CalculateReturn(100, reels).Should().Be(100);
+        SlotMachineGame.CalculateReturn(100UL, reels).Should().Be(100);
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public class SlotMachineGameTests
     {
         var reels = Rows(SlotSymbol.Cherry, SlotSymbol.Lemon, SlotSymbol.Bell);
 
-        SlotMachineGame.CalculateReturn(100, reels).Should().Be(0);
+        SlotMachineGame.CalculateReturn(100UL, reels).Should().Be(0);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public class SlotMachineGameTests
     {
         var reels = Rows(SlotSymbol.Cherry, SlotSymbol.Cherry, SlotSymbol.Cherry);
 
-        var act = () => SlotMachineGame.CalculateReturn(0, reels);
+        var act = () => SlotMachineGame.CalculateReturn(0UL, reels);
 
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
@@ -90,7 +90,7 @@ public class SlotMachineGameTests
     {
         var reels = Rows(SlotSymbol.Cherry, SlotSymbol.Cherry);
 
-        SlotMachineGame.CalculateReturn(100, reels).Should().Be(0);
+        SlotMachineGame.CalculateReturn(100UL, reels).Should().Be(0);
     }
 
     [Fact]

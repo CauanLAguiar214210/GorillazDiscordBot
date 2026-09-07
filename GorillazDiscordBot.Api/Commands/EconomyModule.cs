@@ -41,7 +41,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
     [Command("pagar")]
     [Alias("pay")]
-    public async Task PagarAsync(IUser receiver, int quantia)
+    public async Task PagarAsync(IUser receiver, ulong quantia)
     {
         if (quantia <= 0)
         {
@@ -82,7 +82,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Alias("dep", "deposit")]
     public async Task DepositarAsync(string valor)
     {
-        if (!EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
+        if (!EconomyHelper.TryParsePositiveAmount(valor, out ulong quantia, out var error))
         {
             await ReplyAsync(error!);
             return;
@@ -103,7 +103,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Alias("withdraw", "wd")]
     public async Task SacarAsync(string valor)
     {
-        if (!EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
+        if (!EconomyHelper.TryParsePositiveAmount(valor, out ulong quantia, out var error))
         {
             await ReplyAsync(error!);
             return;
@@ -140,7 +140,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Alias("savingsdeposit")]
     public async Task PouparAsync(string valor)
     {
-        if (!EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
+        if (!EconomyHelper.TryParsePositiveAmount(valor, out ulong quantia, out var error))
         {
             await ReplyAsync(error!);
             return;
@@ -163,7 +163,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Alias("savingswithdraw")]
     public async Task ResgatarAsync(string valor)
     {
-        if (!EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
+        if (!EconomyHelper.TryParsePositiveAmount(valor, out ulong quantia, out var error))
         {
             await ReplyAsync(error!);
             return;
@@ -259,7 +259,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
         if (EconomyRules.ShouldRobSucceed(Random.Shared))
         {
-            int stolen = EconomyRules.ComputeRobAmount(victim.Money, Random.Shared);
+            ulong stolen = EconomyRules.ComputeRobAmount(victim.Money, Random.Shared);
 
             await _economy.TryDeductMoneyAsync(target.Id, stolen, EconomyTransactionType.Rob,
                 $"Roubado por {Context.User.GetDisplayName()}");
@@ -340,12 +340,12 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
     public static class EconomyHelper
     {
-        public static bool TryParsePositiveAmount(string input, out int amount, out string? error)
+        public static bool TryParsePositiveAmount(string input, out ulong amount, out string? error)
         {
             amount = 0;
             error = null;
 
-            if (!int.TryParse(input, out amount))
+            if (!ulong.TryParse(input, out amount))
             {
                 error = "⚠️ Informe um valor numérico. Exemplo: `bet 100`";
                 return false;
