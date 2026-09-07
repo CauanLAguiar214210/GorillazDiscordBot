@@ -21,7 +21,7 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
 
     [SlashCommand("blackjack", "Inicia uma mão de Blackjack com botões")]
     public async Task BlackjackAsync(
-        [Summary("valor", "Quantidade de moedas para apostar")] int valor)
+        [Summary("valor", "Quantidade de moedas para apostar")] ulong valor)
     {
         if (valor <= 0)
         {
@@ -154,7 +154,7 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
     }
 
     [ComponentInteraction(BlackjackTableBuilder.ResultCustomIdPrefix + BlackjackTableBuilder.ReplayAction + ":*:*", true)]
-    public async Task BlackjackReplayAsync(ulong ownerId, int bet)
+    public async Task BlackjackReplayAsync(ulong ownerId, ulong bet)
     {
         await DeferAsync();
 
@@ -249,7 +249,7 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
         return BlackjackTableBuilder.BuildTable(game, Context.User, resultSection);
     }
 
-    private Task ReplaceWithResultAsync(Embed embed, ulong ownerId, int bet)
+    private Task ReplaceWithResultAsync(Embed embed, ulong ownerId, ulong bet)
         => Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
             m.Embed = embed;

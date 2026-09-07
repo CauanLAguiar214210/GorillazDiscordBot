@@ -3,6 +3,7 @@ using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Infra.Configuration;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace GorillazDiscordBot.Data.Repository;
@@ -49,7 +50,7 @@ public class EconomyRepository : IEconomyRepository
                | Builders<EconomyProfile>.Filter.Lt(p => p.LastDailyClaim, todayStart));
 
         var update = Builders<EconomyProfile>.Update
-            .Inc(p => p.Money, reward)
+            .Inc(p => p.Money, (ulong)reward)
             .Set(p => p.LastDailyClaim, DateTime.UtcNow);
 
         var result = await _collection.FindOneAndUpdateAsync(filter, update,
@@ -61,10 +62,10 @@ public class EconomyRepository : IEconomyRepository
         if (result == null) return (false, 0);
 
         await AddTransactionAsync(userId, EconomyTransactionType.Daily, reward, "Daily resgatado");
-        return (true, result.Money);
+        return (true, (int)result.Money);
     }
 
-    public async Task<bool> AddMoneyAsync(ulong userId, int amount, EconomyTransactionType type, string description)
+    public async Task<bool> AddMoneyAsync(ulong userId, ulong amount, EconomyTransactionType type, string description)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId);
         var update = Builders<EconomyProfile>.Update.Inc(p => p.Money, amount);
@@ -72,16 +73,17 @@ public class EconomyRepository : IEconomyRepository
 
         if (result.ModifiedCount == 0) return false;
 
-        await AddTransactionAsync(userId, type, amount, description);
+        await AddTransactionAsync(userId, type, (int)amount, description);
         return true;
     }
 
-    public async Task<(bool success, int newBalance)> TryDeductMoneyAsync(ulong userId, int amount, EconomyTransactionType type, string description)
+    public async Task<(bool success, ulong newBalance)> TryDeductMoneyAsync(ulong userId, ulong amount, EconomyTransactionType type, string description)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
             & Builders<EconomyProfile>.Filter.Gte(p => p.Money, amount);
 
-        var update = Builders<EconomyProfile>.Update.Inc(p => p.Money, -amount);
+        var update = new BsonDocumentUpdateDefinition<EconomyProfile>(
+            new BsonDocument("$inc", new BsonDocument("Money", -(long)amount)));
 
         var result = await _collection.FindOneAndUpdateAsync(filter, update,
             new FindOneAndUpdateOptions<EconomyProfile>
@@ -91,18 +93,17 @@ public class EconomyRepository : IEconomyRepository
 
         if (result == null) return (false, 0);
 
-        await AddTransactionAsync(userId, type, -amount, description);
+        await AddTransactionAsync(userId, type, -(int)amount, description);
         return (true, result.Money);
     }
 
-    public async Task<(bool success, int wallet, int bank)> DepositAsync(ulong userId, int amount)
+    public async Task<(bool success, int wallet, int bank)> DepositAsync(ulong userId, ulong amount)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
             & Builders<EconomyProfile>.Filter.Gte(p => p.Money, amount);
 
-        var update = Builders<EconomyProfile>.Update
-            .Inc(p => p.Money, -amount)
-            .Inc(p => p.Bank, amount);
+        var update = new BsonDocumentUpdateDefinition<EconomyProfile>(
+            new BsonDocument("$inc", new BsonDocument { { "Money", -(long)amount }, { "Bank", (long)amount } }));
 
         var result = await _collection.FindOneAndUpdateAsync(filter, update,
             new FindOneAndUpdateOptions<EconomyProfile>
@@ -112,18 +113,17 @@ public class EconomyRepository : IEconomyRepository
 
         if (result == null) return (false, 0, 0);
 
-        await AddTransactionAsync(userId, EconomyTransactionType.Deposit, -amount, "Depósito no banco");
-        return (true, result.Money, result.Bank);
+        await AddTransactionAsync(userId, EconomyTransactionType.Deposit, -(int)amount, "Depósito no banco");
+        return (true, (int)result.Money, (int)result.Bank);
     }
 
-    public async Task<(bool success, int wallet, int bank)> WithdrawAsync(ulong userId, int amount)
+    public async Task<(bool success, int wallet, int bank)> WithdrawAsync(ulong userId, ulong amount)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
             & Builders<EconomyProfile>.Filter.Gte(p => p.Bank, amount);
 
-        var update = Builders<EconomyProfile>.Update
-            .Inc(p => p.Bank, -amount)
-            .Inc(p => p.Money, amount);
+        var update = new BsonDocumentUpdateDefinition<EconomyProfile>(
+            new BsonDocument("$inc", new BsonDocument { { "Bank", -(long)amount }, { "Money", (long)amount } }));
 
         var result = await _collection.FindOneAndUpdateAsync(filter, update,
             new FindOneAndUpdateOptions<EconomyProfile>
@@ -133,19 +133,17 @@ public class EconomyRepository : IEconomyRepository
 
         if (result == null) return (false, 0, 0);
 
-        await AddTransactionAsync(userId, EconomyTransactionType.Withdraw, amount, "Saque do banco");
-        return (true, result.Money, result.Bank);
+        await AddTransactionAsync(userId, EconomyTransactionType.Withdraw, (int)amount, "Saque do banco");
+        return (true, (int)result.Money, (int)result.Bank);
     }
 
-    public async Task<(bool success, int wallet, int savings, int streak)> DepositSavingsAsync(ulong userId, int amount)
+    public async Task<(bool success, int wallet, int savings, int streak)> DepositSavingsAsync(ulong userId, ulong amount)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
             & Builders<EconomyProfile>.Filter.Gte(p => p.Money, amount);
 
-        var update = Builders<EconomyProfile>.Update
-            .Inc(p => p.Money, -amount)
-            .Inc(p => p.Savings, amount)
-            .Inc(p => p.SavingsStreak, 1);
+        var update = new BsonDocumentUpdateDefinition<EconomyProfile>(
+            new BsonDocument("$inc", new BsonDocument { { "Money", -(long)amount }, { "Savings", (long)amount }, { "SavingsStreak", 1 } }));
 
         var result = await _collection.FindOneAndUpdateAsync(filter, update,
             new FindOneAndUpdateOptions<EconomyProfile>
@@ -155,19 +153,21 @@ public class EconomyRepository : IEconomyRepository
 
         if (result == null) return (false, 0, 0, 0);
 
-        await AddTransactionAsync(userId, EconomyTransactionType.SavingsDeposit, -amount, "Depósito na poupança");
-        return (true, result.Money, result.Savings, result.SavingsStreak);
+        await AddTransactionAsync(userId, EconomyTransactionType.SavingsDeposit, -(int)amount, "Depósito na poupança");
+        return (true, (int)result.Money, (int)result.Savings, (int)result.SavingsStreak);
     }
 
-    public async Task<(bool success, int wallet, int savings, int streak)> WithdrawSavingsAsync(ulong userId, int amount)
+    public async Task<(bool success, int wallet, int savings, int streak)> WithdrawSavingsAsync(ulong userId, ulong amount)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
             & Builders<EconomyProfile>.Filter.Gte(p => p.Savings, amount);
 
-        var update = Builders<EconomyProfile>.Update
-            .Inc(p => p.Savings, -amount)
-            .Inc(p => p.Money, amount)
-            .Set(p => p.SavingsStreak, 0);
+        var update = new BsonDocumentUpdateDefinition<EconomyProfile>(
+            new BsonDocument
+            {
+                { "$inc", new BsonDocument { { "Savings", -(long)amount }, { "Money", (long)amount } } },
+                { "$set", new BsonDocument("SavingsStreak", 0) }
+            });
 
         var result = await _collection.FindOneAndUpdateAsync(filter, update,
             new FindOneAndUpdateOptions<EconomyProfile>
@@ -177,8 +177,8 @@ public class EconomyRepository : IEconomyRepository
 
         if (result == null) return (false, 0, 0, 0);
 
-        await AddTransactionAsync(userId, EconomyTransactionType.SavingsWithdraw, amount, "Resgate da poupança");
-        return (true, result.Money, result.Savings, result.SavingsStreak);
+        await AddTransactionAsync(userId, EconomyTransactionType.SavingsWithdraw, (int)amount, "Resgate da poupança");
+        return (true, (int)result.Money, (int)result.Savings, (int)result.SavingsStreak);
     }
 
     public async Task<EconomyProfile> SetLastWorkAsync(ulong userId, DateTime now)
@@ -238,25 +238,25 @@ public class EconomyRepository : IEconomyRepository
         {
             var ops = new List<UpdateDefinition<EconomyProfile>>();
 
-            if (profile.Bank > 1)
+            if (profile.Bank > 1UL)
             {
-                var newBank = (int)Math.Ceiling(profile.Bank * 0.99);
+                var newBank = (ulong)Math.Ceiling(profile.Bank * 0.99);
                 if (newBank != profile.Bank)
                 {
                     ops.Add(Builders<EconomyProfile>.Update.Set(p => p.Bank, newBank));
-                    toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Tax, newBank - profile.Bank, "Taxa bancária diária"));
+                    toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Tax, (int)((long)newBank - (long)profile.Bank), "Taxa bancária diária"));
                 }
             }
 
-            if (profile.Savings > 0 && (profile.SavingsLastInterestDate is null || profile.SavingsLastInterestDate.Value < today))
+            if (profile.Savings > 0UL && (profile.SavingsLastInterestDate is null || profile.SavingsLastInterestDate.Value < today))
             {
-                var rate = EconomyRules.GetDailyInterestRate(Random.Shared, profile.SavingsStreak);
-                var interest = EconomyRules.ComputeInterestAmount(profile.Savings, rate);
-                if (interest > 0)
+                var rate = EconomyRules.GetDailyInterestRate(Random.Shared, (int)profile.SavingsStreak);
+                var interest = (ulong)EconomyRules.ComputeInterestAmount((int)profile.Savings, rate);
+                if (interest > 0UL)
                 {
                     ops.Add(Builders<EconomyProfile>.Update.Inc(p => p.Savings, interest));
                     ops.Add(Builders<EconomyProfile>.Update.Set(p => p.SavingsLastInterestDate, DateTime.UtcNow));
-                    toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Interest, interest,
+                    toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Interest, (int)interest,
                         $"Juros da poupança ({rate:P1} ao dia)"));
                 }
             }

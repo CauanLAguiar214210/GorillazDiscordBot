@@ -25,7 +25,7 @@ public class BlackjackModule : ModuleBase<SocketCommandContext>
     [Summary("Inicia uma mão de Blackjack. Uso: macaco blackjack <valor>")]
     public async Task BlackjackAsync(string valor)
     {
-        if (!EconomyModule.EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
+        if (!EconomyModule.EconomyHelper.TryParsePositiveAmount(valor, out ulong quantia, out var error))
         {
             await ReplyAsync(error!);
             return;

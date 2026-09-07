@@ -31,7 +31,7 @@ public static class CasinoTableBuilder
     };
 
     public static Embed BuildRouletteTable(
-        RouletteGame game, IUser player, int balance, string? resultSection = null)
+        RouletteGame game, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
@@ -74,7 +74,7 @@ public static class CasinoTableBuilder
     }
 
     public static Embed BuildSlotTable(
-        SlotMachineGame game, int bet, IUser player, int balance, string? resultSection = null)
+        SlotMachineGame game, ulong bet, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
@@ -123,7 +123,7 @@ public static class CasinoTableBuilder
             .Build();
     }
 
-    public static MessageComponent BuildSlotReplayComponents(ulong ownerId, int bet)
+    public static MessageComponent BuildSlotReplayComponents(ulong ownerId, ulong bet)
     {
         return new ComponentBuilder()
             .WithButton("Girar", $"{SlotCustomIdPrefix}{SlotReplayAction}:{ownerId}:{bet}", ButtonStyle.Success, new Emoji("🎰"))
@@ -132,7 +132,7 @@ public static class CasinoTableBuilder
             .Build();
     }
 
-    public static MessageComponent BuildRouletteReplayComponents(ulong ownerId, int bet, RouletteBetType type, int target)
+    public static MessageComponent BuildRouletteReplayComponents(ulong ownerId, ulong bet, RouletteBetType type, int target)
     {
         return new ComponentBuilder()
             .WithButton("Continuar", $"{RoulCustomIdPrefix}{RoulReplayAction}:{ownerId}:{bet}:{(int)type}:{target}", ButtonStyle.Success, new Emoji("🔄"))

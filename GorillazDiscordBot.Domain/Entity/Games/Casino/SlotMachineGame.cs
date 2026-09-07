@@ -35,7 +35,7 @@ public sealed class SlotMachineGame
         return Reels;
     }
 
-    public static int CalculateReturn(int bet, IReadOnlyList<SlotSymbol> reels)
+    public static ulong CalculateReturn(ulong bet, IReadOnlyList<SlotSymbol> reels)
     {
         if (bet <= 0)
             throw new ArgumentOutOfRangeException(nameof(bet), "A aposta deve ser positiva.");
@@ -48,12 +48,12 @@ public sealed class SlotMachineGame
         var c = reels[2];
 
         if (a == b && b == c)
-            return bet * Multiplier(a);
+            return bet * (ulong)Multiplier(a);
 
         if (a == b || a == c || b == c)
         {
             var pair = a == b ? a : c;
-            return bet * PairMultiplier(pair);
+            return bet * (ulong)PairMultiplier(pair);
         }
 
         return 0;

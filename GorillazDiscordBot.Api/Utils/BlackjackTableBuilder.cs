@@ -62,7 +62,7 @@ public static class BlackjackTableBuilder
             .Build();
     }
 
-    public static MessageComponent BuildResultComponents(ulong ownerId, int bet)
+    public static MessageComponent BuildResultComponents(ulong ownerId, ulong bet)
     {
         return new ComponentBuilder()
             .WithButton("Continuar", $"{ResultCustomIdPrefix}{ReplayAction}:{ownerId}:{bet}", ButtonStyle.Success, new Emoji("🔄"))
@@ -110,7 +110,7 @@ public static class BlackjackTableBuilder
         return $"{cards} — {value}";
     }
 
-    public static string DescribeResult(BlackjackGame game, int totalReturn) => game.Outcome switch
+    public static string DescribeResult(BlackjackGame game, ulong totalReturn) => game.Outcome switch
     {
         BlackjackOutcome.PlayerBlackjack => $"\U0001F0CF **BLACKJACK!** Pagamento 3:2! Você recebeu **{totalReturn}** moedas.",
         BlackjackOutcome.PlayerWin when game.Dealer.IsBust => $"💥 O dealer estourou! **Você venceu!** Recebeu **{totalReturn}** moedas.",

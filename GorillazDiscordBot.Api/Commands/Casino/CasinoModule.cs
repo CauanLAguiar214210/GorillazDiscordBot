@@ -42,7 +42,7 @@ public class CasinoModule : ModuleBase<SocketCommandContext>
     [Summary("Aposta na roleta. Uso: macaco roleta <valor> [tipo] [alvo]")]
     public async Task RouletteAsync(string valor, string? tipo = null, string? alvo = null)
     {
-        if (!EconomyModule.EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
+        if (!EconomyModule.EconomyHelper.TryParsePositiveAmount(valor, out ulong quantia, out var error))
         {
             await ReplyAsync(error!);
             return;
@@ -160,7 +160,7 @@ public class CasinoModule : ModuleBase<SocketCommandContext>
     [Summary("Joga na caça-níquel. Uso: macaco cacaniquel <valor>")]
     public async Task SlotAsync(string valor)
     {
-        if (!EconomyModule.EconomyHelper.TryParsePositiveAmount(valor, out int quantia, out var error))
+        if (!EconomyModule.EconomyHelper.TryParsePositiveAmount(valor, out ulong quantia, out var error))
         {
             await ReplyAsync(error!);
             return;

@@ -19,7 +19,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
 
     [SlashCommand("roleta", "Aposta na roleta com botões")]
     public async Task RouletteAsync(
-        [Summary("valor", "Quantidade de moedas para apostar")] int valor,
+        [Summary("valor", "Quantidade de moedas para apostar")] ulong valor,
         [Summary("tipo", "Tipo de aposta")] RouletteBetChoice tipo = RouletteBetChoice.Numero,
         [Summary("alvo", "Número de 0 a 36 (só para tipo número)")] int? alvo = null)
     {
@@ -63,7 +63,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
 
     [SlashCommand("cacaniquel", "Joga na caça-níquel com botões")]
     public async Task SlotAsync(
-        [Summary("valor", "Quantidade de moedas para apostar")] int valor)
+        [Summary("valor", "Quantidade de moedas para apostar")] ulong valor)
     {
         var expired = _sessions.TakeExpired(Context.User.Id);
         if (expired != null)
@@ -151,7 +151,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        if (!int.TryParse(modal.Valor, out var amount) || amount <= 0)
+        if (!ulong.TryParse(modal.Valor, out var amount) || amount <= 0)
         {
             await FollowupAsync("⚠️ Informe um valor numérico positivo.", ephemeral: true);
             return;
@@ -217,7 +217,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     [ComponentInteraction(CasinoTableBuilder.SlotCustomIdPrefix + CasinoTableBuilder.SlotReplayAction + ":*:*", true)]
-    public async Task SlotReplayAsync(ulong ownerId, int bet)
+    public async Task SlotReplayAsync(ulong ownerId, ulong bet)
     {
         await DeferAsync();
 
@@ -265,7 +265,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     [ComponentInteraction(CasinoTableBuilder.RoulCustomIdPrefix + CasinoTableBuilder.RoulReplayAction + ":*:*:*:*", true)]
-    public async Task RouletteReplayAsync(ulong ownerId, int bet, int type, int target)
+    public async Task RouletteReplayAsync(ulong ownerId, ulong bet, int type, int target)
     {
         await DeferAsync();
 
