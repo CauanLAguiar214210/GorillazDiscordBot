@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Reflection;
 using Discord;
 using Discord.Commands;
@@ -25,6 +26,8 @@ public class DiscordBotService : IHostedService
     private readonly ISettingsRepository<Guild> _guildRepository;
     private readonly IVoiceChannelService _voiceChannelService;
     private readonly IChatInteractionService _chatInteractionService;
+    private readonly IUserRepository _userRepository;
+    private readonly IGuildMemberRepository _guildMemberRepository;
 
     public DiscordBotService(
         DiscordSocketClient client,
@@ -35,7 +38,9 @@ public class DiscordBotService : IHostedService
         IServiceProvider services,
         ISettingsRepository<Guild> guildRepository,
         IVoiceChannelService voiceChannelService,
-        IChatInteractionService chatInteractionService)
+        IChatInteractionService chatInteractionService,
+        IUserRepository userRepository,
+        IGuildMemberRepository guildMemberRepository)
     {
         _client = client;
         _commands = commands;
@@ -46,6 +51,8 @@ public class DiscordBotService : IHostedService
         _guildRepository = guildRepository;
         _voiceChannelService = voiceChannelService;
         _chatInteractionService = chatInteractionService;
+        _userRepository = userRepository;
+        _guildMemberRepository = guildMemberRepository;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -246,6 +253,8 @@ public class DiscordBotService : IHostedService
             UpdateGuildInfo(guild, user.Guild);
             await _guildRepository.SaveAsync(guild);
 
+            await EnforceGroupSanctionsAsync(user);
+
             if (!guild.Welcome.WelcomeEnabled || !guild.Welcome.WelcomeChannelId.HasValue)
                 return;
 
@@ -314,4 +323,50 @@ public class DiscordBotService : IHostedService
 
     private Task OnUserVoiceStateUpdatedAsync(SocketUser user, SocketVoiceState before, SocketVoiceState after)
         => _voiceChannelService.OnUserVoiceStateUpdatedAsync(user, before, after);
+
+    private async Task EnforceGroupSanctionsAsync(SocketGuildUser user)
+    {
+        try
+        {
+            var group = await _userRepository.GetGroupAsync(user.Id);
+            if (group.Count <= 1) return;
+
+            var memberIds = group.Select(m => m.UserId).ToArray();
+            var members = await _guildMemberRepository.GetManyAsync(user.Guild.Id, memberIds);
+            if (members.Count == 0) return;
+
+            var now = DateTime.UtcNow;
+            var isBanned = members.Any(m => m.IsBanned);
+
+            var mutes = members
+                .Where(m => m.MuteUntil is { } until && until > now)
+                .Select(m => m.MuteUntil!.Value)
+                .ToList();
+            var muteUntil = mutes.Count > 0 ? mutes.Max() : (DateTime?)null;
+
+            if (isBanned)
+            {
+                await user.Guild.AddBanAsync(user.Id, 0, "Conta vinculada a um usuário banido no servidor");
+                _logger.LogWarning("Banido {user} ao entrar — conta vinculada a banimento ativo na guild {guild}",
+                    user.GetDisplayName(), user.Guild.Name);
+                return;
+            }
+
+            if (muteUntil.HasValue)
+            {
+                var remaining = muteUntil.Value - DateTime.UtcNow;
+                if (remaining > TimeSpan.Zero)
+                {
+                    await user.SetTimeOutAsync(remaining);
+                    _logger.LogWarning("Aplicado timeout em {user} ao entrar — conta vinculada na guild {guild}",
+                        user.GetDisplayName(), user.Guild.Name);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao aplicar sanções de grupo para {user} no servidor {guild}",
+                user.GetDisplayName(), user.Guild.Name);
+        }
+    }
 }

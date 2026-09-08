@@ -23,4 +23,5 @@ public interface IEconomyRepository
     Task<List<EconomyProfile>> GetTopUsersAsync(int limit);
     Task<int> ApplyDailyMaintenanceAsync();
     Task<List<EconomyTransaction>> GetHistoryAsync(ulong userId, int limit);
+    Task<UnifyResult?> UnifyProfileAsync(ulong sourceUserId, ulong targetUserId);
 }

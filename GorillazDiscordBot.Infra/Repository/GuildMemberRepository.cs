@@ -31,6 +31,13 @@ public class GuildMemberRepository : MongoRepository<GuildMember>, IGuildMemberR
         return await Collection.Find(filter).ToListAsync();
     }
 
+    public async Task<List<GuildMember>> GetManyAsync(ulong guildId, IEnumerable<ulong> userIds)
+    {
+        var filter = Builders<GuildMember>.Filter.Eq(m => m.GuildId, guildId)
+            & Builders<GuildMember>.Filter.In(m => m.UserId, userIds);
+        return await Collection.Find(filter).ToListAsync();
+    }
+
     public async Task AddWarningAsync(ulong guildId, ulong userId, string username, UserWarning warning)
     {
         var member = await GetOrCreateAsync(guildId, userId, username);

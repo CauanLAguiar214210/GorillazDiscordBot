@@ -12,7 +12,8 @@ public enum EconomyTransactionType
     Interest,
     Work,
     Rob,
-    Tax
+    Tax,
+    Merge
 }
 
 public class EconomyTransaction

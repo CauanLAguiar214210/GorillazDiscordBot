@@ -3,6 +3,7 @@ using Discord;
 using Discord.Commands;
 using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands;
@@ -10,17 +11,20 @@ namespace GorillazDiscordBot.Commands;
 public class EconomyModule : ModuleBase<SocketCommandContext>
 {
     private readonly IEconomyRepository _economy;
+    private readonly IEconomyAccessor _accessor;
 
-    public EconomyModule(IEconomyRepository economy)
+    public EconomyModule(IEconomyRepository economy, IEconomyAccessor accessor)
     {
         _economy = economy;
+        _accessor = accessor;
     }
 
     [Command("daily")]
     public async Task DailyAsync()
     {
         var reward = EconomyRules.GetDailyReward(Random.Shared);
-        var (claimed, newBalance) = await _economy.TryClaimDailyAsync(Context.User.Id, reward);
+        var (claimed, newBalance) = await _economy.TryClaimDailyAsync(
+            await _accessor.ResolveMainIdAsync(Context.User.Id), reward);
 
         if (!claimed)
         {
@@ -35,7 +39,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Alias("carteira")]
     public async Task SaldoAsync()
     {
-        var user = await _economy.GetOrCreateAsync(Context.User.Id, Context.User.Username);
+        var user = await _economy.GetOrCreateAsync(
+            await _accessor.ResolveMainIdAsync(Context.User.Id), Context.User.Username);
         await ReplyAsync($"💰 **{Context.User.GetDisplayName()}**, seu saldo é **{user.Money} moedas** na carteira.");
     }
 
@@ -61,8 +66,17 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
+        var senderMain = await _accessor.ResolveMainIdAsync(Context.User.Id);
+        var receiverMain = await _accessor.ResolveMainIdAsync(receiver.Id);
+
+        if (senderMain == receiverMain)
+        {
+            await ReplyAsync("🔗 A conta de destino faz parte do seu próprio grupo vinculado.");
+            return;
+        }
+
         var (deducted, _) = await _economy.TryDeductMoneyAsync(
-            Context.User.Id, quantia, EconomyTransactionType.Payment,
+            senderMain, quantia, EconomyTransactionType.Payment,
             $"Pagamento para {receiver.GetDisplayName()}");
 
         if (!deducted)
@@ -71,8 +85,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        await _economy.GetOrCreateAsync(receiver.Id, receiver.Username);
-        await _economy.AddMoneyAsync(receiver.Id, quantia, EconomyTransactionType.Payment,
+        await _economy.GetOrCreateAsync(receiverMain, receiver.Username);
+        await _economy.AddMoneyAsync(receiverMain, quantia, EconomyTransactionType.Payment,
             $"Pagamento de {Context.User.GetDisplayName()}");
 
         await ReplyAsync($"💸 **{Context.User.GetDisplayName()}** pagou **{quantia} moedas** para **{receiver.GetDisplayName()}**!");
@@ -88,7 +102,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var (success, wallet, bank) = await _economy.DepositAsync(Context.User.Id, quantia);
+        var (success, wallet, bank) = await _economy.DepositAsync(
+            await _accessor.ResolveMainIdAsync(Context.User.Id), quantia);
 
         if (!success)
         {
@@ -109,7 +124,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var (success, wallet, bank) = await _economy.WithdrawAsync(Context.User.Id, quantia);
+        var (success, wallet, bank) = await _economy.WithdrawAsync(
+            await _accessor.ResolveMainIdAsync(Context.User.Id), quantia);
 
         if (!success)
         {
@@ -124,7 +140,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Alias("savings", "bank", "banksaldo")]
     public async Task PoupancaAsync()
     {
-        var user = await _economy.GetOrCreateAsync(Context.User.Id, Context.User.Username);
+        var user = await _economy.GetOrCreateAsync(
+            await _accessor.ResolveMainIdAsync(Context.User.Id), Context.User.Username);
 
         var min = EconomyRules.DailyInterestMin + Math.Min(user.SavingsStreak, EconomyRules.InterestStreakMaxBonus) * EconomyRules.InterestStreakBonus;
         var max = EconomyRules.DailyInterestMax + Math.Min(user.SavingsStreak, EconomyRules.InterestStreakMaxBonus) * EconomyRules.InterestStreakBonus;
@@ -146,7 +163,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var (success, wallet, savings, streak) = await _economy.DepositSavingsAsync(Context.User.Id, quantia);
+        var (success, wallet, savings, streak) = await _economy.DepositSavingsAsync(
+            await _accessor.ResolveMainIdAsync(Context.User.Id), quantia);
 
         if (!success)
         {
@@ -169,7 +187,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var (success, wallet, savings, streak) = await _economy.WithdrawSavingsAsync(Context.User.Id, quantia);
+        var (success, wallet, savings, streak) = await _economy.WithdrawSavingsAsync(
+            await _accessor.ResolveMainIdAsync(Context.User.Id), quantia);
 
         if (!success)
         {
@@ -203,7 +222,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         }
 
         var now = DateTime.UtcNow;
-        var profile = await _economy.GetOrCreateAsync(Context.User.Id, Context.User.Username);
+        var profile = await _economy.GetOrCreateAsync(
+            await _accessor.ResolveMainIdAsync(Context.User.Id), Context.User.Username);
 
         if (EconomyRules.GetRemainingCooldown(profile.LastWorkTime, now, TimeSpan.FromHours(job.Hours)) is { } remaining)
         {
@@ -211,9 +231,10 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        await _economy.AddMoneyAsync(Context.User.Id, job.TotalPay, EconomyTransactionType.Work,
+        await _economy.AddMoneyAsync(
+            await _accessor.ResolveMainIdAsync(Context.User.Id), job.TotalPay, EconomyTransactionType.Work,
             $"Trabalhou como {job.Name} ({job.Hours}h)");
-        await _economy.SetLastWorkAsync(Context.User.Id, now);
+        await _economy.SetLastWorkAsync(await _accessor.ResolveMainIdAsync(Context.User.Id), now);
 
         await ReplyAsync($"💪 Você trabalhou como **{job.Emoji} {job.Name}** por {job.Hours}h e ganhou **{job.TotalPay} moedas**!");
     }
@@ -234,8 +255,17 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
+        var attackerMain = await _accessor.ResolveMainIdAsync(Context.User.Id);
+        var victimMain = await _accessor.ResolveMainIdAsync(target.Id);
+
+        if (attackerMain == victimMain)
+        {
+            await ReplyAsync("🔗 A conta de destino faz parte do seu próprio grupo vinculado.");
+            return;
+        }
+
         var now = DateTime.UtcNow;
-        var attacker = await _economy.GetOrCreateAsync(Context.User.Id, Context.User.Username);
+        var attacker = await _economy.GetOrCreateAsync(attackerMain, Context.User.Username);
 
         if (attacker.RobCaughtUntil is { } caughtUntil && caughtUntil > now)
         {
@@ -249,7 +279,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var victim = await _economy.GetOrCreateAsync(target.Id, target.Username);
+        var victim = await _economy.GetOrCreateAsync(victimMain, target.Username);
 
         if (victim.Money < 1)
         {
@@ -261,17 +291,17 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         {
             ulong stolen = EconomyRules.ComputeRobAmount(victim.Money, Random.Shared);
 
-            await _economy.TryDeductMoneyAsync(target.Id, stolen, EconomyTransactionType.Rob,
+            await _economy.TryDeductMoneyAsync(victimMain, stolen, EconomyTransactionType.Rob,
                 $"Roubado por {Context.User.GetDisplayName()}");
-            await _economy.AddMoneyAsync(Context.User.Id, stolen, EconomyTransactionType.Rob,
+            await _economy.AddMoneyAsync(attackerMain, stolen, EconomyTransactionType.Rob,
                 $"Roubou {stolen} moedas de {target.GetDisplayName()}");
-            await _economy.SetRobAttemptAsync(Context.User.Id, now, null);
+            await _economy.SetRobAttemptAsync(attackerMain, now, null);
 
             await ReplyAsync($"🕵️ **Você roubou {stolen} moedas** de **{target.GetDisplayName()}**!");
         }
         else
         {
-            await _economy.SetRobAttemptAsync(Context.User.Id, now, now.Add(EconomyRules.RobCaughtLockout));
+            await _economy.SetRobAttemptAsync(attackerMain, now, now.Add(EconomyRules.RobCaughtLockout));
             await ReplyAsync($"🚨 **Você foi pego roubando** **{target.GetDisplayName()}**! Ficará **3 horas** sem poder roubar.");
         }
     }
@@ -318,7 +348,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Alias("extrato")]
     public async Task HistoricoAsync(int limite = 10)
     {
-        var txns = await _economy.GetHistoryAsync(Context.User.Id, Math.Clamp(limite, 1, 30));
+        var txns = await _economy.GetHistoryAsync(
+            await _accessor.ResolveMainIdAsync(Context.User.Id), Math.Clamp(limite, 1, 30));
 
         if (txns.Count == 0)
         {
