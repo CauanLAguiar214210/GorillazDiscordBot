@@ -5,9 +5,12 @@ public enum SlotSymbol
     Cherry,
     Lemon,
     Bell,
+    Clover,
     Star,
     Seven,
-    Diamond
+    Skull,
+    Diamond,
+    Crown
 }
 
 public sealed class SlotMachineGame
@@ -63,10 +66,13 @@ public sealed class SlotMachineGame
     {
         SlotSymbol.Cherry => 2,
         SlotSymbol.Lemon => 3,
-        SlotSymbol.Bell => 5,
-        SlotSymbol.Star => 10,
-        SlotSymbol.Seven => 20,
-        SlotSymbol.Diamond => 50,
+        SlotSymbol.Bell => 4,
+        SlotSymbol.Clover => 2,
+        SlotSymbol.Star => 6,
+        SlotSymbol.Seven => 15,
+        SlotSymbol.Skull => 10,
+        SlotSymbol.Diamond => 40,
+        SlotSymbol.Crown => 50,
         _ => 0
     };
 
@@ -75,9 +81,12 @@ public sealed class SlotMachineGame
         SlotSymbol.Cherry => 1,
         SlotSymbol.Lemon => 2,
         SlotSymbol.Bell => 3,
-        SlotSymbol.Star => 5,
-        SlotSymbol.Seven => 8,
-        SlotSymbol.Diamond => 15,
+        SlotSymbol.Clover => 1,
+        SlotSymbol.Star => 3,
+        SlotSymbol.Seven => 7,
+        SlotSymbol.Skull => 4,
+        SlotSymbol.Diamond => 12,
+        SlotSymbol.Crown => 15,
         _ => 0
     };
 
@@ -87,11 +96,14 @@ public sealed class SlotMachineGame
 
         return roll switch
         {
-            < 0.30 => SlotSymbol.Cherry,
-            < 0.50 => SlotSymbol.Lemon,
-            < 0.66 => SlotSymbol.Bell,
-            < 0.80 => SlotSymbol.Star,
+            < 0.23 => SlotSymbol.Cherry,
+            < 0.40 => SlotSymbol.Lemon,
+            < 0.53 => SlotSymbol.Bell,
+            < 0.69 => SlotSymbol.Clover,
+            < 0.82 => SlotSymbol.Star,
             < 0.92 => SlotSymbol.Seven,
+            < 0.96 => SlotSymbol.Skull,
+            < 0.99 => SlotSymbol.Crown,
             _ => SlotSymbol.Diamond
         };
     }
