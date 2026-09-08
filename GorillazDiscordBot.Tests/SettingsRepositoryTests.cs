@@ -13,7 +13,7 @@ public class SettingsRepositoryTests
     public async Task GetAsync_ComRegistroNoBanco_RetornaRegistro()
     {
         var (repo, collection) = CreateRepo();
-        var stored = new GuildPrefixSettings { GuildId = 1, Prefix = "!" };
+        var stored = new Guild { GuildId = 1, Prefix = new PrefixSettings { Prefix = "!" } };
         StubFindAsync(collection, true, stored);
 
         var result = await repo.GetAsync(1);
@@ -30,7 +30,7 @@ public class SettingsRepositoryTests
         var result = await repo.GetAsync(42);
 
         result.GuildId.Should().Be(42);
-        result.Prefix.Should().BeNull();
+        result.Prefix.Prefix.Should().BeNull();
     }
 
     [Fact]
@@ -38,31 +38,31 @@ public class SettingsRepositoryTests
     {
         var (repo, collection) = CreateRepo();
         collection
-            .FindAsync<GuildPrefixSettings>(
-                Arg.Any<FilterDefinition<GuildPrefixSettings>>(),
-                Arg.Any<FindOptions<GuildPrefixSettings, GuildPrefixSettings>>(),
+            .FindAsync<Guild>(
+                Arg.Any<FilterDefinition<Guild>>(),
+                Arg.Any<FindOptions<Guild, Guild>>(),
                 Arg.Any<CancellationToken>())
-            .Returns(Task.FromException<IAsyncCursor<GuildPrefixSettings>>(new InvalidOperationException("boom")));
+            .Returns(Task.FromException<IAsyncCursor<Guild>>(new InvalidOperationException("boom")));
 
         var result = await repo.GetAsync(7);
 
         result.GuildId.Should().Be(7);
-        result.Prefix.Should().BeNull();
+        result.Prefix.Prefix.Should().BeNull();
     }
 
     [Fact]
     public async Task GetAsync_ChamadoDuasVezes_ConsultaBancoApenasUmaVez()
     {
         var (repo, collection) = CreateRepo();
-        var stored = new GuildPrefixSettings { GuildId = 1, Prefix = "!" };
+        var stored = new Guild { GuildId = 1, Prefix = new PrefixSettings { Prefix = "!" } };
         StubFindAsync(collection, true, stored);
 
         await repo.GetAsync(1);
         await repo.GetAsync(1);
 
-        _ = collection.Received(1).FindAsync<GuildPrefixSettings>(
-            Arg.Any<FilterDefinition<GuildPrefixSettings>>(),
-            Arg.Any<FindOptions<GuildPrefixSettings, GuildPrefixSettings>>(),
+        _ = collection.Received(1).FindAsync<Guild>(
+            Arg.Any<FilterDefinition<Guild>>(),
+            Arg.Any<FindOptions<Guild, Guild>>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -70,12 +70,12 @@ public class SettingsRepositoryTests
     public async Task SaveAsync_PersisteNoBanco()
     {
         var (repo, collection) = CreateRepo();
-        var settings = new GuildPrefixSettings { GuildId = 2, Prefix = "!" };
+        var settings = new Guild { GuildId = 2, Prefix = new PrefixSettings { Prefix = "!" } };
 
         await repo.SaveAsync(settings);
 
         await collection.Received(1).ReplaceOneAsync(
-            Arg.Any<FilterDefinition<GuildPrefixSettings>>(),
+            Arg.Any<FilterDefinition<Guild>>(),
             settings,
             Arg.Any<ReplaceOptions>(),
             Arg.Any<CancellationToken>());
@@ -85,7 +85,7 @@ public class SettingsRepositoryTests
     public async Task ResetAsync_RemoveDoBancoELimpaCache()
     {
         var (repo, collection) = CreateRepo();
-        var stored = new GuildPrefixSettings { GuildId = 3, Prefix = "!" };
+        var stored = new Guild { GuildId = 3, Prefix = new PrefixSettings { Prefix = "!" } };
         StubFindAsync(collection, true, stored);
 
         await repo.GetAsync(3);
@@ -93,37 +93,37 @@ public class SettingsRepositoryTests
         await repo.GetAsync(3);
 
         await collection.Received(1).DeleteOneAsync(
-            Arg.Any<FilterDefinition<GuildPrefixSettings>>(),
+            Arg.Any<FilterDefinition<Guild>>(),
             Arg.Any<CancellationToken>());
-        _ = collection.Received(2).FindAsync<GuildPrefixSettings>(
-            Arg.Any<FilterDefinition<GuildPrefixSettings>>(),
-            Arg.Any<FindOptions<GuildPrefixSettings, GuildPrefixSettings>>(),
+        _ = collection.Received(2).FindAsync<Guild>(
+            Arg.Any<FilterDefinition<Guild>>(),
+            Arg.Any<FindOptions<Guild, Guild>>(),
             Arg.Any<CancellationToken>());
     }
 
-    private static (SettingsRepository<GuildPrefixSettings> Repo, IMongoCollection<GuildPrefixSettings> Collection)
+    private static (SettingsRepository<Guild> Repo, IMongoCollection<Guild> Collection)
         CreateRepo()
     {
-        var collection = Substitute.For<IMongoCollection<GuildPrefixSettings>>();
-        var repo = new SettingsRepository<GuildPrefixSettings>(
+        var collection = Substitute.For<IMongoCollection<Guild>>();
+        var repo = new SettingsRepository<Guild>(
             collection,
-            NullLogger<SettingsRepository<GuildPrefixSettings>>.Instance);
+            NullLogger<SettingsRepository<Guild>>.Instance);
         return (repo, collection);
     }
 
     private static void StubFindAsync(
-        IMongoCollection<GuildPrefixSettings> collection,
+        IMongoCollection<Guild> collection,
         bool hasDocument,
-        GuildPrefixSettings? stored = null)
+        Guild? stored = null)
     {
-        var cursor = Substitute.For<IAsyncCursor<GuildPrefixSettings>>();
-        cursor.Current.Returns(hasDocument ? new[] { stored! } : Array.Empty<GuildPrefixSettings>());
+        var cursor = Substitute.For<IAsyncCursor<Guild>>();
+        cursor.Current.Returns(hasDocument ? new[] { stored! } : Array.Empty<Guild>());
         cursor.MoveNextAsync(Arg.Any<CancellationToken>()).Returns(true, false);
 
         collection
-            .FindAsync<GuildPrefixSettings>(
-                Arg.Any<FilterDefinition<GuildPrefixSettings>>(),
-                Arg.Any<FindOptions<GuildPrefixSettings, GuildPrefixSettings>>(),
+            .FindAsync<Guild>(
+                Arg.Any<FilterDefinition<Guild>>(),
+                Arg.Any<FindOptions<Guild, Guild>>(),
                 Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(cursor));
     }

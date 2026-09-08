@@ -1,10 +1,7 @@
-using GorillazDiscordBot.Domain.Interfaces;
-
 namespace GorillazDiscordBot.Entity;
 
-public class GuildWelcomeSettings : IGuildSettings
+public class WelcomeSettings
 {
-    public ulong GuildId { get; set; }
     public ulong? WelcomeChannelId { get; set; }
     public ulong? GoodbyeChannelId { get; set; }
     public string WelcomeMessage { get; set; } = "Bem-vindo(a) {user} ao **{server}**! 🎉\nVocê é o membro nº **{count}**!";

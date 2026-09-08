@@ -61,8 +61,8 @@ GorillazDiscordBot/
 ## Arquitetura
 
 - **Comandos**: módulos `ModuleBase<SocketCommandContext>` registrados via reflection (`AddModulesAsync`) e executados por `CommandService`.
-- **Prefixo**: `DiscordBotService.HandleCommandAsync` resolve o prefixo por servidor (`GuildPrefixSettings`, fallback para `COMMAND_PREFIX`), com match case-insensitive e fallback de menção (`@bot`).
-- **Persistência**: `SettingsRepository<T>` genérico (um documento por servidor, cache em memória, upsert/reset); coleção nomeada por tipo via `MongoMappings` (Bson class maps).
+- **Prefixo**: `DiscordBotService.HandleCommandAsync` resolve o prefixo por servidor (`Guild.Prefix`, fallback para `COMMAND_PREFIX`), com match case-insensitive e fallback de menção (`@bot`).
+- **Persistência**: `SettingsRepository<T>` genérico (um documento `Guild` por servidor com settings embutidos — prefix/welcome/voice — e metadados do servidor em `GuildInfo`; cache em memória, upsert/reset); coleção nomeada por tipo via `MongoMappings` (Bson class maps).
 - **GIFs**: entidade com `GuildId`; filtro `Visible(guildId)` = `GuildId == guildId OR GuildId == 0` (globais); `GifUrlService` normaliza URLs (imagem direta ou Tenor via `og:image`/CDN).
 - **Qualidade**: `TreatWarningsAsErrors` + analyzers habilitados via `Directory.Build.props` e `.editorconfig`.
 

@@ -22,8 +22,7 @@ public class DiscordBotService : IHostedService
     private readonly IOptions<BotOptions> _botOptions;
     private readonly ILogger<DiscordBotService> _logger;
     private readonly IServiceProvider _services;
-    private readonly ISettingsRepository<GuildWelcomeSettings> _welcomeRepository;
-    private readonly ISettingsRepository<GuildPrefixSettings> _prefixRepository;
+    private readonly ISettingsRepository<Guild> _guildRepository;
     private readonly IVoiceChannelService _voiceChannelService;
     private readonly IChatInteractionService _chatInteractionService;
 
@@ -34,8 +33,7 @@ public class DiscordBotService : IHostedService
         IOptions<BotOptions> botOptions,
         ILogger<DiscordBotService> logger,
         IServiceProvider services,
-        ISettingsRepository<GuildWelcomeSettings> welcomeRepository,
-        ISettingsRepository<GuildPrefixSettings> prefixRepository,
+        ISettingsRepository<Guild> guildRepository,
         IVoiceChannelService voiceChannelService,
         IChatInteractionService chatInteractionService)
     {
@@ -45,8 +43,7 @@ public class DiscordBotService : IHostedService
         _botOptions = botOptions;
         _logger = logger;
         _services = services;
-        _welcomeRepository = welcomeRepository;
-        _prefixRepository = prefixRepository;
+        _guildRepository = guildRepository;
         _voiceChannelService = voiceChannelService;
         _chatInteractionService = chatInteractionService;
     }
@@ -62,6 +59,8 @@ public class DiscordBotService : IHostedService
         _client.UserJoined += OnUserJoinedAsync;
         _client.UserLeft += OnUserLeftAsync;
         _client.UserVoiceStateUpdated += OnUserVoiceStateUpdatedAsync;
+        _client.GuildAvailable += RefreshGuildInfoAsync;
+        _client.GuildUpdated += HandleGuildUpdatedAsync;
 
         await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
         await _interactions.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
@@ -92,6 +91,8 @@ public class DiscordBotService : IHostedService
         _client.UserJoined -= OnUserJoinedAsync;
         _client.UserLeft -= OnUserLeftAsync;
         _client.UserVoiceStateUpdated -= OnUserVoiceStateUpdatedAsync;
+        _client.GuildAvailable -= RefreshGuildInfoAsync;
+        _client.GuildUpdated -= HandleGuildUpdatedAsync;
 
         await _client.StopAsync();
         await _client.LogoutAsync();
@@ -197,28 +198,62 @@ public class DiscordBotService : IHostedService
     {
         if (message.Channel is SocketGuildChannel guildChannel)
         {
-            var settings = await _prefixRepository.GetAsync(guildChannel.Guild.Id);
-            if (!string.IsNullOrWhiteSpace(settings.Prefix))
-                return settings.Prefix;
+            var guild = await _guildRepository.GetAsync(guildChannel.Guild.Id);
+            if (!string.IsNullOrWhiteSpace(guild.Prefix.Prefix))
+                return guild.Prefix.Prefix;
         }
 
         return _botOptions.Value.CommandPrefix;
+    }
+
+    private async Task HandleGuildUpdatedAsync(SocketGuild before, SocketGuild after)
+        => await RefreshGuildInfoAsync(after);
+
+    private async Task RefreshGuildInfoAsync(SocketGuild socketGuild)
+    {
+        try
+        {
+            var guild = await _guildRepository.GetAsync(socketGuild.Id);
+            UpdateGuildInfo(guild, socketGuild);
+            await _guildRepository.SaveAsync(guild);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao atualizar informações do servidor {guild} ({guildId})",
+                socketGuild.Name, socketGuild.Id);
+        }
+    }
+
+    private static void UpdateGuildInfo(Guild guild, SocketGuild socketGuild)
+    {
+        guild.Info.Name = socketGuild.Name;
+        guild.Info.IconUrl = socketGuild.IconUrl;
+        guild.Info.OwnerId = socketGuild.OwnerId;
+        guild.Info.OwnerName = socketGuild.Owner?.Username ?? guild.Info.OwnerName;
+        guild.Info.MemberCount = socketGuild.MemberCount;
+        guild.Info.BoostCount = socketGuild.PremiumSubscriptionCount;
+        guild.Info.BoostLevel = (int)socketGuild.PremiumTier;
+        guild.Info.JoinedAt ??= DateTime.UtcNow;
+        guild.Info.CreatedAt ??= socketGuild.CreatedAt.UtcDateTime;
+        guild.Info.PreferredLocale = socketGuild.PreferredLocale;
     }
 
     private async Task OnUserJoinedAsync(SocketGuildUser user)
     {
         try
         {
-            var settings = await _welcomeRepository.GetAsync(user.Guild.Id);
+            var guild = await _guildRepository.GetAsync(user.Guild.Id);
+            UpdateGuildInfo(guild, user.Guild);
+            await _guildRepository.SaveAsync(guild);
 
-            if (!settings.WelcomeEnabled || !settings.WelcomeChannelId.HasValue)
+            if (!guild.Welcome.WelcomeEnabled || !guild.Welcome.WelcomeChannelId.HasValue)
                 return;
 
-            var channel = user.Guild.GetTextChannel(settings.WelcomeChannelId.Value);
+            var channel = user.Guild.GetTextChannel(guild.Welcome.WelcomeChannelId.Value);
             if (channel == null) return;
 
             var message = MessageTemplateResolver.Resolve(
-                settings.WelcomeMessage,
+                guild.Welcome.WelcomeMessage,
                 userMention: user.Mention,
                 serverName: user.Guild.Name,
                 memberCount: user.Guild.MemberCount);
@@ -240,30 +275,32 @@ public class DiscordBotService : IHostedService
         }
     }
 
-    private async Task OnUserLeftAsync(SocketGuild guild, SocketUser user)
+    private async Task OnUserLeftAsync(SocketGuild socketGuild, SocketUser user)
     {
         try
         {
-            var settings = await _welcomeRepository.GetAsync(guild.Id);
+            var guild = await _guildRepository.GetAsync(socketGuild.Id);
+            UpdateGuildInfo(guild, socketGuild);
+            await _guildRepository.SaveAsync(guild);
 
-            if (!settings.GoodbyeEnabled || !settings.GoodbyeChannelId.HasValue)
+            if (!guild.Welcome.GoodbyeEnabled || !guild.Welcome.GoodbyeChannelId.HasValue)
                 return;
 
-            var channel = guild.GetTextChannel(settings.GoodbyeChannelId.Value);
+            var channel = socketGuild.GetTextChannel(guild.Welcome.GoodbyeChannelId.Value);
             if (channel == null) return;
 
             var message = MessageTemplateResolver.Resolve(
-                settings.GoodbyeMessage,
+                guild.Welcome.GoodbyeMessage,
                 userMention: user.GetDisplayName(),
-                serverName: guild.Name,
-                memberCount: guild.MemberCount);
+                serverName: socketGuild.Name,
+                memberCount: socketGuild.MemberCount);
 
             var embed = new EmbedBuilder()
                 .WithTitle("🔴 Adeus!")
                 .WithDescription(message)
                 .WithColor(Color.Red)
                 .WithThumbnailUrl(user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl())
-                .WithStandardFooter($"Membros restantes: {guild.MemberCount}")
+                .WithStandardFooter($"Membros restantes: {socketGuild.MemberCount}")
                 .Build();
 
             await channel.SendMessageAsync(embed: embed);
@@ -271,7 +308,7 @@ public class DiscordBotService : IHostedService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao enviar despedida para {user} no servidor {guild}",
-                user.GetDisplayName(), guild.Name);
+                user.GetDisplayName(), socketGuild.Name);
         }
     }
 

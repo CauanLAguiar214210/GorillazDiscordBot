@@ -81,9 +81,22 @@ public static class MongoMappings
             map.MapMember(c => c.CreatedAt).SetElementName("createdAt");
         });
 
-        RegisterGuildSettings<GuildWelcomeSettings>();
-        RegisterGuildSettings<GuildVoiceSettings>();
-        RegisterGuildSettings<GuildPrefixSettings>();
+        BsonClassMap.RegisterClassMap<GuildMember>(map =>
+        {
+            map.MapIdMember(c => c.Id)
+               .SetSerializer(new StringSerializer(BsonType.ObjectId))
+               .SetIdGenerator(StringObjectIdGenerator.Instance);
+            map.MapMember(c => c.GuildId).SetElementName("GuildId");
+            map.MapMember(c => c.UserId).SetElementName("UserId");
+            map.MapMember(c => c.Username).SetElementName("Username");
+            map.MapMember(c => c.Warnings).SetElementName("Warnings");
+            map.MapMember(c => c.MuteUntil).SetElementName("MuteUntil");
+            map.MapMember(c => c.IsBanned).SetElementName("IsBanned");
+            map.MapMember(c => c.CreatedAt).SetElementName("CreatedAt");
+            map.MapMember(c => c.UpdatedAt).SetElementName("UpdatedAt");
+        });
+
+        RegisterGuildSettings<Guild>();
     }
 
     private static void RegisterGuildSettings<T>()

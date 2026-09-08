@@ -72,6 +72,7 @@ builder.Services.AddSingleton(typeof(IMongoRepository<>), typeof(MongoRepository
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
 builder.Services.AddSingleton<IEconomyRepository, EconomyRepository>();
 builder.Services.AddSingleton<IGifRepository, GifRepository>();
+builder.Services.AddSingleton<IGuildMemberRepository, GuildMemberRepository>();
 
 // Guild settings (cache + MongoDB, um documento por servidor)
 builder.Services.AddSingleton(typeof(ISettingsRepository<>), typeof(SettingsRepository<>));
@@ -108,4 +109,15 @@ builder.Services.AddHostedService<DiscordBotService>();
 builder.Services.AddHostedService<EconomyMaintenanceService>();
 
 var host = builder.Build();
+
+var logger = host.Services.GetRequiredService<ILogger<Program>>();
+try
+{
+    await host.Services.GetRequiredService<IGuildMemberRepository>().EnsureIndexesAsync();
+}
+catch (Exception ex)
+{
+    logger.LogWarning(ex, "Falha ao garantir índices da collection GuildMember");
+}
+
 await host.RunAsync();

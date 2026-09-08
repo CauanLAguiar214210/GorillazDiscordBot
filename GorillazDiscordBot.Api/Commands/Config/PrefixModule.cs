@@ -12,14 +12,14 @@ public class PrefixModule : ModuleBase<SocketCommandContext>
 {
     private const int MaxPrefixLength = 10;
 
-    private readonly ISettingsRepository<GuildPrefixSettings> _prefixRepository;
+    private readonly ISettingsRepository<Guild> _guildRepository;
     private readonly IOptions<BotOptions> _botOptions;
 
     public PrefixModule(
-        ISettingsRepository<GuildPrefixSettings> prefixRepository,
+        ISettingsRepository<Guild> guildRepository,
         IOptions<BotOptions> botOptions)
     {
-        _prefixRepository = prefixRepository;
+        _guildRepository = guildRepository;
         _botOptions = botOptions;
     }
 
@@ -30,8 +30,8 @@ public class PrefixModule : ModuleBase<SocketCommandContext>
         if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
 
-        var settings = await _prefixRepository.GetAsync(Context.Guild.Id);
-        var current = GetCurrentPrefix(settings);
+        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
+        var current = GetCurrentPrefix(guild);
 
         await ReplyAsync($"⚙️ Prefixo de comandos deste servidor: `{current}`");
     }
@@ -56,9 +56,9 @@ public class PrefixModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var settings = await _prefixRepository.GetAsync(Context.Guild.Id);
-        settings.Prefix = prefixo + " ";
-        await _prefixRepository.SaveAsync(settings);
+        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
+        guild.Prefix.Prefix = prefixo + " ";
+        await _guildRepository.SaveAsync(guild);
 
         await ReplyAsync(
             $"✅ Prefixo definido para `{prefixo}`!\n" +
@@ -73,14 +73,16 @@ public class PrefixModule : ModuleBase<SocketCommandContext>
         if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
 
-        await _prefixRepository.ResetAsync(Context.Guild.Id);
+        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
+        guild.Prefix.Prefix = null;
+        await _guildRepository.SaveAsync(guild);
 
         var defaultPrefix = _botOptions.Value.CommandPrefix;
         await ReplyAsync($"✅ Prefixo resetado! Voltou ao padrão global: `{defaultPrefix}`");
     }
 
-    internal string GetCurrentPrefix(GuildPrefixSettings settings)
-        => !string.IsNullOrWhiteSpace(settings.Prefix)
-            ? settings.Prefix
+    internal string GetCurrentPrefix(Guild guild)
+        => !string.IsNullOrWhiteSpace(guild.Prefix.Prefix)
+            ? guild.Prefix.Prefix
             : _botOptions.Value.CommandPrefix;
 }
