@@ -105,6 +105,10 @@ docker compose up --build
 | `ajuda` | Lista todos os comandos do bot |
 | `daily` / `saldo` / `pagar` / `ranking` | Economia |
 | `blackjack <valor>` / `roleta <valor>` / `cacaniquel <valor>` | Cassino (blackjack, roleta e caça-níquel) |
+| `loja` / `comprar <id>` / `inventario` / `usar <id>` / `vender <id>` | Loja com itens e boosts (catálogo no banco) |
+| `equipar <id>` / `desequipar <id>` | Equipa relógios com bônus permanente no cassino |
+| Ativos (Ações, Fazenda, Terreno, Empresa) | Renda passiva no `daily` (backlog máx. 3 dias) |
+| Relógios (Relógio do Cassino, da Sorte, Vermelho, do Reembolso) | Itens caros equipáveis: +% nos ganhos (todos ou jogo específico) ou cashback % nas derrotas |
 | `gif <categoria>` | Sorteia um GIF |
 | `8ball <pergunta>` | Bola 8 mágica |
 | `welcome` / `goodbye` | Configura boas-vindas e despedidas |

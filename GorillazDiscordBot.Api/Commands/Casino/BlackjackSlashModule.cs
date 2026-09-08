@@ -13,21 +13,23 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
     private readonly IEconomyRepository _economy;
     private readonly IEconomyAccessor _accessor;
     private readonly GameSessionManager _sessions;
+    private readonly CasinoPlayService _play;
 
-    public BlackjackSlashModule(IEconomyRepository economy, IEconomyAccessor accessor, GameSessionManager sessions)
+    public BlackjackSlashModule(IEconomyRepository economy, IEconomyAccessor accessor, GameSessionManager sessions, CasinoPlayService play)
     {
         _economy = economy;
         _accessor = accessor;
         _sessions = sessions;
+        _play = play;
     }
 
     [SlashCommand("blackjack", "Inicia uma mão de Blackjack com botões")]
     public async Task BlackjackAsync(
-        [Summary("valor", "Quantidade de moedas para apostar")] ulong valor)
+        [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M, 1B")] string valor)
     {
-        if (valor <= 0)
+        if (!EconomyAmountParser.TryParse(valor, out var amount, out var error))
         {
-            await RespondAsync("⚠️ O valor da aposta deve ser positivo.", ephemeral: true);
+            await RespondAsync(error, ephemeral: true);
             return;
         }
 
@@ -44,7 +46,7 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
         }
 
         var (deducted, _) = await _economy.TryDeductMoneyAsync(
-            await _accessor.ResolveMainIdAsync(userId), valor, EconomyTransactionType.Bet, "Aposta no blackjack");
+            await _accessor.ResolveMainIdAsync(userId), amount, EconomyTransactionType.Bet, "Aposta no blackjack");
 
         if (!deducted)
         {
@@ -52,7 +54,7 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
             return;
         }
 
-        var game = new BlackjackGame(valor);
+        var game = new BlackjackGame(amount);
 
         if (game.Phase == BlackjackPhase.Finished)
         {
@@ -238,16 +240,15 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
         _sessions.Remove(Context.User.Id);
 
         var totalReturn = game.CalculateTotalReturn();
-        var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
 
-        if (totalReturn > 0)
-            await _economy.AddMoneyAsync(mainId, totalReturn, EconomyTransactionType.Bet, "Pagamento do blackjack");
-
-        var user = await _economy.GetOrCreateAsync(mainId, Context.User.Username);
+        var payout = await _play.PayOutAsync(
+            Context.User.Id, totalReturn, Context.User.Username, "Pagamento do blackjack",
+            RelicGameType.Blackjack, game.Bet);
 
         var resultSection = prefix
             + BlackjackTableBuilder.DescribeResult(game, totalReturn)
-            + $"\n💰 Saldo atual: **{user.Money}** moedas";
+            + CasinoTableBuilder.DescribeAppliedRelic(payout)
+            + $"\n💰 Saldo atual: **{EconomyFormat.Full(payout.Balance)}** moedas";
 
         return BlackjackTableBuilder.BuildTable(game, Context.User, resultSection);
     }

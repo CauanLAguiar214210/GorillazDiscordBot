@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Interactions;
+using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
@@ -19,10 +20,16 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
 
     [SlashCommand("roleta", "Aposta na roleta com botões")]
     public async Task RouletteAsync(
-        [Summary("valor", "Quantidade de moedas para apostar")] ulong valor,
+        [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M, 1B")] string valor,
         [Summary("tipo", "Tipo de aposta")] RouletteBetChoice tipo = RouletteBetChoice.Numero,
         [Summary("alvo", "Número de 0 a 36 (só para tipo número)")] int? alvo = null)
     {
+        if (!EconomyAmountParser.TryParse(valor, out var amount, out var parseError))
+        {
+            await RespondAsync(parseError, ephemeral: true);
+            return;
+        }
+
         var (betType, target, error) = ResolveChoice(tipo, alvo);
         if (error != null)
         {
@@ -40,7 +47,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, valor, Context.User.Username, "Aposta na roleta");
+            Context.User.Id, amount, Context.User.Username, "Aposta na roleta");
 
         if (!deducted)
         {
@@ -49,9 +56,9 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         var game = new RouletteGame();
-        game.AddBet(valor, betType, target);
+        game.AddBet(amount, betType, target);
 
-        var session = CasinoSession.ForRoulette(valor, game);
+        var session = CasinoSession.ForRoulette(amount, game);
         _sessions.Add(Context.User.Id, session);
 
         var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
@@ -63,8 +70,14 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
 
     [SlashCommand("cacaniquel", "Joga na caça-níquel com botões")]
     public async Task SlotAsync(
-        [Summary("valor", "Quantidade de moedas para apostar")] ulong valor)
+        [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M, 1B")] string valor)
     {
+        if (!EconomyAmountParser.TryParse(valor, out var amount, out var parseError))
+        {
+            await RespondAsync(parseError, ephemeral: true);
+            return;
+        }
+
         var expired = _sessions.TakeExpired(Context.User.Id);
         if (expired != null)
             await SettleExpiredAsync(expired);
@@ -76,7 +89,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, valor, Context.User.Username, "Aposta na caça-níquel");
+            Context.User.Id, amount, Context.User.Username, "Aposta na caça-níquel");
 
         if (!deducted)
         {
@@ -85,13 +98,13 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         var slots = new SlotMachineGame();
-        var session = CasinoSession.ForSlots(valor, slots);
+        var session = CasinoSession.ForSlots(amount, slots);
         _sessions.Add(Context.User.Id, session);
 
         var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
 
         await RespondAsync(
-            embed: CasinoTableBuilder.BuildSlotTable(slots, valor, Context.User, balance),
+            embed: CasinoTableBuilder.BuildSlotTable(slots, amount, Context.User, balance),
             components: CasinoTableBuilder.BuildSlotComponents(slots.HasSpun));
     }
 
@@ -112,13 +125,14 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         game.Spin();
         _sessions.Remove(Context.User.Id);
 
-        var balance = await _play.PayOutAsync(
-            Context.User.Id, game.CalculateTotalReturn(), Context.User.Username, "Pagamento da roleta");
+        var payout = await _play.PayOutAsync(
+            Context.User.Id, game.CalculateTotalReturn(), Context.User.Username, "Pagamento da roleta",
+            RelicGameType.Roulette, game.TotalBet);
 
-        var resultSection = DescribeRouletteResult(game);
+        var resultSection = DescribeRouletteResult(game) + CasinoTableBuilder.DescribeAppliedRelic(payout);
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
-            m.Embed = CasinoTableBuilder.BuildRouletteTable(game, Context.User, balance, resultSection);
+            m.Embed = CasinoTableBuilder.BuildRouletteTable(game, Context.User, payout.Balance, resultSection);
             m.Components = firstBet == null
                 ? new ComponentBuilder().Build()
                 : CasinoTableBuilder.BuildRouletteReplayComponents(Context.User.Id, session.Bet, firstBet.Type, firstBet.Target);
@@ -151,9 +165,9 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        if (!ulong.TryParse(modal.Valor, out var amount) || amount <= 0)
+        if (!EconomyAmountParser.TryParse(modal.Valor, out var amount, out var parseError))
         {
-            await FollowupAsync("⚠️ Informe um valor numérico positivo.", ephemeral: true);
+            await FollowupAsync(parseError, ephemeral: true);
             return;
         }
 
@@ -202,16 +216,18 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         _sessions.Remove(Context.User.Id);
 
         var returnAmount = SlotMachineGame.CalculateReturn(session.Bet, slots.Reels);
-        var balance = await _play.PayOutAsync(
-            Context.User.Id, returnAmount, Context.User.Username, "Pagamento da caça-níquel");
+        var payout = await _play.PayOutAsync(
+            Context.User.Id, returnAmount, Context.User.Username, "Pagamento da caça-níquel",
+            RelicGameType.Slots, session.Bet);
 
-        var resultSection = returnAmount > 0
-            ? $"🎉 **Você ganhou!** Recebeu **{returnAmount}** moedas."
-            : "😢 Você não acertou nenhuma combinação. Boa sorte na próxima!";
+        var resultSection = (returnAmount > 0
+            ? $"🎉 **Você ganhou!** Recebeu **{EconomyFormat.Full(returnAmount)}** moedas."
+            : "😢 Você não acertou nenhuma combinação. Boa sorte na próxima!")
+            + CasinoTableBuilder.DescribeAppliedRelic(payout);
 
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
-            m.Embed = CasinoTableBuilder.BuildSlotTable(slots, session.Bet, Context.User, balance, resultSection);
+            m.Embed = CasinoTableBuilder.BuildSlotTable(slots, session.Bet, Context.User, payout.Balance, resultSection);
             m.Components = CasinoTableBuilder.BuildSlotReplayComponents(Context.User.Id, session.Bet);
         });
     }
@@ -250,16 +266,18 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         slots.Spin();
 
         var returnAmount = SlotMachineGame.CalculateReturn(bet, slots.Reels);
-        var balance = await _play.PayOutAsync(
-            Context.User.Id, returnAmount, Context.User.Username, "Pagamento da caça-níquel");
+        var payout = await _play.PayOutAsync(
+            Context.User.Id, returnAmount, Context.User.Username, "Pagamento da caça-níquel",
+            RelicGameType.Slots, bet);
 
-        var resultSection = returnAmount > 0
-            ? $"🎉 **Você ganhou!** Recebeu **{returnAmount}** moedas."
-            : "😢 Você não acertou nenhuma combinação. Boa sorte na próxima!";
+        var resultSection = (returnAmount > 0
+            ? $"🎉 **Você ganhou!** Recebeu **{EconomyFormat.Full(returnAmount)}** moedas."
+            : "😢 Você não acertou nenhuma combinação. Boa sorte na próxima!")
+            + CasinoTableBuilder.DescribeAppliedRelic(payout);
 
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
-            m.Embed = CasinoTableBuilder.BuildSlotTable(slots, bet, Context.User, balance, resultSection);
+            m.Embed = CasinoTableBuilder.BuildSlotTable(slots, bet, Context.User, payout.Balance, resultSection);
             m.Components = CasinoTableBuilder.BuildSlotReplayComponents(ownerId, bet);
         });
     }
@@ -361,14 +379,15 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         {
             roulette.Spin();
             await _play.PayOutAsync(
-                Context.User.Id, roulette.CalculateTotalReturn(), Context.User.Username, "Roleta expirada");
+                Context.User.Id, roulette.CalculateTotalReturn(), Context.User.Username, "Roleta expirada",
+                RelicGameType.Roulette, roulette.TotalBet);
         }
         else if (expired.Slots is { } slots && !slots.HasSpun)
         {
             slots.Spin();
             await _play.PayOutAsync(
                 Context.User.Id, SlotMachineGame.CalculateReturn(expired.Bet, slots.Reels),
-                Context.User.Username, "Caça-níquel expirada");
+                Context.User.Username, "Caça-níquel expirada", RelicGameType.Slots, expired.Bet);
         }
     }
 
@@ -379,16 +398,16 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         {
             var win = game.CalculateReturn(bet);
             if (win > 0)
-                sb.AppendLine($"✅ {DescribeBet(bet)} — venceu **{win}**");
+                sb.AppendLine($"✅ {DescribeBet(bet)} — venceu **{EconomyFormat.Full(win)}**");
             else
-                sb.AppendLine($"❌ {DescribeBet(bet)} — perdeu **{bet.Amount}**");
+                sb.AppendLine($"❌ {DescribeBet(bet)} — perdeu **{EconomyFormat.Full(bet.Amount)}**");
         }
         return sb.ToString();
     }
 
     private static string DescribeBet(RouletteBet bet)
     {
-        return $"{bet.Amount} moedas em {bet.Type} ({bet.Target})";
+        return $"{EconomyFormat.Full(bet.Amount)} moedas em {bet.Type} ({bet.Target})";
     }
 
     private static (RouletteBetType type, int target, string? error) ParseModalBet(AddBetModal modal)
@@ -464,7 +483,7 @@ public class AddBetModal : IModal
     public string Title => "Adicionar aposta na roleta";
 
     [InputLabel("Valor")]
-    [ModalTextInput("addbet_valor", TextInputStyle.Short, placeholder: "100")]
+    [ModalTextInput("addbet_valor", TextInputStyle.Short, placeholder: "100, 1k, 1M, 1B")]
     public string Valor { get; set; } = string.Empty;
 
     [InputLabel("Tipo")]

@@ -12,9 +12,10 @@ public class UserAccountServiceTests
 {
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IEconomyRepository _economy = Substitute.For<IEconomyRepository>();
+    private readonly IShopRepository _shop = Substitute.For<IShopRepository>();
 
     private UserAccountService CreateService()
-        => new(_users, _economy, NullLogger<UserAccountService>.Instance);
+        => new(_users, _economy, _shop, NullLogger<UserAccountService>.Instance);
 
     [Fact]
     public async Task StartSelfLink_MesmaConta_Falha()
@@ -89,6 +90,7 @@ public class UserAccountServiceTests
 
         result.Success.Should().BeTrue();
         await _economy.Received(1).UnifyProfileAsync(2, 1);
+        await _shop.Received(1).MigrateInventoryAsync(2, 1);
         await _users.Received(1).LinkAsync(1, 2);
     }
 

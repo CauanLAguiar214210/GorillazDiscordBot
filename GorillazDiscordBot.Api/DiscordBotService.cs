@@ -28,6 +28,7 @@ public class DiscordBotService : IHostedService
     private readonly IChatInteractionService _chatInteractionService;
     private readonly IUserRepository _userRepository;
     private readonly IGuildMemberRepository _guildMemberRepository;
+    private readonly ShopService _shopService;
 
     public DiscordBotService(
         DiscordSocketClient client,
@@ -40,7 +41,8 @@ public class DiscordBotService : IHostedService
         IVoiceChannelService voiceChannelService,
         IChatInteractionService chatInteractionService,
         IUserRepository userRepository,
-        IGuildMemberRepository guildMemberRepository)
+        IGuildMemberRepository guildMemberRepository,
+        ShopService shopService)
     {
         _client = client;
         _commands = commands;
@@ -53,6 +55,7 @@ public class DiscordBotService : IHostedService
         _chatInteractionService = chatInteractionService;
         _userRepository = userRepository;
         _guildMemberRepository = guildMemberRepository;
+        _shopService = shopService;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -120,7 +123,21 @@ public class DiscordBotService : IHostedService
             _client.CurrentUser.Username,
             _client.CurrentUser.Discriminator);
 
+        await SeedShopAsync();
         await RegisterSlashCommandsAsync();
+    }
+
+    private async Task SeedShopAsync()
+    {
+        try
+        {
+            await _shopService.SeedIfEmptyAsync();
+            _logger.LogInformation("Catálogo da loja verificado (seed executado se necessário).");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao executar seed da loja.");
+        }
     }
 
     private async Task RegisterSlashCommandsAsync()

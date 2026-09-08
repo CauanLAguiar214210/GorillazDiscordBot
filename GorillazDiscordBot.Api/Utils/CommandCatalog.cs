@@ -20,6 +20,7 @@ public static class CommandCatalog
         ["InteractionModule"] = ("Interações", "💬"),
         ["BlackjackModule"] = ("Blackjack", "🃏"),
         ["CasinoModule"] = ("Cassino", "🎰"),
+        ["ShopModule"] = ("Loja", "🛒"),
     };
 
     /// <summary>Descrições dos comandos (chave = primeiro alias).</summary>
@@ -47,6 +48,13 @@ public static class CommandCatalog
         ["roubar"] = "Tenta roubar moedas de outro usuário",
         ["historico"] = "Mostra o histórico de transações",
         ["ranking"] = "Ranking global de riqueza",
+        ["loja"] = "Mostra os itens disponíveis na loja",
+        ["comprar"] = "Compra um item da loja",
+        ["usar"] = "Ativa um boost comprado",
+        ["inventario"] = "Mostra seus itens",
+        ["vender"] = "Revende um item por reembolso parcial",
+        ["equipar"] = "Equipa um relógio equipável",
+        ["desequipar"] = "Desequipa o relógio ativo",
         ["gif"] = "Buscar, adicionar ou sortear GIFs",
         ["userinfo"] = "Suas informações de usuário",
         ["random"] = "Número aleatório entre min e max",
@@ -114,6 +122,17 @@ public static class CommandCatalog
             new CommandEntry("cacaniquel <valor>", "Caça-níquel por prefixo (alias: slot)"),
             new CommandEntry("casino", "Mostra os jogos do cassino (alias: cassino)"),
         }),
+        new("loja", "🛒", "Loja", new[]
+        {
+            new CommandEntry("loja", "Mostra os itens disponíveis na loja"),
+            new CommandEntry("comprar <id>", "Compra um item da loja"),
+            new CommandEntry("usar <id>", "Ativa um boost comprado"),
+            new CommandEntry("inventario", "Mostra seus itens (alias: mochila)"),
+            new CommandEntry("vender <id>", "Revende um item por reembolso parcial"),
+            new CommandEntry("equipar <id>", "Equipa um relógio (bônus no cassino)"),
+            new CommandEntry("desequipar <id>", "Desequipa o relógio ativo"),
+            new CommandEntry("loja reload", "Recarrega o catálogo do banco (admin)"),
+        }),
         new("utilidade", "🛠️", "Utilidades", new[]
         {
             new CommandEntry("userinfo", "Suas informações de usuário"),
@@ -133,10 +152,15 @@ public static class CommandCatalog
         }),
         new("config", "⚙️", "Configuração", new[]
         {
-            new CommandEntry("welcome <canal> · welcomemsg <texto> · welcome off/config", "Mensagens de boas-vindas"),
-            new CommandEntry("goodbye <canal> · goodbyemsg <texto> · goodbye off/config", "Mensagens de despedida"),
-            new CommandEntry("voice setup <canal> · voice off/config", "Canais de voz sob demanda"),
-            new CommandEntry("prefix [set|reset]", "Prefixo do bot neste servidor"),
+            new CommandEntry("/config status", "Visão geral da configuração deste servidor"),
+            new CommandEntry("/config boasvindas-canal|mensagem|desativar|exibir", "Mensagens de boas-vindas por slash"),
+            new CommandEntry("/config despedidas-canal|mensagem|desativar", "Mensagens de despedida por slash"),
+            new CommandEntry("/config voice-setup|desativar|remover|exibir", "Canais de voz sob demanda por slash"),
+            new CommandEntry("/config prefixo-definir|resetar|exibir", "Prefixo do bot por slash"),
+            new CommandEntry("welcome <canal> · welcomemsg <texto> · welcome off/config", "Mensagens de boas-vindas (prefixo)"),
+            new CommandEntry("goodbye <canal> · goodbyemsg <texto> · goodbye off/config", "Mensagens de despedida (prefixo)"),
+            new CommandEntry("voice setup <canal> · voice off/config", "Canais de voz sob demanda (prefixo)"),
+            new CommandEntry("prefix [set|reset]", "Prefixo do bot neste servidor (prefixo)"),
             new CommandEntry("interaction add/remove/list", "Respostas automáticas personalizadas"),
         }),
     };
@@ -149,7 +173,7 @@ public static class CommandCatalog
             .WithTitle("Central de Ajuda")
             .WithDescription(
                 "Selecione uma categoria no menu abaixo.\n\n" +
-                "✨ **Já disponíveis por `/`:** `blackjack`, `ajuda`\n" +
+                "✨ **Já disponíveis por `/`:** `blackjack`, `roleta`, `cacaniquel`, `config`, `ajuda`\n" +
                 "Os demais comandos usem com o prefixo do servidor (padrão: `macaco`).");
 
         embed.WithStandardFooter("Clique no menu para navegar entre as categorias");

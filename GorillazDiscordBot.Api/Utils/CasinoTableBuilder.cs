@@ -1,6 +1,8 @@
 using System.Text;
 using Discord;
+using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Entity.Games.Casino;
+using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Utils;
@@ -33,6 +35,16 @@ public static class CasinoTableBuilder
         [SlotSymbol.Crown] = "👑"
     };
 
+    public static string? DescribeAppliedRelic(PayoutResult payout)
+    {
+        if (payout.Bonus == 0 || payout.Relic is not { } relic)
+            return null;
+
+        return relic.Effect == RelicEffect.Cashback
+            ? $"{relic.Emoji} **{relic.Name}** (devolve {relic.Value}% da aposta): +**{EconomyFormat.Full(payout.Bonus)}** moedas devolvidas"
+            : $"{relic.Emoji} **{relic.Name}** (+{relic.Value}%): +**{EconomyFormat.Full(payout.Bonus)}** moedas extras";
+    }
+
     public static Embed BuildRouletteTable(
         RouletteGame game, IUser player, ulong balance, string? resultSection = null)
     {
@@ -46,14 +58,14 @@ public static class CasinoTableBuilder
 
         foreach (var bet in game.Bets)
         {
-            sb.AppendLine($"🎯 {FormatBet(bet)} — **{bet.Amount}** moedas");
+            sb.AppendLine($"🎯 {FormatBet(bet)} — **{EconomyFormat.Full(bet.Amount)}** moedas");
         }
 
         if (game.Bets.Count == 0)
             sb.AppendLine("🎯 Nenhuma aposta feita ainda.");
 
         sb.AppendLine();
-        sb.AppendLine($"💰 Aposta total: **{game.TotalBet}** moedas");
+        sb.AppendLine($"💰 Aposta total: **{EconomyFormat.Full(game.TotalBet)}** moedas");
 
         if (resultSection != null)
         {
@@ -63,7 +75,7 @@ public static class CasinoTableBuilder
         }
 
         sb.AppendLine();
-        sb.AppendLine($"💰 Saldo: **{balance}** moedas");
+        sb.AppendLine($"💰 Saldo: **{EconomyFormat.Full(balance)}** moedas");
 
         var embed = new EmbedBuilder()
             .WithTitle("\U0001F3B0 Roleta")
@@ -86,7 +98,7 @@ public static class CasinoTableBuilder
             : "🍒 | 🍋 | 🔔   ← Role a máquina!");
 
         sb.AppendLine();
-        sb.AppendLine($"💰 Aposta: **{bet}** moedas");
+        sb.AppendLine($"💰 Aposta: **{EconomyFormat.Full(bet)}** moedas");
 
         if (resultSection != null)
         {
@@ -96,7 +108,7 @@ public static class CasinoTableBuilder
         }
 
         sb.AppendLine();
-        sb.AppendLine($"💰 Saldo: **{balance}** moedas");
+        sb.AppendLine($"💰 Saldo: **{EconomyFormat.Full(balance)}** moedas");
 
         var embed = new EmbedBuilder()
             .WithTitle("\U0001F3B0 Caça-Níquel")

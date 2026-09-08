@@ -71,6 +71,7 @@ builder.Services.AddSingleton(sp =>
 builder.Services.AddSingleton(typeof(IMongoRepository<>), typeof(MongoRepository<>));
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
 builder.Services.AddSingleton<IEconomyRepository, EconomyRepository>();
+builder.Services.AddSingleton<IShopRepository, ShopRepository>();
 builder.Services.AddSingleton<IGifRepository, GifRepository>();
 builder.Services.AddSingleton<IGuildMemberRepository, GuildMemberRepository>();
 
@@ -90,6 +91,7 @@ builder.Services.AddSingleton<IUserAccountService, UserAccountService>();
 builder.Services.AddSingleton<GameSessionManager>();
 builder.Services.AddSingleton<CasinoSessionManager>();
 builder.Services.AddSingleton<CasinoPlayService>();
+builder.Services.AddSingleton<ShopService>();
 
 // GIF URL Normalization
 builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>
