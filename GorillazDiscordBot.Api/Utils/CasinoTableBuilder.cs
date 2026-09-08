@@ -22,12 +22,15 @@ public static class CasinoTableBuilder
 
     private static readonly Dictionary<SlotSymbol, string> SlotEmoji = new()
     {
+        [SlotSymbol.Clover] = "🍀",
         [SlotSymbol.Cherry] = "🍒",
         [SlotSymbol.Lemon] = "🍋",
         [SlotSymbol.Bell] = "🔔",
         [SlotSymbol.Star] = "⭐",
+        [SlotSymbol.Skull] = "💀",
         [SlotSymbol.Seven] = "7️⃣",
-        [SlotSymbol.Diamond] = "💎"
+        [SlotSymbol.Diamond] = "💎",
+        [SlotSymbol.Crown] = "👑"
     };
 
     public static Embed BuildRouletteTable(
@@ -149,12 +152,15 @@ public static class CasinoTableBuilder
         sb.AppendLine();
         sb.AppendLine("```\nSímbolo     Tripla    Dupla");
         sb.AppendLine("─────────────────────────────");
+        sb.AppendLine("🍀 Clover     2x        1x");
         sb.AppendLine("🍒 Cherry     2x        1x");
         sb.AppendLine("🍋 Lemon      3x        2x");
-        sb.AppendLine("🔔 Bell       5x        3x");
-        sb.AppendLine("⭐ Star      10x        5x");
-        sb.AppendLine("7️⃣ Seven     20x        8x");
-        sb.AppendLine("💎 Diamond   50x       15x");
+        sb.AppendLine("🔔 Bell       4x        3x");
+        sb.AppendLine("⭐ Star       6x        3x");
+        sb.AppendLine("💀 Skull     10x        4x");
+        sb.AppendLine("7️⃣ Seven     15x        7x");
+        sb.AppendLine("💎 Diamond   40x       12x");
+        sb.AppendLine("👑 Crown     50x       15x");
         sb.AppendLine("```");
 
         sb.AppendLine("**Regras:**");

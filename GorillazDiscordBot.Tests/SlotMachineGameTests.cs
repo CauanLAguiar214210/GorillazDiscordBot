@@ -33,10 +33,13 @@ public class SlotMachineGameTests
     [Theory]
     [InlineData(SlotSymbol.Cherry, 2)]
     [InlineData(SlotSymbol.Lemon, 3)]
-    [InlineData(SlotSymbol.Bell, 5)]
-    [InlineData(SlotSymbol.Star, 10)]
-    [InlineData(SlotSymbol.Seven, 20)]
-    [InlineData(SlotSymbol.Diamond, 50)]
+    [InlineData(SlotSymbol.Bell, 4)]
+    [InlineData(SlotSymbol.Clover, 2)]
+    [InlineData(SlotSymbol.Star, 6)]
+    [InlineData(SlotSymbol.Seven, 15)]
+    [InlineData(SlotSymbol.Skull, 10)]
+    [InlineData(SlotSymbol.Diamond, 40)]
+    [InlineData(SlotSymbol.Crown, 50)]
     public void TresIguais_MultiplicadorDaCadaSimbolo(SlotSymbol symbol, int multiplier)
     {
         var reels = Rows(symbol, symbol, symbol);
@@ -48,9 +51,12 @@ public class SlotMachineGameTests
     [InlineData(SlotSymbol.Cherry, 1)]
     [InlineData(SlotSymbol.Lemon, 2)]
     [InlineData(SlotSymbol.Bell, 3)]
-    [InlineData(SlotSymbol.Star, 5)]
-    [InlineData(SlotSymbol.Seven, 8)]
-    [InlineData(SlotSymbol.Diamond, 15)]
+    [InlineData(SlotSymbol.Clover, 1)]
+    [InlineData(SlotSymbol.Star, 3)]
+    [InlineData(SlotSymbol.Seven, 7)]
+    [InlineData(SlotSymbol.Skull, 4)]
+    [InlineData(SlotSymbol.Diamond, 12)]
+    [InlineData(SlotSymbol.Crown, 15)]
     public void ParDeSimbolos_MultiplicadorDePar(SlotSymbol symbol, int multiplier)
     {
         var other = symbol == SlotSymbol.Diamond ? SlotSymbol.Cherry : SlotSymbol.Diamond;
