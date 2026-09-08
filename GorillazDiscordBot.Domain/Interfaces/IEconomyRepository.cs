@@ -20,8 +20,13 @@ public interface IEconomyRepository
     Task<EconomyProfile> SetLastWorkAsync(ulong userId, DateTime now);
     Task<EconomyProfile> SetRobAttemptAsync(ulong userId, DateTime attemptTime, DateTime? caughtUntil);
 
+    Task<EconomyProfile> SetDailyBoostAsync(ulong userId, bool pending);
+    Task<EconomyProfile> SetWorkBoostAsync(ulong userId, bool pending);
+    Task<EconomyProfile> SetRobShieldAsync(ulong userId, DateTime? until);
+
     Task<List<EconomyProfile>> GetTopUsersAsync(int limit);
     Task<int> ApplyDailyMaintenanceAsync();
     Task<List<EconomyTransaction>> GetHistoryAsync(ulong userId, int limit);
+    Task LogTransactionAsync(ulong userId, EconomyTransactionType type, long amount, string description);
     Task<UnifyResult?> UnifyProfileAsync(ulong sourceUserId, ulong targetUserId);
 }

@@ -12,19 +12,32 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 {
     private readonly IEconomyRepository _economy;
     private readonly IEconomyAccessor _accessor;
+    private readonly ShopService _shop;
 
-    public EconomyModule(IEconomyRepository economy, IEconomyAccessor accessor)
+    public EconomyModule(IEconomyRepository economy, IEconomyAccessor accessor, ShopService shop)
     {
         _economy = economy;
         _accessor = accessor;
+        _shop = shop;
     }
 
     [Command("daily")]
     public async Task DailyAsync()
     {
         var reward = EconomyRules.GetDailyReward(Random.Shared);
-        var (claimed, newBalance) = await _economy.TryClaimDailyAsync(
-            await _accessor.ResolveMainIdAsync(Context.User.Id), reward);
+        var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
+        var profile = await _economy.GetOrCreateAsync(mainId, Context.User.Username);
+
+        var boost = profile.DailyBoostPending;
+        if (boost && profile.DailyBoostExpiresAt is { } exp && exp <= DateTime.UtcNow)
+        {
+            await _economy.SetDailyBoostAsync(mainId, false);
+            boost = false;
+        }
+        if (boost)
+            reward *= 2;
+
+        var (claimed, newBalance) = await _economy.TryClaimDailyAsync(mainId, reward);
 
         if (!claimed)
         {
@@ -32,7 +45,19 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        await ReplyAsync($"💰 **Daily resgatado!** +{reward} moedas na carteira. Saldo atual: **{newBalance}**");
+        if (boost)
+            await _economy.SetDailyBoostAsync(mainId, false);
+
+        var (income, incomeDays, _) = await _shop.ApplyAssetIncomesAsync(mainId, Context.User.Username, boost);
+
+        var suffix = boost ? " ⚡ ** (com bônus x2!)**" : string.Empty;
+        var incomeLine = income > 0
+            ? $"\n📈 **+{EconomyFormat.Full(income)} moedas** de renda dos ativos ({incomeDays} dia(s))!"
+            : string.Empty;
+
+        var balance = (ulong)newBalance + income;
+
+        await ReplyAsync($"💰 **Daily resgatado!** +{EconomyFormat.Full((ulong)reward)} moedas na carteira.{suffix}{incomeLine}\nSaldo atual: **{EconomyFormat.Full(balance)}**");
     }
 
     [Command("saldo")]
@@ -41,16 +66,16 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     {
         var user = await _economy.GetOrCreateAsync(
             await _accessor.ResolveMainIdAsync(Context.User.Id), Context.User.Username);
-        await ReplyAsync($"💰 **{Context.User.GetDisplayName()}**, seu saldo é **{user.Money} moedas** na carteira.");
+        await ReplyAsync($"💰 **{Context.User.GetDisplayName()}**, seu saldo é **{EconomyFormat.Full(user.Money)} moedas** na carteira.");
     }
 
     [Command("pagar")]
     [Alias("pay")]
-    public async Task PagarAsync(IUser receiver, ulong quantia)
+    public async Task PagarAsync(IUser receiver, [Remainder] string input)
     {
-        if (quantia <= 0)
+        if (!EconomyHelper.TryParsePositiveAmount(input, out ulong quantia, out var error))
         {
-            await ReplyAsync("⚠️ A quantia deve ser positiva.");
+            await ReplyAsync(error!);
             return;
         }
 
@@ -89,7 +114,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         await _economy.AddMoneyAsync(receiverMain, quantia, EconomyTransactionType.Payment,
             $"Pagamento de {Context.User.GetDisplayName()}");
 
-        await ReplyAsync($"💸 **{Context.User.GetDisplayName()}** pagou **{quantia} moedas** para **{receiver.GetDisplayName()}**!");
+        await ReplyAsync($"💸 **{Context.User.GetDisplayName()}** pagou **{EconomyFormat.Full(quantia)} moedas** para **{receiver.GetDisplayName()}**!");
     }
 
     [Command("depositar")]
@@ -111,7 +136,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        await ReplyAsync($"🏦 **{Context.User.GetDisplayName()}** depositou **{quantia} moedas** no banco!\nCarteira: **{wallet}** | Banco: **{bank}**");
+        await ReplyAsync($"🏦 **{Context.User.GetDisplayName()}** depositou **{EconomyFormat.Full(quantia)} moedas** no banco!\nCarteira: **{EconomyFormat.Full((ulong)wallet)}** | Banco: **{EconomyFormat.Full((ulong)bank)}**");
     }
 
     [Command("sacar")]
@@ -133,7 +158,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        await ReplyAsync($"🏧 **{Context.User.GetDisplayName()}** sacou **{quantia} moedas** do banco!\nCarteira: **{wallet}** | Banco: **{bank}**");
+        await ReplyAsync($"🏧 **{Context.User.GetDisplayName()}** sacou **{EconomyFormat.Full(quantia)} moedas** do banco!\nCarteira: **{EconomyFormat.Full((ulong)wallet)}** | Banco: **{EconomyFormat.Full((ulong)bank)}**");
     }
 
     [Command("banco")]
@@ -148,8 +173,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
         await ReplyAsync(
             $"🏦 **{Context.User.GetDisplayName()}**\n" +
-            $"Carteira: **{user.Money}**\nBanco: **{user.Bank}**\n" +
-            $"Poupança: **{user.Savings}** (streak: **{user.SavingsStreak}**)\n" +
+            $"Carteira: **{EconomyFormat.Full(user.Money)}**\nBanco: **{EconomyFormat.Full(user.Bank)}**\n" +
+            $"Poupança: **{EconomyFormat.Full(user.Savings)}** (streak: **{user.SavingsStreak}**)\n" +
             $"Juros diários: **{min:P1}–{max:P1}**");
     }
 
@@ -173,8 +198,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         }
 
         await ReplyAsync(
-            $"🏦 **{Context.User.GetDisplayName()}** depositou **{quantia} moedas** na poupança!\n" +
-            $"Carteira: **{wallet}** | Poupança: **{savings}** | Streak: **{streak}**");
+            $"🏦 **{Context.User.GetDisplayName()}** depositou **{EconomyFormat.Full(quantia)} moedas** na poupança!\n" +
+            $"Carteira: **{EconomyFormat.Full((ulong)wallet)}** | Poupança: **{EconomyFormat.Full((ulong)savings)}** | Streak: **{streak}**");
     }
 
     [Command("resgatar")]
@@ -197,8 +222,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         }
 
         await ReplyAsync(
-            $"🏧 **{Context.User.GetDisplayName()}** resgatou **{quantia} moedas** da poupança!\n" +
-            $"Carteira: **{wallet}** | Poupança: **{savings}**");
+            $"🏧 **{Context.User.GetDisplayName()}** resgatou **{EconomyFormat.Full(quantia)} moedas** da poupança!\n" +
+            $"Carteira: **{EconomyFormat.Full((ulong)wallet)}** | Poupança: **{EconomyFormat.Full((ulong)savings)}**");
     }
 
     [Command("trabalhar")]
@@ -209,7 +234,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         {
             var sb = new StringBuilder("💼 **Escolha um serviço:** `trabalhar <serviço>`\n\n");
             foreach (var item in EconomyJobs.All)
-                sb.AppendLine($"{item.Emoji} **{item.Name}** (`{item.Key}`) — {item.Hours}h → +**{item.TotalPay}** moedas");
+                sb.AppendLine($"{item.Emoji} **{item.Name}** (`{item.Key}`) — {item.Hours}h → +**{EconomyFormat.Full(item.TotalPay)}** moedas");
             await ReplyAsync(sb.ToString());
             return;
         }
@@ -231,12 +256,27 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        await _economy.AddMoneyAsync(
-            await _accessor.ResolveMainIdAsync(Context.User.Id), job.TotalPay, EconomyTransactionType.Work,
-            $"Trabalhou como {job.Name} ({job.Hours}h)");
-        await _economy.SetLastWorkAsync(await _accessor.ResolveMainIdAsync(Context.User.Id), now);
+        var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
+        var pay = job.TotalPay;
+        var boost = profile.WorkBoostPending;
+        if (boost && profile.WorkBoostExpiresAt is { } wExp && wExp <= DateTime.UtcNow)
+        {
+            await _economy.SetWorkBoostAsync(mainId, false);
+            boost = false;
+        }
+        if (boost)
+            pay *= 2;
 
-        await ReplyAsync($"💪 Você trabalhou como **{job.Emoji} {job.Name}** por {job.Hours}h e ganhou **{job.TotalPay} moedas**!");
+        await _economy.AddMoneyAsync(
+            mainId, pay, EconomyTransactionType.Work,
+            $"Trabalhou como {job.Name} ({job.Hours}h)");
+        await _economy.SetLastWorkAsync(mainId, now);
+
+        if (boost)
+            await _economy.SetWorkBoostAsync(mainId, false);
+
+        var boostSuffix = boost ? " ⚡ **(com bônus x2!)**" : string.Empty;
+        await ReplyAsync($"💪 Você trabalhou como **{job.Emoji} {job.Name}** por {job.Hours}h e ganhou **{EconomyFormat.Full(pay)} moedas**!{boostSuffix}");
     }
 
     [Command("roubar")]
@@ -281,6 +321,13 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
         var victim = await _economy.GetOrCreateAsync(victimMain, target.Username);
 
+        if (victim.RobShieldUntil is { } shieldUntil && shieldUntil > now)
+        {
+            await ReplyAsync($"🛡️ **{target.GetDisplayName()}** está protegido pelo Escudo Anti-Roubo por mais "
+                + $"{FormatRemaining(shieldUntil - now)}. Nem tente!");
+            return;
+        }
+
         if (victim.Money < 1)
         {
             await ReplyAsync("😅 Essa pessoa está sem moedas na carteira.");
@@ -294,10 +341,10 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             await _economy.TryDeductMoneyAsync(victimMain, stolen, EconomyTransactionType.Rob,
                 $"Roubado por {Context.User.GetDisplayName()}");
             await _economy.AddMoneyAsync(attackerMain, stolen, EconomyTransactionType.Rob,
-                $"Roubou {stolen} moedas de {target.GetDisplayName()}");
+                $"Roubou {EconomyFormat.Full(stolen)} moedas de {target.GetDisplayName()}");
             await _economy.SetRobAttemptAsync(attackerMain, now, null);
 
-            await ReplyAsync($"🕵️ **Você roubou {stolen} moedas** de **{target.GetDisplayName()}**!");
+            await ReplyAsync($"🕵️ **Você roubou {EconomyFormat.Full(stolen)} moedas** de **{target.GetDisplayName()}**!");
         }
         else
         {
@@ -361,7 +408,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         foreach (var t in txns)
         {
             var sinal = t.Amount >= 0 ? "+" : "";
-            sb.AppendLine($"`{t.CreatedAt:dd/MM HH:mm}` **{t.Type}** {sinal}{t.Amount} — {t.Description}");
+            sb.AppendLine($"`{t.CreatedAt:dd/MM HH:mm}` **{t.Type}** {sinal}{EconomyFormat.Full((ulong)Math.Abs(t.Amount))} — {t.Description}");
         }
 
         await ReplyAsync(sb.ToString());
@@ -379,33 +426,6 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     public static class EconomyHelper
     {
         public static bool TryParsePositiveAmount(string input, out ulong amount, out string? error)
-        {
-            amount = 0;
-            error = null;
-
-            if (!ulong.TryParse(input, out amount))
-            {
-                error = "⚠️ Informe um valor numérico. Exemplo: `bet 100`";
-                return false;
-            }
-
-            if (amount <= 0)
-            {
-                error = "⚠️ O valor deve ser positivo.";
-                return false;
-            }
-
-            return true;
-        }
-
-        public static async Task<bool> TryParseAndReplyAsync(string input, ICommandContext context)
-        {
-            if (!TryParsePositiveAmount(input, out _, out var error))
-            {
-                await context.Channel.SendMessageAsync(error!);
-                return false;
-            }
-            return true;
-        }
+            => EconomyAmountParser.TryParse(input, out amount, out error);
     }
 }

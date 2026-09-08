@@ -13,16 +13,19 @@ public class UserAccountService : IUserAccountService
 
     private readonly IUserRepository _users;
     private readonly IEconomyRepository _economy;
+    private readonly IShopRepository _shop;
     private readonly ILogger<UserAccountService> _logger;
     private readonly ConcurrentDictionary<string, PendingLink> _pending = new();
 
     public UserAccountService(
         IUserRepository users,
         IEconomyRepository economy,
+        IShopRepository shop,
         ILogger<UserAccountService> logger)
     {
         _users = users;
         _economy = economy;
+        _shop = shop;
         _logger = logger;
     }
 
@@ -121,6 +124,7 @@ public class UserAccountService : IUserAccountService
         try
         {
             merged = await _economy.UnifyProfileAsync(altId, mainId);
+            await _shop.MigrateInventoryAsync(altId, mainId);
         }
         catch (Exception ex)
         {
@@ -134,8 +138,8 @@ public class UserAccountService : IUserAccountService
 
         var message = merged == null
             ? "✅ Conta vinculada com sucesso!"
-            : $"✅ Conta vinculada! Economia unificada: {merged.MergedMoney} na carteira, " +
-              $"{merged.MergedBank} no banco e {merged.MergedSavings} na poupança.";
+            : $"✅ Conta vinculada! Economia unificada: {EconomyFormat.Full(merged.MergedMoney)} na carteira, " +
+              $"{EconomyFormat.Full(merged.MergedBank)} no banco e {EconomyFormat.Full(merged.MergedSavings)} na poupança.";
 
         return new LinkCompletionResult(true, message);
     }

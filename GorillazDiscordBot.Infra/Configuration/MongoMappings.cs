@@ -44,6 +44,11 @@ public static class MongoMappings
             map.MapMember(c => c.LastWorkTime).SetElementName("LastWorkTime");
             map.MapMember(c => c.LastRobTime).SetElementName("LastRobTime");
             map.MapMember(c => c.RobCaughtUntil).SetElementName("RobCaughtUntil");
+            map.MapMember(c => c.DailyBoostPending).SetElementName("DailyBoostPending");
+            map.MapMember(c => c.WorkBoostPending).SetElementName("WorkBoostPending");
+            map.MapMember(c => c.RobShieldUntil).SetElementName("RobShieldUntil");
+            map.MapMember(c => c.DailyBoostExpiresAt).SetElementName("DailyBoostExpiresAt");
+            map.MapMember(c => c.WorkBoostExpiresAt).SetElementName("WorkBoostExpiresAt");
         });
 
         BsonClassMap.RegisterClassMap<EconomyTransaction>(map =>
@@ -98,6 +103,45 @@ public static class MongoMappings
         });
 
         RegisterGuildSettings<Guild>();
+
+        BsonClassMap.RegisterClassMap<InventoryItem>(map =>
+        {
+            map.SetIgnoreExtraElements(true);
+            map.MapIdMember(c => c.Id)
+               .SetSerializer(new StringSerializer(BsonType.ObjectId))
+               .SetIdGenerator(StringObjectIdGenerator.Instance);
+            map.MapMember(c => c.UserId).SetElementName("UserId");
+            map.MapMember(c => c.ItemKey).SetElementName("ItemKey");
+            map.MapMember(c => c.Quantity).SetElementName("Quantity");
+            map.MapMember(c => c.ExpiresAt).SetElementName("ExpiresAt");
+            map.MapMember(c => c.AcquiredAt).SetElementName("AcquiredAt");
+            map.MapMember(c => c.LastCollectedAt).SetElementName("LastCollectedAt");
+            map.MapMember(c => c.IsEquipped).SetElementName("IsEquipped");
+        });
+
+        BsonClassMap.RegisterClassMap<ShopItem>(map =>
+        {
+            map.SetIgnoreExtraElements(true);
+            map.MapIdMember(c => c.Id)
+               .SetSerializer(new StringSerializer(BsonType.ObjectId))
+               .SetIdGenerator(StringObjectIdGenerator.Instance);
+            map.MapMember(c => c.Key).SetElementName("Key");
+            map.MapMember(c => c.Name).SetElementName("Name");
+            map.MapMember(c => c.Emoji).SetElementName("Emoji");
+            map.MapMember(c => c.Description).SetElementName("Description");
+            map.MapMember(c => c.Price).SetElementName("Price");
+            map.MapMember(c => c.Category).SetElementName("Category");
+            map.MapMember(c => c.Effect).SetElementName("Effect");
+            map.MapMember(c => c.DurationHours).SetElementName("DurationHours");
+            map.MapMember(c => c.DailyIncome).SetElementName("DailyIncome");
+            map.MapMember(c => c.MaxQuantity).SetElementName("MaxQuantity");
+            map.MapMember(c => c.IsActive).SetElementName("IsActive");
+            map.MapMember(c => c.IsPlaceholder).SetElementName("IsPlaceholder");
+            map.MapMember(c => c.SortOrder).SetElementName("SortOrder");
+            map.MapMember(c => c.RelicEffect).SetElementName("RelicEffect");
+            map.MapMember(c => c.RelicGame).SetElementName("RelicGame");
+            map.MapMember(c => c.RelicValue).SetElementName("RelicValue");
+        });
     }
 
     private static void RegisterGuildSettings<T>()

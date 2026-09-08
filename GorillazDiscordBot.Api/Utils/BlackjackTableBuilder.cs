@@ -1,5 +1,6 @@
 using System.Text;
 using Discord;
+using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Entity.Games;
 using GorillazDiscordBot.Utils;
 
@@ -25,7 +26,7 @@ public static class BlackjackTableBuilder
     public static Embed BuildTable(BlackjackGame game, IUser player, string? resultSection = null)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"\U0001FA99 Aposta: **{game.Bet}** moedas");
+        sb.AppendLine($"\U0001FA99 Aposta: **{EconomyFormat.Full(game.Bet)}** moedas");
         sb.AppendLine();
         sb.AppendLine("🏦 **Dealer**");
         sb.AppendLine(FormatDealerHand(game));
@@ -112,11 +113,11 @@ public static class BlackjackTableBuilder
 
     public static string DescribeResult(BlackjackGame game, ulong totalReturn) => game.Outcome switch
     {
-        BlackjackOutcome.PlayerBlackjack => $"\U0001F0CF **BLACKJACK!** Pagamento 3:2! Você recebeu **{totalReturn}** moedas.",
-        BlackjackOutcome.PlayerWin when game.Dealer.IsBust => $"💥 O dealer estourou! **Você venceu!** Recebeu **{totalReturn}** moedas.",
-        BlackjackOutcome.PlayerWin => $"🎉 **Você venceu!** Recebeu **{totalReturn}** moedas.",
+        BlackjackOutcome.PlayerBlackjack => $"\U0001F0CF **BLACKJACK!** Pagamento 3:2! Você recebeu **{EconomyFormat.Full(totalReturn)}** moedas.",
+        BlackjackOutcome.PlayerWin when game.Dealer.IsBust => $"💥 O dealer estourou! **Você venceu!** Recebeu **{EconomyFormat.Full(totalReturn)}** moedas.",
+        BlackjackOutcome.PlayerWin => $"🎉 **Você venceu!** Recebeu **{EconomyFormat.Full(totalReturn)}** moedas.",
         BlackjackOutcome.Push => "🤝 **Empate!** Sua aposta foi devolvida.",
-        BlackjackOutcome.DealerWin when game.Player.IsBust => $"💥 Você estourou! Perdeu **{game.Bet}** moedas.",
-        _ => $"😢 **A casa venceu.** Perdeu **{game.Bet}** moedas."
+        BlackjackOutcome.DealerWin when game.Player.IsBust => $"💥 Você estourou! Perdeu **{EconomyFormat.Full(game.Bet)}** moedas.",
+        _ => $"😢 **A casa venceu.** Perdeu **{EconomyFormat.Full(game.Bet)}** moedas."
     };
 }

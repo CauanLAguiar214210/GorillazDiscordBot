@@ -15,6 +15,12 @@ public class EconomyProfile
     public DateTime? LastRobTime { get; set; }
     public DateTime? RobCaughtUntil { get; set; }
 
+    public bool DailyBoostPending { get; set; }
+    public bool WorkBoostPending { get; set; }
+    public DateTime? RobShieldUntil { get; set; }
+    public DateTime? DailyBoostExpiresAt { get; set; }
+    public DateTime? WorkBoostExpiresAt { get; set; }
+
     public ulong NetWorth => AddSafe(Money, AddSafe(Bank, Savings));
 
     private static ulong AddSafe(ulong a, ulong b)

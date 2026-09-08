@@ -16,6 +16,12 @@ public static class EconomyUnifier
         target.RobCaughtUntil = Later(target.RobCaughtUntil, source.RobCaughtUntil);
         target.SavingsLastInterestDate = Later(target.SavingsLastInterestDate, source.SavingsLastInterestDate);
 
+        target.DailyBoostPending = target.DailyBoostPending || source.DailyBoostPending;
+        target.WorkBoostPending = target.WorkBoostPending || source.WorkBoostPending;
+        target.DailyBoostExpiresAt = Later(target.DailyBoostExpiresAt, source.DailyBoostExpiresAt);
+        target.WorkBoostExpiresAt = Later(target.WorkBoostExpiresAt, source.WorkBoostExpiresAt);
+        target.RobShieldUntil = Later(target.RobShieldUntil, source.RobShieldUntil);
+
         return new UnifyResult(source.Money, source.Bank, source.Savings);
     }
 

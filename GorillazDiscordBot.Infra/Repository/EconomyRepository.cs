@@ -61,7 +61,7 @@ public class EconomyRepository : IEconomyRepository
 
         if (result == null) return (false, 0);
 
-        await AddTransactionAsync(userId, EconomyTransactionType.Daily, reward, "Daily resgatado");
+        await AddTransactionAsync(userId, EconomyTransactionType.Daily, (long)reward, "Daily resgatado");
         return (true, (int)result.Money);
     }
 
@@ -73,7 +73,7 @@ public class EconomyRepository : IEconomyRepository
 
         if (result.ModifiedCount == 0) return false;
 
-        await AddTransactionAsync(userId, type, (int)amount, description);
+        await AddTransactionAsync(userId, type, (long)amount, description);
         return true;
     }
 
@@ -93,7 +93,7 @@ public class EconomyRepository : IEconomyRepository
 
         if (result == null) return (false, 0);
 
-        await AddTransactionAsync(userId, type, -(int)amount, description);
+        await AddTransactionAsync(userId, type, -(long)amount, description);
         return (true, result.Money);
     }
 
@@ -113,7 +113,7 @@ public class EconomyRepository : IEconomyRepository
 
         if (result == null) return (false, 0, 0);
 
-        await AddTransactionAsync(userId, EconomyTransactionType.Deposit, -(int)amount, "Depósito no banco");
+        await AddTransactionAsync(userId, EconomyTransactionType.Deposit, -(long)amount, "Depósito no banco");
         return (true, (int)result.Money, (int)result.Bank);
     }
 
@@ -133,7 +133,7 @@ public class EconomyRepository : IEconomyRepository
 
         if (result == null) return (false, 0, 0);
 
-        await AddTransactionAsync(userId, EconomyTransactionType.Withdraw, (int)amount, "Saque do banco");
+        await AddTransactionAsync(userId, EconomyTransactionType.Withdraw, (long)amount, "Saque do banco");
         return (true, (int)result.Money, (int)result.Bank);
     }
 
@@ -153,7 +153,7 @@ public class EconomyRepository : IEconomyRepository
 
         if (result == null) return (false, 0, 0, 0);
 
-        await AddTransactionAsync(userId, EconomyTransactionType.SavingsDeposit, -(int)amount, "Depósito na poupança");
+        await AddTransactionAsync(userId, EconomyTransactionType.SavingsDeposit, -(long)amount, "Depósito na poupança");
         return (true, (int)result.Money, (int)result.Savings, (int)result.SavingsStreak);
     }
 
@@ -177,7 +177,7 @@ public class EconomyRepository : IEconomyRepository
 
         if (result == null) return (false, 0, 0, 0);
 
-        await AddTransactionAsync(userId, EconomyTransactionType.SavingsWithdraw, (int)amount, "Resgate da poupança");
+        await AddTransactionAsync(userId, EconomyTransactionType.SavingsWithdraw, (long)amount, "Resgate da poupança");
         return (true, (int)result.Money, (int)result.Savings, (int)result.SavingsStreak);
     }
 
@@ -199,6 +199,46 @@ public class EconomyRepository : IEconomyRepository
         var update = Builders<EconomyProfile>.Update
             .Set(p => p.LastRobTime, attemptTime)
             .Set(p => p.RobCaughtUntil, caughtUntil);
+        var result = await _collection.FindOneAndUpdateAsync(filter, update,
+            new FindOneAndUpdateOptions<EconomyProfile>
+            {
+                ReturnDocument = ReturnDocument.After
+            });
+        return result!;
+    }
+
+    public async Task<EconomyProfile> SetDailyBoostAsync(ulong userId, bool pending)
+    {
+        var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId);
+        var update = Builders<EconomyProfile>.Update
+            .Set(p => p.DailyBoostPending, pending)
+            .Set(p => p.DailyBoostExpiresAt, pending ? DateTime.UtcNow.AddDays(7) : (DateTime?)null);
+        var result = await _collection.FindOneAndUpdateAsync(filter, update,
+            new FindOneAndUpdateOptions<EconomyProfile>
+            {
+                ReturnDocument = ReturnDocument.After
+            });
+        return result!;
+    }
+
+    public async Task<EconomyProfile> SetWorkBoostAsync(ulong userId, bool pending)
+    {
+        var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId);
+        var update = Builders<EconomyProfile>.Update
+            .Set(p => p.WorkBoostPending, pending)
+            .Set(p => p.WorkBoostExpiresAt, pending ? DateTime.UtcNow.AddDays(7) : (DateTime?)null);
+        var result = await _collection.FindOneAndUpdateAsync(filter, update,
+            new FindOneAndUpdateOptions<EconomyProfile>
+            {
+                ReturnDocument = ReturnDocument.After
+            });
+        return result!;
+    }
+
+    public async Task<EconomyProfile> SetRobShieldAsync(ulong userId, DateTime? until)
+    {
+        var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId);
+        var update = Builders<EconomyProfile>.Update.Set(p => p.RobShieldUntil, until);
         var result = await _collection.FindOneAndUpdateAsync(filter, update,
             new FindOneAndUpdateOptions<EconomyProfile>
             {
@@ -258,7 +298,7 @@ public class EconomyRepository : IEconomyRepository
                 if (newBank != profile.Bank)
                 {
                     ops.Add(Builders<EconomyProfile>.Update.Set(p => p.Bank, newBank));
-                    toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Tax, (int)((long)newBank - (long)profile.Bank), "Taxa bancária diária"));
+                    toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Tax, (long)newBank - (long)profile.Bank, "Taxa bancária diária"));
                 }
             }
 
@@ -270,7 +310,7 @@ public class EconomyRepository : IEconomyRepository
                 {
                     ops.Add(Builders<EconomyProfile>.Update.Inc(p => p.Savings, interest));
                     ops.Add(Builders<EconomyProfile>.Update.Set(p => p.SavingsLastInterestDate, DateTime.UtcNow));
-                    toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Interest, (int)interest,
+                    toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Interest, (long)interest,
                         $"Juros da poupança ({rate:P1} ao dia)"));
                 }
             }
@@ -326,14 +366,19 @@ public class EconomyRepository : IEconomyRepository
         var txUpdate = Builders<EconomyTransaction>.Update.Set(t => t.UserId, targetUserId);
         await _transactions.UpdateManyAsync(txFilter, txUpdate);
 
-        await AddTransactionAsync(targetUserId, EconomyTransactionType.Merge, result.MergedMoney > int.MaxValue ? int.MaxValue : (int)result.MergedMoney,
+        await AddTransactionAsync(targetUserId, EconomyTransactionType.Merge, (long)result.MergedMoney,
             $"Unificação de conta vinculada");
 
         await _collection.DeleteOneAsync(profileFilter);
         return result;
     }
 
-    private async Task AddTransactionAsync(ulong userId, EconomyTransactionType type, int amount, string description)
+    public async Task LogTransactionAsync(ulong userId, EconomyTransactionType type, long amount, string description)
+    {
+        await AddTransactionAsync(userId, type, amount, description);
+    }
+
+    private async Task AddTransactionAsync(ulong userId, EconomyTransactionType type, long amount, string description)
     {
         await _transactions.InsertOneAsync(new EconomyTransaction
         {
@@ -345,7 +390,7 @@ public class EconomyRepository : IEconomyRepository
         });
     }
 
-    private static EconomyTransaction MakeTransaction(ulong userId, EconomyTransactionType type, int amount, string description)
+    private static EconomyTransaction MakeTransaction(ulong userId, EconomyTransactionType type, long amount, string description)
         => new()
         {
             UserId = userId,
