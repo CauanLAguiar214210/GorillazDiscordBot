@@ -6,6 +6,7 @@ public interface IGuildMemberRepository
 {
     Task<GuildMember?> GetAsync(ulong guildId, ulong userId);
     Task<List<GuildMember>> GetAllAsync(ulong guildId);
+    Task<List<GuildMember>> GetManyAsync(ulong guildId, IEnumerable<ulong> userIds);
     Task AddWarningAsync(ulong guildId, ulong userId, string username, UserWarning warning);
     Task<bool> RemoveWarningAsync(ulong guildId, ulong userId, string warningId);
     Task SetMuteAsync(ulong guildId, ulong userId, string username, DateTime? until);

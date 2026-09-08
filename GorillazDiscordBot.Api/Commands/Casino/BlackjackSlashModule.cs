@@ -11,11 +11,13 @@ namespace GorillazDiscordBot.Api.Commands.Casino;
 public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly IEconomyRepository _economy;
+    private readonly IEconomyAccessor _accessor;
     private readonly GameSessionManager _sessions;
 
-    public BlackjackSlashModule(IEconomyRepository economy, GameSessionManager sessions)
+    public BlackjackSlashModule(IEconomyRepository economy, IEconomyAccessor accessor, GameSessionManager sessions)
     {
         _economy = economy;
+        _accessor = accessor;
         _sessions = sessions;
     }
 
@@ -42,7 +44,7 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
         }
 
         var (deducted, _) = await _economy.TryDeductMoneyAsync(
-            userId, valor, EconomyTransactionType.Bet, "Aposta no blackjack");
+            await _accessor.ResolveMainIdAsync(userId), valor, EconomyTransactionType.Bet, "Aposta no blackjack");
 
         if (!deducted)
         {
@@ -122,7 +124,7 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
                 }
 
                 var (deducted, _) = await _economy.TryDeductMoneyAsync(
-                    userId, game.Bet, EconomyTransactionType.Bet, "Double no blackjack");
+                    await _accessor.ResolveMainIdAsync(userId), game.Bet, EconomyTransactionType.Bet, "Double no blackjack");
 
                 if (!deducted)
                 {
@@ -182,7 +184,7 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
         }
 
         var (deducted, _) = await _economy.TryDeductMoneyAsync(
-            userId, bet, EconomyTransactionType.Bet, "Nova mão no blackjack");
+            await _accessor.ResolveMainIdAsync(userId), bet, EconomyTransactionType.Bet, "Nova mão no blackjack");
 
         if (!deducted)
         {
@@ -236,11 +238,12 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
         _sessions.Remove(Context.User.Id);
 
         var totalReturn = game.CalculateTotalReturn();
+        var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
 
         if (totalReturn > 0)
-            await _economy.AddMoneyAsync(Context.User.Id, totalReturn, EconomyTransactionType.Bet, "Pagamento do blackjack");
+            await _economy.AddMoneyAsync(mainId, totalReturn, EconomyTransactionType.Bet, "Pagamento do blackjack");
 
-        var user = await _economy.GetOrCreateAsync(Context.User.Id, Context.User.Username);
+        var user = await _economy.GetOrCreateAsync(mainId, Context.User.Username);
 
         var resultSection = prefix
             + BlackjackTableBuilder.DescribeResult(game, totalReturn)

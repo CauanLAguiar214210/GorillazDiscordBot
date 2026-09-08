@@ -25,6 +25,7 @@ public static class MongoMappings
                .SetIdGenerator(StringObjectIdGenerator.Instance);
             map.MapMember(c => c.UserId).SetElementName("UserId");
             map.MapMember(c => c.Username).SetElementName("Username");
+            map.MapMember(c => c.MainUserId).SetElementName("MainUserId");
         });
 
         BsonClassMap.RegisterClassMap<EconomyProfile>(map =>

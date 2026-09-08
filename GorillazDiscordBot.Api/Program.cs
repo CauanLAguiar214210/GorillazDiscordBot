@@ -82,6 +82,10 @@ builder.Services.AddSingleton<IVoiceChannelService, VoiceChannelService>();
 builder.Services.AddSingleton<IGuildInteractionRepository, GuildInteractionRepository>();
 builder.Services.AddSingleton<IChatInteractionService, ChatInteractionService>();
 
+// Contas vinculadas (alt accounts) + economia unificada
+builder.Services.AddSingleton<IEconomyAccessor, EconomyAccessor>();
+builder.Services.AddSingleton<IUserAccountService, UserAccountService>();
+
 // Sessões de jogos (memória)
 builder.Services.AddSingleton<GameSessionManager>();
 builder.Services.AddSingleton<CasinoSessionManager>();
@@ -114,10 +118,11 @@ var logger = host.Services.GetRequiredService<ILogger<Program>>();
 try
 {
     await host.Services.GetRequiredService<IGuildMemberRepository>().EnsureIndexesAsync();
+    await host.Services.GetRequiredService<IUserRepository>().EnsureIndexesAsync();
 }
 catch (Exception ex)
 {
-    logger.LogWarning(ex, "Falha ao garantir índices da collection GuildMember");
+    logger.LogWarning(ex, "Falha ao garantir índices das collections GuildMember/DiscordUserProfile");
 }
 
 await host.RunAsync();

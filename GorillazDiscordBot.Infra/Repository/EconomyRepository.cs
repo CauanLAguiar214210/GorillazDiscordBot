@@ -300,6 +300,39 @@ public class EconomyRepository : IEconomyRepository
             .ToListAsync();
     }
 
+    public async Task<UnifyResult?> UnifyProfileAsync(ulong sourceUserId, ulong targetUserId)
+    {
+        var profileFilter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, sourceUserId);
+        var source = await _collection.Find(profileFilter).FirstOrDefaultAsync();
+        if (source == null) return null;
+
+        var targetFilter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, targetUserId);
+        var target = await _collection.Find(targetFilter).FirstOrDefaultAsync();
+
+        UnifyResult result;
+        if (target != null)
+        {
+            result = EconomyUnifier.Unify(source, target);
+            await _collection.ReplaceOneAsync(targetFilter, target);
+        }
+        else
+        {
+            target = new EconomyProfile { UserId = targetUserId };
+            result = EconomyUnifier.Unify(source, target);
+            await _collection.InsertOneAsync(target);
+        }
+
+        var txFilter = Builders<EconomyTransaction>.Filter.Eq(t => t.UserId, sourceUserId);
+        var txUpdate = Builders<EconomyTransaction>.Update.Set(t => t.UserId, targetUserId);
+        await _transactions.UpdateManyAsync(txFilter, txUpdate);
+
+        await AddTransactionAsync(targetUserId, EconomyTransactionType.Merge, result.MergedMoney > int.MaxValue ? int.MaxValue : (int)result.MergedMoney,
+            $"Unificação de conta vinculada");
+
+        await _collection.DeleteOneAsync(profileFilter);
+        return result;
+    }
+
     private async Task AddTransactionAsync(ulong userId, EconomyTransactionType type, int amount, string description)
     {
         await _transactions.InsertOneAsync(new EconomyTransaction
