@@ -14,13 +14,13 @@ public class VoiceChannelService : IVoiceChannelService
     private const int MaxChannelNameLength = 100;
     private static readonly TimeSpan DeleteDelay = TimeSpan.FromSeconds(2);
 
-    private readonly ISettingsRepository<GuildVoiceSettings> _voiceRepository;
+    private readonly ISettingsRepository<Guild> _guildRepository;
     private readonly ILogger<VoiceChannelService> _logger;
     private readonly ConcurrentDictionary<ulong, ulong> _managedChannels = new();
 
-    public VoiceChannelService(ISettingsRepository<GuildVoiceSettings> voiceRepository, ILogger<VoiceChannelService> logger)
+    public VoiceChannelService(ISettingsRepository<Guild> guildRepository, ILogger<VoiceChannelService> logger)
     {
-        _voiceRepository = voiceRepository;
+        _guildRepository = guildRepository;
         _logger = logger;
     }
 
@@ -42,10 +42,12 @@ public class VoiceChannelService : IVoiceChannelService
         if (after.VoiceChannel is not SocketVoiceChannel creatorChannel) return;
         if (user is not IGuildUser guildUser) return;
 
-        var settings = await _voiceRepository.GetAsync(creatorChannel.Guild.Id);
-        if (!settings.Enabled || settings.CreatorChannelId != creatorChannel.Id) return;
+        var guild = await _guildRepository.GetAsync(creatorChannel.Guild.Id);
+        var settings = guild.VoiceChannels.FirstOrDefault(v =>
+            v.CreatorChannelId == creatorChannel.Id && v.Enabled);
+        if (settings == null) return;
 
-        if (await CreateAndMoveAsync(guildUser, creatorChannel))
+        if (await CreateAndMoveAsync(guildUser, creatorChannel, settings))
         {
             _logger.LogInformation(
                 "Canal de voz criado para {user} em {guild}",
@@ -53,16 +55,17 @@ public class VoiceChannelService : IVoiceChannelService
         }
     }
 
-    private async Task<bool> CreateAndMoveAsync(IGuildUser user, SocketVoiceChannel creatorChannel)
+    private async Task<bool> CreateAndMoveAsync(IGuildUser user, SocketVoiceChannel creatorChannel, VoiceChannelSettings settings)
     {
         var guild = creatorChannel.Guild;
-        var name = BuildChannelName(user.GetDisplayName());
-        name = ResolveUniqueName(guild, name);
+        var template = settings.NameTemplate ?? VoiceChannelSettings.DefaultNameTemplate;
+        var baseName = SanitizeUsername(user.GetDisplayName());
+        var name = ResolveUniqueName(guild, template, baseName);
 
         var channel = (IVoiceChannel)await guild.CreateVoiceChannelAsync(name, properties =>
         {
-            properties.CategoryId = creatorChannel.CategoryId;
-            properties.UserLimit = 10;
+            properties.CategoryId = settings.CategoryId ?? creatorChannel.CategoryId;
+            properties.UserLimit = settings.UserLimit ?? VoiceChannelSettings.DefaultUserLimit;
         });
 
         await channel.AddPermissionOverwriteAsync(guild.EveryoneRole,
@@ -127,7 +130,7 @@ public class VoiceChannelService : IVoiceChannelService
         }
     }
 
-    private static string BuildChannelName(string username)
+    private static string SanitizeUsername(string username)
     {
         var builder = new StringBuilder();
         char? previous = null;
@@ -147,26 +150,32 @@ public class VoiceChannelService : IVoiceChannelService
         var name = builder.ToString().Trim('-');
         if (string.IsNullOrEmpty(name)) name = "canal";
         if (name.Length < 2) name = $"canal-{name}";
-        if (name.Length > MaxChannelNameLength) name = name[..MaxChannelNameLength];
 
         return name;
     }
 
-    private static string ResolveUniqueName(SocketGuild guild, string name)
+    private static string BuildChannelName(string template, string baseName)
     {
-        string prefixo = "Resenhando com ";
-        string sufixo = "...";
+        var name = template.Replace("{name}", baseName, StringComparison.Ordinal);
+        if (name.Length > MaxChannelNameLength)
+            name = name[..MaxChannelNameLength];
 
+        return name;
+    }
+
+    private static string ResolveUniqueName(SocketGuild guild, string template, string baseName)
+    {
+        var name = BuildChannelName(template, baseName);
         if (guild.VoiceChannels.All(channel => channel.Name != name))
-            return prefixo + name + sufixo;
+            return name;
 
         for (var i = 2; i < 1000; i++)
         {
-            var candidate = prefixo + $"{name}-{i}" + sufixo;
+            var candidate = BuildChannelName(template, $"{baseName}-{i}");
             if (guild.VoiceChannels.All(channel => channel.Name != candidate))
                 return candidate;
         }
 
-        return name[..Math.Min(MaxChannelNameLength, name.Length - 9)];
+        return name;
     }
 }

@@ -17,7 +17,7 @@ public class PrefixResolverTests
     {
         var module = CreateModule();
 
-        var result = module.GetCurrentPrefix(new GuildPrefixSettings { GuildId = 1 });
+        var result = module.GetCurrentPrefix(new Guild { GuildId = 1 });
 
         result.Should().Be(DefaultPrefix);
     }
@@ -30,7 +30,7 @@ public class PrefixResolverTests
     {
         var module = CreateModule();
 
-        var result = module.GetCurrentPrefix(new GuildPrefixSettings { GuildId = 1, Prefix = prefix });
+        var result = module.GetCurrentPrefix(new Guild { GuildId = 1, Prefix = new PrefixSettings { Prefix = prefix } });
 
         result.Should().Be(DefaultPrefix);
     }
@@ -40,14 +40,14 @@ public class PrefixResolverTests
     {
         var module = CreateModule();
 
-        var result = module.GetCurrentPrefix(new GuildPrefixSettings { GuildId = 1, Prefix = "!" });
+        var result = module.GetCurrentPrefix(new Guild { GuildId = 1, Prefix = new PrefixSettings { Prefix = "!" } });
 
         result.Should().Be("!");
     }
 
     private static PrefixModule CreateModule()
     {
-        var repository = Substitute.For<ISettingsRepository<GuildPrefixSettings>>();
+        var repository = Substitute.For<ISettingsRepository<Guild>>();
         var options = Options.Create(new BotOptions { CommandPrefix = DefaultPrefix });
         return new PrefixModule(repository, options);
     }

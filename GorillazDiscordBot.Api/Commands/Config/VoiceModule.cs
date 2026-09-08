@@ -8,72 +8,138 @@ namespace GorillazDiscordBot.Api.Commands.Config;
 
 public class VoiceModule : ModuleBase<SocketCommandContext>
 {
-    private readonly ISettingsRepository<GuildVoiceSettings> _voiceRepository;
+    private readonly ISettingsRepository<Guild> _guildRepository;
 
-    public VoiceModule(ISettingsRepository<GuildVoiceSettings> voiceRepository)
+    public VoiceModule(ISettingsRepository<Guild> guildRepository)
     {
-        _voiceRepository = voiceRepository;
+        _guildRepository = guildRepository;
     }
 
     [Command("voice setup")]
-    [Summary("Define o canal de voz criador. Uso: macaco voice setup #canal")]
-    public async Task VoiceSetupAsync(IVoiceChannel? channel = null)
+    [Summary("Adiciona/reativa um canal criador de voz. Uso: macaco voice setup #canal [limite] [nome-padrão]")]
+    public async Task VoiceSetupAsync(IVoiceChannel? channel = null, int? limite = null, [Remainder] string? template = null)
     {
         if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
 
         if (channel == null)
         {
-            await ReplyAsync("❌ Uso: `macaco voice setup #canal` (canal de voz)");
+            await ReplyAsync("❌ Uso: `macaco voice setup #canal [limite] [nome-padrão]` (canal de voz)");
             return;
         }
 
-        var settings = await _voiceRepository.GetAsync(Context.Guild.Id);
-        settings.CreatorChannelId = channel.Id;
+        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
+
+        var settings = guild.VoiceChannels.FirstOrDefault(v => v.CreatorChannelId == channel.Id);
+        if (settings == null)
+        {
+            settings = new VoiceChannelSettings { CreatorChannelId = channel.Id };
+            guild.VoiceChannels.Add(settings);
+        }
+
         settings.Enabled = true;
-        await _voiceRepository.SaveAsync(settings);
+        if (limite is > 0)
+            settings.UserLimit = limite;
+        if (!string.IsNullOrWhiteSpace(template))
+            settings.NameTemplate = template;
+
+        await _guildRepository.SaveAsync(guild);
 
         await ReplyAsync(
-            $"✅ Canal criador definido para {channel.Name} e ativado!\n" +
+            $"✅ Canal criador `{channel.Name}` ativado!\n" +
             "Quando alguém entrar nele, o bot cria um canal de voz privado com o nome da pessoa.");
     }
 
     [Command("voice off")]
-    [Summary("Desativa a criação automática de canais de voz")]
-    public async Task VoiceOffAsync()
+    [Summary("Desativa um canal criador de voz. Uso: macaco voice off #canal")]
+    public async Task VoiceOffAsync(IVoiceChannel? channel = null)
     {
         if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
 
-        var settings = await _voiceRepository.GetAsync(Context.Guild.Id);
-        settings.Enabled = false;
-        await _voiceRepository.SaveAsync(settings);
+        if (channel == null)
+        {
+            await ReplyAsync("❌ Uso: `macaco voice off #canal` (canal de voz)");
+            return;
+        }
 
-        await ReplyAsync("✅ Criação automática de canais de voz desativada.");
+        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
+        var settings = guild.VoiceChannels.FirstOrDefault(v => v.CreatorChannelId == channel.Id);
+
+        if (settings == null)
+        {
+            await ReplyAsync($"❌ `{channel.Name}` não está configurado como canal criador.");
+            return;
+        }
+
+        settings.Enabled = false;
+        await _guildRepository.SaveAsync(guild);
+
+        await ReplyAsync($"✅ Canal criador `{channel.Name}` desativado.");
+    }
+
+    [Command("voice remove")]
+    [Summary("Remove um canal criador de voz. Uso: macaco voice remove #canal")]
+    public async Task VoiceRemoveAsync(IVoiceChannel? channel = null)
+    {
+        if (!await CommandGuards.GuardPermissionAsync(Context))
+            return;
+
+        if (channel == null)
+        {
+            await ReplyAsync("❌ Uso: `macaco voice remove #canal` (canal de voz)");
+            return;
+        }
+
+        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
+
+        var removed = guild.VoiceChannels.RemoveAll(v => v.CreatorChannelId == channel.Id) > 0;
+        if (!removed)
+        {
+            await ReplyAsync($"❌ `{channel.Name}` não está configurado como canal criador.");
+            return;
+        }
+
+        await _guildRepository.SaveAsync(guild);
+
+        await ReplyAsync($"✅ Canal criador `{channel.Name}` removido.");
     }
 
     [Command("voice config")]
-    [Summary("Mostra a configuração atual de canais de voz")]
+    [Summary("Mostra a configuração atual dos canais de voz")]
     public async Task VoiceConfigAsync()
     {
         if (!await CommandGuards.GuardPermissionAsync(Context))
             return;
 
-        var settings = await _voiceRepository.GetAsync(Context.Guild.Id);
+        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
 
-        var channelName = settings.CreatorChannelId.HasValue
-            ? Context.Guild.GetVoiceChannel(settings.CreatorChannelId.Value)?.Name ?? "Canal não encontrado"
-            : BotConstants.NotSet;
+        if (guild.VoiceChannels.Count == 0)
+        {
+            await ReplyAsync("Este servidor não tem canais criadores de voz configurados.");
+            return;
+        }
 
         var embed = new EmbedBuilder()
             .WithTitle("⚙️ Configuração de Canais de Voz")
             .WithGoldTheme()
-            .WithStatus("Status", settings.Enabled)
-            .AddField("Canal criador", channelName, true)
-            .WithDescription("Ao entrar no canal criador, o bot cria um canal de voz privado com o seu nome.")
-            .WithStandardFooter("Use macaco voice setup #canal para alterar")
-            .Build();
+            .WithDescription("Ao entrar num canal criador, o bot cria um canal de voz privado com o nome da pessoa.")
+            .WithStandardFooter("Use macaco voice setup #canal para adicionar");
 
-        await ReplyAsync(embed: embed);
+        foreach (var settings in guild.VoiceChannels)
+        {
+            var channel = Context.Guild.GetVoiceChannel(settings.CreatorChannelId);
+            var name = settings.NameTemplate ?? VoiceChannelSettings.DefaultNameTemplate;
+            var limit = settings.UserLimit ?? VoiceChannelSettings.DefaultUserLimit;
+
+            embed = embed.AddField(
+                channel != null ? channel.Name : $"Canal removido ({settings.CreatorChannelId})",
+                $"Status: {(settings.Enabled ? "✅ ativo" : "⛔ desativado")}\n" +
+                $"Nome padrão: `{name}`\n" +
+                $"Limite: {limit}",
+                true);
+        }
+
+        await ReplyAsync(embed: embed.Build());
     }
 }
