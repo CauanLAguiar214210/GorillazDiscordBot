@@ -73,7 +73,21 @@ public class DiscordBotService : IHostedService
         _client.GuildUpdated += HandleGuildUpdatedAsync;
 
         await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
-        await _interactions.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
+
+        var moduleTypes = Assembly.GetEntryAssembly()!.GetTypes()
+            .Where(t => typeof(InteractionModuleBase<SocketInteractionContext>).IsAssignableFrom(t)
+                        && t is { IsAbstract: false, IsInterface: false });
+
+        foreach (var type in moduleTypes)
+        {
+            if (type.GetCustomAttribute<DisabledAttribute>() != null)
+            {
+                _logger.LogInformation("Módulo desabilitado: {module}", type.Name);
+                continue;
+            }
+
+            await _interactions.AddModuleAsync(type, _services);
+        }
 
         var token = _botOptions.Value.DiscordToken;
         if (string.IsNullOrEmpty(token))
@@ -182,8 +196,19 @@ public class DiscordBotService : IHostedService
         {
             _logger.LogError(ex, "Exceção ao processar interação {id}", interaction.Id);
 
-            if (interaction.Type == InteractionType.ApplicationCommand)
-                await interaction.RespondAsync("Ocorreu um erro inesperado.", ephemeral: true);
+            if (interaction.Type is InteractionType.ApplicationCommand
+                or InteractionType.MessageComponent
+                or InteractionType.ModalSubmit)
+            {
+                try
+                {
+                    await interaction.RespondAsync("Ocorreu um erro inesperado.", ephemeral: true);
+                }
+                catch (Exception responseEx)
+                {
+                    _logger.LogWarning(responseEx, "Não foi possível responder ao erro da interação {id}", interaction.Id);
+                }
+            }
         }
     }
 

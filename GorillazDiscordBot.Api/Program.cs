@@ -121,10 +121,11 @@ try
 {
     await host.Services.GetRequiredService<IGuildMemberRepository>().EnsureIndexesAsync();
     await host.Services.GetRequiredService<IUserRepository>().EnsureIndexesAsync();
+    await host.Services.GetRequiredService<IShopRepository>().EnsureIndexesAsync();
 }
 catch (Exception ex)
 {
-    logger.LogWarning(ex, "Falha ao garantir índices das collections GuildMember/DiscordUserProfile");
+    logger.LogWarning(ex, "Falha ao garantir índices das collections (GuildMember/DiscordUserProfile/Shop)");
 }
 
 await host.RunAsync();

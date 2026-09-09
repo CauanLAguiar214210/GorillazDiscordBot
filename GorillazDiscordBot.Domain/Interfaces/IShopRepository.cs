@@ -4,6 +4,7 @@ namespace GorillazDiscordBot.Domain.Interfaces;
 
 public interface IShopRepository
 {
+    Task EnsureIndexesAsync();
     Task<List<ShopItem>> GetAllAsync();
     Task<ShopItem?> GetByKeyAsync(string key);
     Task UpsertAsync(ShopItem item);

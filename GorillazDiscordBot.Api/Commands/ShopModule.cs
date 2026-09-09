@@ -62,7 +62,7 @@ public class ShopModule : ModuleBase<SocketCommandContext>
             sb.AppendLine();
         }
 
-        var relics = real.Where(i => i.Category == ItemCategory.Relic).OrderByDescending(i => i.Price).ToList();
+var relics = real.Where(i => i.Category == ItemCategory.Relic).OrderByDescending(i => i.Price).ToList();
         if (relics.Count > 0)
         {
             sb.AppendLine("⌚ **Relógios Equipáveis** *(os mais caros da loja)*");
@@ -71,6 +71,22 @@ public class ShopModule : ModuleBase<SocketCommandContext>
                 sb.AppendLine($"{item.Emoji} **{item.Name}** — **{EconomyFormat.Full(item.Price)}** moedas");
                 sb.AppendLine($"   └ {item.Description}");
                 sb.AppendLine($"   └ Efeito: {DescribeRelic(item)}");
+                sb.AppendLine($"   └ id: `{item.Key}`");
+                sb.AppendLine();
+            }
+            sb.AppendLine();
+            sb.AppendLine();
+        }
+
+        var pets = real.Where(i => i.Category == ItemCategory.Pet).OrderByDescending(i => i.Price).ToList();
+        if (pets.Count > 0)
+        {
+            sb.AppendLine("🐾 **Pets** *(bônus permanente — máximo 2 tipos)*");
+            foreach (var item in pets)
+            {
+                sb.AppendLine($"{item.Emoji} **{item.Name}** — **{EconomyFormat.Full(item.Price)}** moedas");
+                sb.AppendLine($"   └ {item.Description}");
+                sb.AppendLine($"   └ Efeito: {DescribePet(item)}");
                 sb.AppendLine($"   └ id: `{item.Key}`");
                 sb.AppendLine();
             }
@@ -94,16 +110,43 @@ public class ShopModule : ModuleBase<SocketCommandContext>
 
     private static string DescribeRelic(ShopItem item)
     {
-        var target = item.RelicGame switch
+var target = item.RelicGame switch
         {
             RelicGameType.Roulette => "roleta",
             RelicGameType.Slots => "caça-níquel",
             RelicGameType.Blackjack => "blackjack",
+            RelicGameType.Dice => "dados",
+            RelicGameType.Coin => "cara ou coroa",
+            RelicGameType.Aviao => "aviaozinho",
+            RelicGameType.VideoPoker => "poker de máquina",
+            RelicGameType.Mines => "minas",
+            RelicGameType.Limbo => "limbo",
+            RelicGameType.Rps => "jokenpô",
+            RelicGameType.Race => "corrida",
+            RelicGameType.Plinko => "plinko",
+            RelicGameType.Wheel => "roda da fortuna",
+            RelicGameType.HighLow => "maior/menor",
+            RelicGameType.Baccarat => "baccarat",
             _ => "todos os jogos de cassino"
         };
-        if (item.RelicEffect == RelicEffect.Cashback)
+if (item.RelicEffect == RelicEffect.Cashback)
             return $"💸 Devolve **{item.RelicValue}%** da aposta na derrota ({target})";
         return $"📈 **+{item.RelicValue}%** nos ganhos ({target})";
+    }
+
+    private static string DescribePet(ShopItem item)
+    {
+        var target = item.UpgradeEffect switch
+        {
+            UpgradeEffect.Daily => "no daily",
+            UpgradeEffect.Work => "no trabalho",
+            UpgradeEffect.Rob => "nos roubos",
+            UpgradeEffect.AssetIncome => "na renda dos ativos",
+            UpgradeEffect.Savings => "nos juros da poupança",
+            _ => "?"
+        };
+        var max = item.MaxQuantity > 0 ? $" · máx. nível {item.MaxQuantity}" : "";
+        return $"🐾 **+{item.UpgradeValue}%** {target} por nível{max}";
     }
 
     private static IEnumerable<string> SplitMessage(string text, int maxLen)
@@ -247,12 +290,15 @@ public class ShopModule : ModuleBase<SocketCommandContext>
             if (pair.Value.IsEquipped)
                 linha += " · ⭐ **equipado**";
 
-            if (item is { Category: ItemCategory.Asset, DailyIncome: > 0 })
+if (item is { Category: ItemCategory.Asset, DailyIncome: > 0 })
             {
                 var baseline = pair.Value.LastCollectedAt ?? pair.Value.AcquiredAt ?? DateTime.UtcNow;
                 var dias = Math.Clamp((int)Math.Floor((DateTime.UtcNow - baseline).TotalDays), 0, ShopService.MaxIncomeBacklogDays);
                 linha += $" · **+{EconomyFormat.Full(item.DailyIncome)}/dia** · {dias} dia(s) acumulados";
             }
+
+            if (item is { Category: ItemCategory.Pet, UpgradeEffect: not UpgradeEffect.None })
+                linha += $" · 🐾 nível **{pair.Value.Quantity}** · {DescribePet(item)}";
 
             sb.AppendLine(linha);
         }
@@ -305,9 +351,9 @@ public class ShopModule : ModuleBase<SocketCommandContext>
         await ReplyAsync("🔄 Catálogo da loja recarregado do banco de dados.");
     }
 
-    [Command("loja add")]
+[Command("loja add")]
     [Alias("shop add")]
-    [Summary("Adiciona um item ao catálogo. Uso: loja add <id> <nome> <emoji> <preço> <categoria> (somente admin)")]
+    [Summary("Adiciona um item ao catálogo. Uso: loja add <id> <nome> <emoji> <preço> <categoria> [efeito] [valor] (somente admin)")]
     public async Task LojaAddAsync(
         [Remainder] string input)
     {
@@ -317,7 +363,7 @@ public class ShopModule : ModuleBase<SocketCommandContext>
         var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 5)
         {
-            await ReplyAsync("❌ Uso: `loja add <id> <nome> <emoji> <preço> <categoria>`\nCategorias: `cosmetico`, `boost`, `ativo`, `reliquia`.");
+            await ReplyAsync("❌ Uso: `loja add <id> <nome> <emoji> <preço> <categoria> [efeito] [valor]`\nCategorias: `cosmetico`, `boost`, `ativo`, `reliquia`, `pet`.\nPara pet: `loja add <id> <nome> <emoji> <preço> pet <efeito> <valor%>` · efeitos: `daily`, `work`, `rob`, `ativo`, `poupanca`.");
             return;
         }
 
@@ -334,11 +380,36 @@ public class ShopModule : ModuleBase<SocketCommandContext>
 
         if (category == null)
         {
-            await ReplyAsync("❌ Categoria inválida. Use: `cosmetico`, `boost`, `ativo` ou `reliquia`.");
+            await ReplyAsync("❌ Categoria inválida. Use: `cosmetico`, `boost`, `ativo`, `reliquia` ou `pet`.");
             return;
         }
 
         ItemCategory cat = category.Value;
+
+        var upgradeEffect = UpgradeEffect.None;
+        var upgradeValue = 0;
+
+        if (cat == ItemCategory.Pet)
+        {
+            if (parts.Length < 7)
+            {
+                await ReplyAsync("❌ Para pets: `loja add <id> <nome> <emoji> <preço> pet <efeito> <valor%>`. Efeitos: `daily`, `work`, `rob`, `ativo`, `poupanca`.");
+                return;
+            }
+
+            upgradeEffect = ParseUpgradeEffect(parts[5]);
+            if (upgradeEffect == UpgradeEffect.None)
+            {
+                await ReplyAsync("❌ Efeito de pet inválido. Use: `daily`, `work`, `rob`, `ativo` ou `poupanca`.");
+                return;
+            }
+
+            if (!int.TryParse(parts[6], out upgradeValue) || upgradeValue <= 0)
+            {
+                await ReplyAsync("❌ Valor do bônus por nível inválido. Ex: `2` para +2% por nível.");
+                return;
+            }
+        }
 
         if (await _shop.FindItemAsync(key) != null)
         {
@@ -357,20 +428,39 @@ public class ShopModule : ModuleBase<SocketCommandContext>
             Effect = BoostEffect.None,
             DurationHours = 0,
             DailyIncome = 0,
-            MaxQuantity = cat == ItemCategory.Asset || cat == ItemCategory.Relic ? 1 : 0,
+            MaxQuantity = cat == ItemCategory.Asset || cat == ItemCategory.Relic ? 1
+                : cat == ItemCategory.Pet ? 10 : 0,
             IsActive = true,
             IsPlaceholder = false,
             SortOrder = 100,
             RelicEffect = RelicEffect.None,
             RelicGame = RelicGameType.All,
-            RelicValue = 0
+            RelicValue = 0,
+            UpgradeEffect = upgradeEffect,
+            UpgradeValue = upgradeValue
         };
 
         await _shop.UpsertItemAsync(item);
-        await ReplyAsync($"✅ Item **{emoji} {name}** (`{key}`) adicionado ao catálogo por **{EconomyFormat.Full(price)}** moedas.");
+        var extra = cat == ItemCategory.Pet
+            ? $" · pet com **+{upgradeValue}%** por nível"
+            : string.Empty;
+        await ReplyAsync($"✅ Item **{emoji} {name}** (`{key}`) adicionado ao catálogo por **{EconomyFormat.Full(price)}** moedas.{extra}");
     }
 
-    private static ItemCategory? ParseCategory(string raw)
+    private static UpgradeEffect ParseUpgradeEffect(string raw)
+    {
+        return raw.Trim().ToLowerInvariant() switch
+        {
+            "daily" => UpgradeEffect.Daily,
+            "work" or "trabalho" => UpgradeEffect.Work,
+            "rob" or "roubo" => UpgradeEffect.Rob,
+            "ativo" or "asset" or "assets" => UpgradeEffect.AssetIncome,
+            "poupanca" or "savings" => UpgradeEffect.Savings,
+            _ => UpgradeEffect.None
+        };
+    }
+
+private static ItemCategory? ParseCategory(string raw)
     {
         return raw.Trim().ToLowerInvariant() switch
         {
@@ -378,6 +468,7 @@ public class ShopModule : ModuleBase<SocketCommandContext>
             "boost" => ItemCategory.Boost,
             "ativo" or "asset" => ItemCategory.Asset,
             "reliquia" or "relic" => ItemCategory.Relic,
+            "pet" or "pets" => ItemCategory.Pet,
             _ => null
         };
     }

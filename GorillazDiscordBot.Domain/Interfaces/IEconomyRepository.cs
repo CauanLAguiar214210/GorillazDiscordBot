@@ -6,16 +6,19 @@ public interface IEconomyRepository
 {
     Task<EconomyProfile> GetOrCreateAsync(ulong userId, string username);
 
-    Task<(bool claimed, int newBalance)> TryClaimDailyAsync(ulong userId, int reward);
+    Task<(bool claimed, ulong newBalance)> TryClaimDailyAsync(ulong userId, int reward);
 
     Task<bool> AddMoneyAsync(ulong userId, ulong amount, EconomyTransactionType type, string description);
     Task<(bool success, ulong newBalance)> TryDeductMoneyAsync(ulong userId, ulong amount, EconomyTransactionType type, string description);
 
-    Task<(bool success, int wallet, int bank)> DepositAsync(ulong userId, ulong amount);
-    Task<(bool success, int wallet, int bank)> WithdrawAsync(ulong userId, ulong amount);
+    Task<(bool success, ulong wallet, ulong bank)> DepositAsync(ulong userId, ulong amount);
+    Task<(bool success, ulong wallet, ulong bank)> WithdrawAsync(ulong userId, ulong amount);
 
-    Task<(bool success, int wallet, int savings, int streak)> DepositSavingsAsync(ulong userId, ulong amount);
-    Task<(bool success, int wallet, int savings, int streak)> WithdrawSavingsAsync(ulong userId, ulong amount);
+    Task<(bool success, ulong wallet, ulong savings, int streak)> DepositSavingsAsync(ulong userId, ulong amount);
+    Task<(bool success, ulong wallet, ulong savings, int streak)> WithdrawSavingsAsync(ulong userId, ulong amount);
+
+    Task<bool> TryClaimWorkAsync(ulong userId, DateTime now, TimeSpan hours);
+    Task<bool> TryClaimRobAsync(ulong userId, DateTime now);
 
     Task<EconomyProfile> SetLastWorkAsync(ulong userId, DateTime now);
     Task<EconomyProfile> SetRobAttemptAsync(ulong userId, DateTime attemptTime, DateTime? caughtUntil);

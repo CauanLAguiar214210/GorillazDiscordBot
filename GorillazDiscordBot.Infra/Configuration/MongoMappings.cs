@@ -10,12 +10,15 @@ namespace GorillazDiscordBot.Infra.Configuration;
 
 public static class MongoMappings
 {
+    private static readonly object RegisterLock = new();
     private static bool _registered;
 
     public static void Register()
     {
-        if (_registered) return;
-        _registered = true;
+        lock (RegisterLock)
+        {
+            if (_registered) return;
+            _registered = true;
 
         BsonClassMap.RegisterClassMap<DiscordUserProfile>(map =>
         {
@@ -141,7 +144,10 @@ public static class MongoMappings
             map.MapMember(c => c.RelicEffect).SetElementName("RelicEffect");
             map.MapMember(c => c.RelicGame).SetElementName("RelicGame");
             map.MapMember(c => c.RelicValue).SetElementName("RelicValue");
+            map.MapMember(c => c.UpgradeEffect).SetElementName("UpgradeEffect");
+            map.MapMember(c => c.UpgradeValue).SetElementName("UpgradeValue");
         });
+        }
     }
 
     private static void RegisterGuildSettings<T>()
