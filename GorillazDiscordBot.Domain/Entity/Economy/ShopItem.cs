@@ -5,7 +5,8 @@ public enum ItemCategory
     Cosmetic,
     Boost,
     Asset,
-    Relic
+    Relic,
+    Pet
 }
 
 public enum BoostEffect
@@ -14,6 +15,16 @@ public enum BoostEffect
     DailyX2,
     WorkX2,
     RobShield
+}
+
+public enum UpgradeEffect
+{
+    None,
+    Daily,
+    Work,
+    Rob,
+    AssetIncome,
+    Savings
 }
 
 public enum RelicEffect
@@ -28,7 +39,19 @@ public enum RelicGameType
     All,
     Roulette,
     Slots,
-    Blackjack
+    Blackjack,
+    Dice,
+    Coin,
+    Aviao,
+    VideoPoker,
+    Mines,
+    Limbo,
+    Rps,
+    Race,
+    Plinko,
+    Wheel,
+    HighLow,
+    Baccarat
 }
 
 public class ShopItem
@@ -51,4 +74,7 @@ public class ShopItem
     public RelicEffect RelicEffect { get; set; }
     public RelicGameType RelicGame { get; set; }
     public int RelicValue { get; set; }
+
+    public UpgradeEffect UpgradeEffect { get; set; }
+    public int UpgradeValue { get; set; }
 }

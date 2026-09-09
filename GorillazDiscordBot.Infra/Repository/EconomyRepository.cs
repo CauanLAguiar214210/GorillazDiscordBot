@@ -42,7 +42,7 @@ public class EconomyRepository : IEconomyRepository
         return newProfile;
     }
 
-    public async Task<(bool claimed, int newBalance)> TryClaimDailyAsync(ulong userId, int reward)
+    public async Task<(bool claimed, ulong newBalance)> TryClaimDailyAsync(ulong userId, int reward)
     {
         var todayStart = DateTime.UtcNow.Date;
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
@@ -62,7 +62,7 @@ public class EconomyRepository : IEconomyRepository
         if (result == null) return (false, 0);
 
         await AddTransactionAsync(userId, EconomyTransactionType.Daily, (long)reward, "Daily resgatado");
-        return (true, (int)result.Money);
+        return (true, result.Money);
     }
 
     public async Task<bool> AddMoneyAsync(ulong userId, ulong amount, EconomyTransactionType type, string description)
@@ -97,7 +97,7 @@ public class EconomyRepository : IEconomyRepository
         return (true, result.Money);
     }
 
-    public async Task<(bool success, int wallet, int bank)> DepositAsync(ulong userId, ulong amount)
+    public async Task<(bool success, ulong wallet, ulong bank)> DepositAsync(ulong userId, ulong amount)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
             & Builders<EconomyProfile>.Filter.Gte(p => p.Money, amount);
@@ -114,10 +114,10 @@ public class EconomyRepository : IEconomyRepository
         if (result == null) return (false, 0, 0);
 
         await AddTransactionAsync(userId, EconomyTransactionType.Deposit, -(long)amount, "Depósito no banco");
-        return (true, (int)result.Money, (int)result.Bank);
+        return (true, result.Money, result.Bank);
     }
 
-    public async Task<(bool success, int wallet, int bank)> WithdrawAsync(ulong userId, ulong amount)
+    public async Task<(bool success, ulong wallet, ulong bank)> WithdrawAsync(ulong userId, ulong amount)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
             & Builders<EconomyProfile>.Filter.Gte(p => p.Bank, amount);
@@ -134,10 +134,10 @@ public class EconomyRepository : IEconomyRepository
         if (result == null) return (false, 0, 0);
 
         await AddTransactionAsync(userId, EconomyTransactionType.Withdraw, (long)amount, "Saque do banco");
-        return (true, (int)result.Money, (int)result.Bank);
+        return (true, result.Money, result.Bank);
     }
 
-    public async Task<(bool success, int wallet, int savings, int streak)> DepositSavingsAsync(ulong userId, ulong amount)
+    public async Task<(bool success, ulong wallet, ulong savings, int streak)> DepositSavingsAsync(ulong userId, ulong amount)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
             & Builders<EconomyProfile>.Filter.Gte(p => p.Money, amount);
@@ -154,10 +154,10 @@ public class EconomyRepository : IEconomyRepository
         if (result == null) return (false, 0, 0, 0);
 
         await AddTransactionAsync(userId, EconomyTransactionType.SavingsDeposit, -(long)amount, "Depósito na poupança");
-        return (true, (int)result.Money, (int)result.Savings, (int)result.SavingsStreak);
+        return (true, result.Money, result.Savings, (int)result.SavingsStreak);
     }
 
-    public async Task<(bool success, int wallet, int savings, int streak)> WithdrawSavingsAsync(ulong userId, ulong amount)
+    public async Task<(bool success, ulong wallet, ulong savings, int streak)> WithdrawSavingsAsync(ulong userId, ulong amount)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
             & Builders<EconomyProfile>.Filter.Gte(p => p.Savings, amount);
@@ -178,7 +178,31 @@ public class EconomyRepository : IEconomyRepository
         if (result == null) return (false, 0, 0, 0);
 
         await AddTransactionAsync(userId, EconomyTransactionType.SavingsWithdraw, (long)amount, "Resgate da poupança");
-        return (true, (int)result.Money, (int)result.Savings, (int)result.SavingsStreak);
+        return (true, result.Money, result.Savings, (int)result.SavingsStreak);
+    }
+
+    public async Task<bool> TryClaimWorkAsync(ulong userId, DateTime now, TimeSpan hours)
+    {
+        var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
+            & (Builders<EconomyProfile>.Filter.Eq(p => p.LastWorkTime, null)
+               | Builders<EconomyProfile>.Filter.Lte(p => p.LastWorkTime, now - hours));
+
+        var update = Builders<EconomyProfile>.Update.Set(p => p.LastWorkTime, now);
+        var result = await _collection.UpdateOneAsync(filter, update);
+        return result.ModifiedCount > 0;
+    }
+
+    public async Task<bool> TryClaimRobAsync(ulong userId, DateTime now)
+    {
+        var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
+            & (Builders<EconomyProfile>.Filter.Lte(p => p.RobCaughtUntil, now)
+               | Builders<EconomyProfile>.Filter.Eq(p => p.RobCaughtUntil, null))
+            & (Builders<EconomyProfile>.Filter.Lte(p => p.LastRobTime, now - EconomyRules.RobCooldown)
+               | Builders<EconomyProfile>.Filter.Eq(p => p.LastRobTime, null));
+
+        var update = Builders<EconomyProfile>.Update.Set(p => p.LastRobTime, now);
+        var result = await _collection.UpdateOneAsync(filter, update);
+        return result.ModifiedCount > 0;
     }
 
     public async Task<EconomyProfile> SetLastWorkAsync(ulong userId, DateTime now)
@@ -281,54 +305,65 @@ public class EconomyRepository : IEconomyRepository
                 Builders<EconomyProfile>.Filter.Lt(p => p.SavingsLastInterestDate, today)));
 
         var filter = Builders<EconomyProfile>.Filter.Or(bankFilter, savingsFilter);
-        var profiles = await _collection.Find(filter).ToListAsync();
-
-        if (profiles.Count == 0) return 0;
-
         var bulkOps = new List<WriteModel<EconomyProfile>>();
         var toLog = new List<EconomyTransaction>();
+        int affected = 0;
 
-        foreach (var profile in profiles)
+        using var cursor = await _collection.Find(filter).ToCursorAsync();
+        while (await cursor.MoveNextAsync())
         {
-            var ops = new List<UpdateDefinition<EconomyProfile>>();
-
-            if (profile.Bank > 1UL)
+            foreach (var profile in cursor.Current)
             {
-                var newBank = (ulong)Math.Ceiling(profile.Bank * 0.99);
-                if (newBank != profile.Bank)
+                var ops = new List<UpdateDefinition<EconomyProfile>>();
+
+                if (profile.Bank > 1UL)
                 {
-                    ops.Add(Builders<EconomyProfile>.Update.Set(p => p.Bank, newBank));
-                    toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Tax, (long)newBank - (long)profile.Bank, "Taxa bancária diária"));
+                    var newBank = (ulong)Math.Ceiling(profile.Bank * 0.99);
+                    if (newBank != profile.Bank)
+                    {
+                        ops.Add(Builders<EconomyProfile>.Update.Set(p => p.Bank, newBank));
+                        toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Tax, (long)newBank - (long)profile.Bank, "Taxa bancária diária"));
+                    }
                 }
-            }
 
-            if (profile.Savings > 0UL && (profile.SavingsLastInterestDate is null || profile.SavingsLastInterestDate.Value < today))
-            {
-                var rate = EconomyRules.GetDailyInterestRate(Random.Shared, (int)profile.SavingsStreak);
-                var interest = (ulong)EconomyRules.ComputeInterestAmount((int)profile.Savings, rate);
-                if (interest > 0UL)
+                if (profile.Savings > 0UL && (profile.SavingsLastInterestDate is null || profile.SavingsLastInterestDate.Value < today))
                 {
-                    ops.Add(Builders<EconomyProfile>.Update.Inc(p => p.Savings, interest));
-                    ops.Add(Builders<EconomyProfile>.Update.Set(p => p.SavingsLastInterestDate, DateTime.UtcNow));
-                    toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Interest, (long)interest,
-                        $"Juros da poupança ({rate:P1} ao dia)"));
+                    var rate = EconomyRules.GetDailyInterestRate(Random.Shared, (int)profile.SavingsStreak);
+                    var interest = (ulong)EconomyRules.ComputeInterestAmount((int)profile.Savings, rate);
+                    if (interest > 0UL)
+                    {
+                        ops.Add(Builders<EconomyProfile>.Update.Inc(p => p.Savings, interest));
+                        ops.Add(Builders<EconomyProfile>.Update.Set(p => p.SavingsLastInterestDate, DateTime.UtcNow));
+                        toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Interest, (long)interest,
+                            $"Juros da poupança ({rate:P1} ao dia)"));
+                    }
                 }
+
+                if (ops.Count == 0) continue;
+
+                var update = Builders<EconomyProfile>.Update.Combine(ops.ToArray());
+                var userFilter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, profile.UserId);
+                bulkOps.Add(new UpdateOneModel<EconomyProfile>(userFilter, update));
+                affected++;
+
+                if (bulkOps.Count < 500) continue;
+
+                await _collection.BulkWriteAsync(bulkOps);
+                if (toLog.Count > 0)
+                    await _transactions.InsertManyAsync(toLog);
+                bulkOps.Clear();
+                toLog.Clear();
             }
-
-            if (ops.Count == 0) continue;
-
-            var update = Builders<EconomyProfile>.Update.Combine(ops.ToArray());
-            var userFilter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, profile.UserId);
-            bulkOps.Add(new UpdateOneModel<EconomyProfile>(userFilter, update));
         }
 
-        if (bulkOps.Count == 0) return 0;
+        if (bulkOps.Count > 0)
+        {
+            await _collection.BulkWriteAsync(bulkOps);
+            if (toLog.Count > 0)
+                await _transactions.InsertManyAsync(toLog);
+        }
 
-        await _collection.BulkWriteAsync(bulkOps);
-        if (toLog.Count > 0)
-            await _transactions.InsertManyAsync(toLog);
-
-        return bulkOps.Count;
+        return affected;
     }
 
     public async Task<List<EconomyTransaction>> GetHistoryAsync(ulong userId, int limit)

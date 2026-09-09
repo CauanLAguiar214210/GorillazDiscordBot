@@ -21,6 +21,19 @@ public class ShopRepository : IShopRepository
         _inventory = database.GetCollection<InventoryItem>(nameof(InventoryItem));
     }
 
+    public async Task EnsureIndexesAsync()
+    {
+        var inventoryKeys = Builders<InventoryItem>.IndexKeys
+            .Ascending(i => i.UserId)
+            .Ascending(i => i.ItemKey);
+        await _inventory.Indexes.CreateOneAsync(new CreateIndexModel<InventoryItem>(
+            inventoryKeys, new CreateIndexOptions { Name = "uq_Inventory_UserId_ItemKey", Unique = true }));
+
+        var userKeys = Builders<InventoryItem>.IndexKeys.Ascending(i => i.UserId);
+        await _inventory.Indexes.CreateOneAsync(new CreateIndexModel<InventoryItem>(
+            userKeys, new CreateIndexOptions { Name = "idx_Inventory_UserId" }));
+    }
+
     public async Task<List<ShopItem>> GetAllAsync()
         => await _items.Find(_ => true).SortBy(i => i.SortOrder).ToListAsync();
 
@@ -64,17 +77,14 @@ public class ShopRepository : IShopRepository
         var filter = Builders<InventoryItem>.Filter.Eq(i => i.UserId, inventory.UserId)
             & Builders<InventoryItem>.Filter.Eq(i => i.ItemKey, inventory.ItemKey);
 
-        var existing = await _inventory.Find(filter).FirstOrDefaultAsync();
-        if (existing == null)
-        {
-            await _inventory.InsertOneAsync(inventory);
-            return;
-        }
-
         var update = Builders<InventoryItem>.Update
             .Inc(i => i.Quantity, inventory.Quantity)
-            .Set(i => i.ExpiresAt, inventory.ExpiresAt);
-        await _inventory.UpdateOneAsync(filter, update);
+            .Set(i => i.ExpiresAt, inventory.ExpiresAt)
+            .SetOnInsert(i => i.AcquiredAt, inventory.AcquiredAt)
+            .SetOnInsert(i => i.LastCollectedAt, inventory.LastCollectedAt);
+
+        var options = new UpdateOptions { IsUpsert = true };
+        await _inventory.UpdateOneAsync(filter, update, options);
     }
 
     public async Task DecrementOrRemoveInventoryAsync(ulong userId, string itemKey)
@@ -82,17 +92,12 @@ public class ShopRepository : IShopRepository
         var filter = Builders<InventoryItem>.Filter.Eq(i => i.UserId, userId)
             & Builders<InventoryItem>.Filter.Eq(i => i.ItemKey, itemKey);
 
-        var existing = await _inventory.Find(filter).FirstOrDefaultAsync();
-        if (existing == null) return;
+        var decremented = await _inventory.UpdateOneAsync(
+            filter & Builders<InventoryItem>.Filter.Gt(i => i.Quantity, 1),
+            Builders<InventoryItem>.Update.Inc(i => i.Quantity, -1));
 
-        if (existing.Quantity <= 1)
-        {
+        if (decremented.ModifiedCount == 0)
             await _inventory.DeleteOneAsync(filter);
-            return;
-        }
-
-        var update = Builders<InventoryItem>.Update.Inc(i => i.Quantity, -1);
-        await _inventory.UpdateOneAsync(filter, update);
     }
 
     public async Task UpdateIncomeTimestampAsync(ulong userId, string itemKey, DateTime collectedAt)

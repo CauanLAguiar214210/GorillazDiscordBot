@@ -29,30 +29,29 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
     {
         var mention = _client.CurrentUser.Mention;
 
-        var modules = _commandService.Modules
-            .Where(m => m.Commands.Count > 0)
-            .OrderBy(m => m.Name)
-            .ToList();
-
         var embed = new EmbedBuilder()
             .WithBlurpleTheme()
             .WithAuthor($"{_client.CurrentUser.Username} — Comandos", _client.CurrentUser.GetAvatarUrl())
-            .WithStandardFooter($"Use {mention} <comando> para mais detalhes");
+            .WithDescription(
+                $"💡 **Como usar:** {mention} `comando` ou use `/comando`\n" +
+                "Os comandos marcados com `[/]` funcionam tanto por prefixo quanto por `/`.");
 
-        foreach (var module in modules)
+        foreach (var category in CommandCatalog.Categories)
         {
-            var (displayName, emoji) = CommandCatalog.ModuleDisplay.GetValueOrDefault(
-                module.Name, (module.Name, "📋"));
-
             var sb = new StringBuilder();
-            foreach (var cmd in module.Commands)
+            foreach (var cmd in category.Commands)
             {
-                var name = cmd.Aliases.FirstOrDefault() ?? cmd.Name;
-                var desc = CommandCatalog.Descriptions.GetValueOrDefault(name, "Sem descrição");
-                sb.AppendLine($"`{name}` — {desc}");
+                var badge = cmd.Kind switch
+                {
+                    CommandCatalog.CommandKind.Slash => "`[/]`",
+                    CommandCatalog.CommandKind.Prefix => "",
+                    CommandCatalog.CommandKind.Both => "`[/]`",
+                    _ => ""
+                };
+                sb.AppendLine($"{badge} `{cmd.Name}` — {cmd.Description}");
             }
 
-            embed.AddField($"{emoji} {displayName}", sb.ToString(), inline: false);
+            embed.AddField($"{category.Emoji} {category.Title}", sb.ToString(), inline: false);
         }
 
         if (Context.Guild != null)
@@ -66,9 +65,9 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
 
                 embed.AddField("💬 Interações deste servidor", sb.ToString(), inline: false);
             }
-
-            embed.WithFooter("Dica: use `macaco interaction add <trigger> <resposta>` para criar suas próprias interações!");
         }
+
+        embed.WithStandardFooter($"Use {mention} ajuda ou /ajuda para ver esta mensagem");
 
         await ReplyAsync(embed: embed.Build());
     }

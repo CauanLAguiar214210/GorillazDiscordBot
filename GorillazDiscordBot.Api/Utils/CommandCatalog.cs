@@ -4,177 +4,143 @@ namespace GorillazDiscordBot.Utils;
 
 public static class CommandCatalog
 {
-    public sealed record CommandEntry(string Name, string Description);
+    public enum CommandKind { Slash, Prefix, Both }
+
+    public sealed record CommandEntry(string Name, string Description, CommandKind Kind);
 
     public sealed record Category(string Id, string Emoji, string Title, IReadOnlyList<CommandEntry> Commands);
-
-    /// <summary>Nomes de exibição dos módulos usados no comando de ajuda por prefixo.</summary>
-    public static readonly Dictionary<string, (string Name, string Emoji)> ModuleDisplay = new()
-    {
-        ["FunModule"] = ("Diversão", "🎮"),
-        ["UtilityModule"] = ("Utilidades", "🛠️"),
-        ["EconomyModule"] = ("Economia", "💰"),
-        ["GifManageModule"] = ("GIFs", "🖼️"),
-        ["GuildModule"] = ("Boas-vindas & Despedidas", "👋"),
-        ["VoiceModule"] = ("Canais de Voz", "🔊"),
-        ["InteractionModule"] = ("Interações", "💬"),
-        ["BlackjackModule"] = ("Blackjack", "🃏"),
-        ["CasinoModule"] = ("Cassino", "🎰"),
-        ["ShopModule"] = ("Loja", "🛒"),
-    };
-
-    /// <summary>Descrições dos comandos (chave = primeiro alias).</summary>
-    public static readonly Dictionary<string, string> Descriptions = new()
-    {
-        ["ping"] = "Responde com Pong!",
-        ["8ball"] = "Bola 8 mágica responde sua pergunta",
-        ["gorila"] = "Curiosidade sobre gorilas",
-        ["dado"] = "Joga um dado de 6 lados",
-        ["flip"] = "Cara ou coroa",
-        ["daily"] = "Reivindica moedas diárias",
-        ["saldo"] = "Ver seu saldo (alias: coins)",
-        ["blackjack"] = "Inicia uma mão de Blackjack (alias: bj)",
-        ["hit"] = "Pede mais uma carta no Blackjack (alias: pedir)",
-        ["stand"] = "Para e encerra a mão de Blackjack (alias: parar)",
-        ["double"] = "Dobra a aposta no Blackjack (alias: dobrar)",
-        ["roleta"] = "Aposta na roleta (número, cor, par/ímpar ou metade)",
-        ["cacaniquel"] = "Joga na caça-níquel (alias: slot)",
-        ["casino"] = "Mostra os jogos do cassino (alias: cassino)",
-        ["pagar"] = "Transferir moedas para outro usuário",
-        ["poupanca"] = "Ver seu saldo na poupança",
-        ["poupar"] = "Deposita moedas na poupança com juros",
-        ["resgatar"] = "Saca moedas da poupança",
-        ["trabalhar"] = "Trabalha em um serviço para ganhar moedas",
-        ["roubar"] = "Tenta roubar moedas de outro usuário",
-        ["historico"] = "Mostra o histórico de transações",
-        ["ranking"] = "Ranking global de riqueza",
-        ["loja"] = "Mostra os itens disponíveis na loja",
-        ["comprar"] = "Compra um item da loja",
-        ["usar"] = "Ativa um boost comprado",
-        ["inventario"] = "Mostra seus itens",
-        ["vender"] = "Revende um item por reembolso parcial",
-        ["equipar"] = "Equipa um relógio equipável",
-        ["desequipar"] = "Desequipa o relógio ativo",
-        ["gif"] = "Buscar, adicionar ou sortear GIFs",
-        ["userinfo"] = "Suas informações de usuário",
-        ["random"] = "Número aleatório entre min e max",
-        ["timer"] = "Temporizador com aviso",
-        ["avatar"] = "Avatar de um usuário",
-        ["serverinfo"] = "Informações do servidor",
-        ["horario"] = "Hora atual (UTC)",
-        ["contador"] = "Conta de 1 até N",
-        ["reversa"] = "Inverte o texto informado",
-        ["welcome"] = "Configura o canal de boas-vindas",
-        ["goodbye"] = "Configura o canal de despedidas",
-        ["welcomemsg"] = "Define a mensagem de boas-vindas",
-        ["goodbyemsg"] = "Define a mensagem de despedida",
-        ["welcome off"] = "Desativa as mensagens de boas-vindas",
-        ["goodbye off"] = "Desativa as mensagens de despedida",
-        ["welcome config"] = "Mostra a configuração de boas-vindas",
-        ["voice setup"] = "Define o canal criador de voz",
-        ["voice off"] = "Desativa a criação automática de canais de voz",
-        ["voice config"] = "Mostra a configuração de canais de voz",
-        ["interaction add"] = "Adiciona uma interação do servidor",
-        ["interaction remove"] = "Remove uma interação do servidor",
-        ["interaction list"] = "Lista as interações do servidor",
-        ["prefix"] = "Mostra o prefixo atual do servidor",
-        ["prefix set"] = "Define um novo prefixo para o servidor",
-        ["prefix reset"] = "Restaura o prefixo padrão",
-    };
 
     public static IReadOnlyList<Category> Categories { get; } = new List<Category>
     {
         new("diversao", "🎮", "Diversão", new[]
         {
-            new CommandEntry("/ping · ping", "Responde com Pong!"),
-            new CommandEntry("8ball <pergunta>", "Bola 8 mágica responde sua pergunta"),
-            new CommandEntry("gorila", "Curiosidade sobre gorilas"),
-            new CommandEntry("dado", "Joga um dado de 6 lados"),
-            new CommandEntry("flip", "Cara ou coroa"),
+            new CommandEntry("/ping", "Responde com Pong!", CommandKind.Slash),
+            new CommandEntry("8ball <pergunta>", "Bola 8 mágica responde sua pergunta", CommandKind.Prefix),
+            new CommandEntry("gorila", "Curiosidade sobre gorilas", CommandKind.Prefix),
+            new CommandEntry("dado", "Joga um dado de 6 lados", CommandKind.Prefix),
+            new CommandEntry("flip", "Cara ou coroa", CommandKind.Prefix),
         }),
         new("economia", "💰", "Economia", new[]
         {
-            new CommandEntry("daily", "Reivindica moedas diárias"),
-            new CommandEntry("saldo", "Ver seu saldo (alias: carteira)"),
-            new CommandEntry("pagar <usuário> <valor>", "Transferir moedas para outro usuário"),
-            new CommandEntry("depositar <valor>", "Move moedas da carteira para o banco"),
-            new CommandEntry("sacar <valor>", "Move moedas do banco para a carteira"),
-            new CommandEntry("banco", "Consulta seu banco"),
-            new CommandEntry("poupanca", "Consulta sua poupança"),
-            new CommandEntry("poupar <valor>", "Deposita na poupança com juros diários"),
-            new CommandEntry("resgatar <valor>", "Saca moedas da poupança"),
-            new CommandEntry("trabalhar [serviço]", "Trabalha em um serviço e ganha moedas"),
-            new CommandEntry("roubar <usuário>", "Tenta roubar moedas de outro usuário"),
-            new CommandEntry("historico [n]", "Mostra o histórico de transações"),
-            new CommandEntry("ranking", "Ranking global de riqueza"),
+            new CommandEntry("daily", "Reivindica moedas diárias", CommandKind.Prefix),
+            new CommandEntry("saldo", "Ver seu saldo (alias: carteira)", CommandKind.Prefix),
+            new CommandEntry("pagar <usuário> <valor>", "Transferir moedas para outro usuário", CommandKind.Prefix),
+            new CommandEntry("depositar <valor>", "Move moedas da carteira para o banco", CommandKind.Prefix),
+            new CommandEntry("sacar <valor>", "Move moedas do banco para a carteira", CommandKind.Prefix),
+            new CommandEntry("banco", "Consulta seu banco", CommandKind.Prefix),
+            new CommandEntry("poupar <valor>", "Deposita na poupança com juros diários", CommandKind.Prefix),
+            new CommandEntry("resgatar <valor>", "Saca moedas da poupança", CommandKind.Prefix),
+            new CommandEntry("trabalhar [serviço]", "Trabalha em um serviço e ganha moedas", CommandKind.Prefix),
+            new CommandEntry("roubar <usuário>", "Tenta roubar moedas de outro usuário", CommandKind.Prefix),
+            new CommandEntry("historico [n]", "Mostra o histórico de transações", CommandKind.Prefix),
+            new CommandEntry("ranking", "Ranking global de riqueza", CommandKind.Prefix),
         }),
         new("jogos", "🃏", "Jogos", new[]
         {
-            new CommandEntry("/blackjack <valor>", "Inicia uma mão de Blackjack com botões!"),
-            new CommandEntry("Pedir / Parar / Dobrar", "Botões na própria mesa — sem digitar nada"),
-            new CommandEntry("hit · stand · double", "Alternativa por prefixo (aliases: pedir, parar, dobrar)"),
+            new CommandEntry("/blackjack <valor>", "Inicia uma mão de Blackjack com botões", CommandKind.Slash),
         }),
         new("cassino", "🎰", "Cassino", new[]
         {
-            new CommandEntry("/roleta <valor>", "Aposta na roleta com botões (número, cor, par/ímpar, metade)"),
-            new CommandEntry("roleta <valor> <tipo> <alvo>", "Aposta por prefixo na roleta"),
-            new CommandEntry("/cacaniquel <valor>", "Caça-níquel com botões"),
-            new CommandEntry("cacaniquel <valor>", "Caça-níquel por prefixo (alias: slot)"),
-            new CommandEntry("casino", "Mostra os jogos do cassino (alias: cassino)"),
+            new CommandEntry("/roleta <valor>", "Aposta na roleta com botões (número, cor, par/ímpar, metade)", CommandKind.Slash),
+            new CommandEntry("/cacaniquel <valor>", "Caça-níquel com botões", CommandKind.Slash),
+            new CommandEntry("/dados <valor> <tipo>", "Aposta nos dados (alta, baixa, sete, dupla)", CommandKind.Slash),
+            new CommandEntry("/caraoucoroa <valor> <lado>", "Aposta em cara ou coroa", CommandKind.Slash),
+            new CommandEntry("/aviaozinho <valor>", "Aposte no aviaozinho botão por botão", CommandKind.Slash),
+            new CommandEntry("/poker <valor>", "Poker de máquina (Jacks or Better)", CommandKind.Slash),
+            new CommandEntry("/minas <valor> [minas]", "Revela células seguras antes de achar uma mina", CommandKind.Slash),
+            new CommandEntry("/limbo <valor> <alvo>", "El número sorteado que pasa del objetivo multiplica el valor", CommandKind.Slash),
+            new CommandEntry("/jokenpo <valor> <jogada>", "Pedra, papel e tesoura valendo moedas", CommandKind.Slash),
+            new CommandEntry("/corrida <valor> <cavalo>", "Aposta no cavalo que vai vencer a corrida", CommandKind.Slash),
+            new CommandEntry("/altobaixo <valor>", "Acerte se a próxima carta é maior ou menor", CommandKind.Slash),
+            new CommandEntry("/baccarat <valor> <aposta>", "Aposte no jogador, no banco ou no empate", CommandKind.Slash),
         }),
         new("loja", "🛒", "Loja", new[]
         {
-            new CommandEntry("loja", "Mostra os itens disponíveis na loja"),
-            new CommandEntry("comprar <id>", "Compra um item da loja"),
-            new CommandEntry("usar <id>", "Ativa um boost comprado"),
-            new CommandEntry("inventario", "Mostra seus itens (alias: mochila)"),
-            new CommandEntry("vender <id>", "Revende um item por reembolso parcial"),
-            new CommandEntry("equipar <id>", "Equipa um relógio (bônus no cassino)"),
-            new CommandEntry("desequipar <id>", "Desequipa o relógio ativo"),
-            new CommandEntry("loja reload", "Recarrega o catálogo do banco (admin)"),
+            new CommandEntry("/loja [categoria]", "Mostra os itens disponíveis na loja (filtro por categoria)", CommandKind.Slash),
+            new CommandEntry("/comprar <id>", "Compra um item da loja", CommandKind.Slash),
+            new CommandEntry("/usar <id>", "Ativa um boost comprado", CommandKind.Slash),
+            new CommandEntry("/inventario", "Mostra seus itens", CommandKind.Slash),
+            new CommandEntry("/vender <id>", "Revende um item por reembolso parcial", CommandKind.Slash),
+            new CommandEntry("/equipar <id>", "Equipa um relógio (bônus no cassino)", CommandKind.Slash),
+            new CommandEntry("/desequipar <id>", "Desequipa o relógio ativo", CommandKind.Slash),
         }),
         new("utilidade", "🛠️", "Utilidades", new[]
         {
-            new CommandEntry("userinfo", "Suas informações de usuário"),
-            new CommandEntry("random <min> <max>", "Número aleatório entre min e max"),
-            new CommandEntry("timer <segundos>", "Temporizador com aviso"),
-            new CommandEntry("avatar [usuário]", "Avatar de um usuário"),
-            new CommandEntry("serverinfo", "Informações do servidor"),
-            new CommandEntry("horario", "Hora atual (UTC)"),
-            new CommandEntry("contador <n>", "Conta de 1 até N"),
-            new CommandEntry("reversa <texto>", "Inverte o texto informado"),
+            new CommandEntry("userinfo", "Suas informações de usuário", CommandKind.Prefix),
+            new CommandEntry("random <min> <max>", "Número aleatório entre min e max", CommandKind.Prefix),
+            new CommandEntry("timer <segundos>", "Temporizador com aviso", CommandKind.Prefix),
+            new CommandEntry("avatar [usuário]", "Avatar de um usuário", CommandKind.Prefix),
+            new CommandEntry("serverinfo", "Informações do servidor", CommandKind.Prefix),
+            new CommandEntry("horario", "Hora atual (UTC)", CommandKind.Prefix),
+            new CommandEntry("contador <n>", "Conta de 1 até N", CommandKind.Prefix),
+            new CommandEntry("reversa <texto>", "Inverte o texto informado", CommandKind.Prefix),
+        }),
+        new("contas", "👥", "Contas Vinculadas", new[]
+        {
+            new CommandEntry("contas", "Mostra suas contas vinculadas", CommandKind.Prefix),
+            new CommandEntry("contas vincular <@alt>", "Declara uma alt sua (a alt recebe um código por DM)", CommandKind.Prefix),
+            new CommandEntry("contas confirmar <código>", "Confirma o vínculo usando o código recebido por DM", CommandKind.Prefix),
+            new CommandEntry("contas desvincular <conta>", "Remove uma conta do seu grupo", CommandKind.Prefix),
         }),
         new("gifs", "🖼️", "GIFs", new[]
         {
-            new CommandEntry("gif <nome>", "Envia o GIF salvo com esse nome"),
-            new CommandEntry("gif add <nome> <url>", "Salva um GIF no servidor"),
-            new CommandEntry("gif random", "Sorteia um GIF salvo"),
+            new CommandEntry("gif <nome>", "Envia o GIF salvo com esse nome", CommandKind.Prefix),
+            new CommandEntry("gif add <nome> <url>", "Salva um GIF no servidor", CommandKind.Prefix),
+            new CommandEntry("gif random", "Sorteia um GIF salvo", CommandKind.Prefix),
+        }),
+        new("interacoes", "💬", "Interações", new[]
+        {
+            new CommandEntry("interaction add <trigger> <resposta>", "Adiciona uma interação automática do servidor", CommandKind.Prefix),
+            new CommandEntry("interaction remove <trigger>", "Remove uma interação do servidor", CommandKind.Prefix),
+            new CommandEntry("interaction list", "Lista as interações do servidor", CommandKind.Prefix),
         }),
         new("config", "⚙️", "Configuração", new[]
         {
-            new CommandEntry("/config status", "Visão geral da configuração deste servidor"),
-            new CommandEntry("/config boasvindas-canal|mensagem|desativar|exibir", "Mensagens de boas-vindas por slash"),
-            new CommandEntry("/config despedidas-canal|mensagem|desativar", "Mensagens de despedida por slash"),
-            new CommandEntry("/config voice-setup|desativar|remover|exibir", "Canais de voz sob demanda por slash"),
-            new CommandEntry("/config prefixo-definir|resetar|exibir", "Prefixo do bot por slash"),
-            new CommandEntry("welcome <canal> · welcomemsg <texto> · welcome off/config", "Mensagens de boas-vindas (prefixo)"),
-            new CommandEntry("goodbye <canal> · goodbyemsg <texto> · goodbye off/config", "Mensagens de despedida (prefixo)"),
-            new CommandEntry("voice setup <canal> · voice off/config", "Canais de voz sob demanda (prefixo)"),
-            new CommandEntry("prefix [set|reset]", "Prefixo do bot neste servidor (prefixo)"),
-            new CommandEntry("interaction add/remove/list", "Respostas automáticas personalizadas"),
+            new CommandEntry("/config status", "Visão geral da configuração do servidor", CommandKind.Slash),
+            new CommandEntry("/config boasvindas-canal", "Define o canal de boas-vindas e ativa", CommandKind.Slash),
+            new CommandEntry("/config boasvindas-mensagem", "Define a mensagem de boas-vindas", CommandKind.Slash),
+            new CommandEntry("/config boasvindas-desativar", "Desativa as mensagens de boas-vindas", CommandKind.Slash),
+            new CommandEntry("/config boasvindas-exibir", "Mostra a configuração das boas-vindas", CommandKind.Slash),
+            new CommandEntry("/config despedidas-canal", "Define o canal de despedidas e ativa", CommandKind.Slash),
+            new CommandEntry("/config despedidas-mensagem", "Define a mensagem de despedida", CommandKind.Slash),
+            new CommandEntry("/config despedidas-desativar", "Desativa as mensagens de despedida", CommandKind.Slash),
+            new CommandEntry("/config voice-setup", "Adiciona/reativa um canal criador de voz", CommandKind.Slash),
+            new CommandEntry("/config voice-desativar", "Desativa um canal criador de voz", CommandKind.Slash),
+            new CommandEntry("/config voice-remover", "Remove um canal criador da configuração", CommandKind.Slash),
+            new CommandEntry("/config voice-exibir", "Mostra a configuração dos canais de voz", CommandKind.Slash),
+            new CommandEntry("/config prefixo-definir", "Define um novo prefixo de comandos", CommandKind.Slash),
+            new CommandEntry("/config prefixo-resetar", "Volta o prefixo ao padrão global", CommandKind.Slash),
+            new CommandEntry("/config prefixo-exibir", "Mostra o prefixo de comandos atual", CommandKind.Slash),
+            new CommandEntry("welcome <canal>", "Configura o canal de boas-vindas (prefixo)", CommandKind.Prefix),
+            new CommandEntry("welcomemsg <texto>", "Define a mensagem de boas-vindas (prefixo)", CommandKind.Prefix),
+            new CommandEntry("welcome off", "Desativa boas-vindas (prefixo)", CommandKind.Prefix),
+            new CommandEntry("goodbye <canal>", "Configura o canal de despedidas (prefixo)", CommandKind.Prefix),
+            new CommandEntry("goodbyemsg <texto>", "Define a mensagem de despedida (prefixo)", CommandKind.Prefix),
+            new CommandEntry("goodbye off", "Desativa despedidas (prefixo)", CommandKind.Prefix),
+            new CommandEntry("voice setup <canal>", "Canal criador de voz (prefixo)", CommandKind.Prefix),
+            new CommandEntry("voice off <canal>", "Desativa canal criador (prefixo)", CommandKind.Prefix),
+            new CommandEntry("voice config", "Configuração dos canais de voz (prefixo)", CommandKind.Prefix),
+            new CommandEntry("prefix [set|reset]", "Prefixo do bot neste servidor (prefixo)", CommandKind.Prefix),
         }),
     };
 
     public static Embed BuildOverviewEmbed(IUser botUser)
     {
+        var slashCount = Categories.SelectMany(c => c.Commands).Count(c => c.Kind is CommandKind.Slash or CommandKind.Both);
+        var prefixCount = Categories.SelectMany(c => c.Commands).Count(c => c.Kind is CommandKind.Prefix or CommandKind.Both);
+
         var embed = new EmbedBuilder()
             .WithBlurpleTheme()
             .WithAuthor($"{botUser.Username} — Comandos", botUser.GetAvatarUrl())
             .WithTitle("Central de Ajuda")
             .WithDescription(
-                "Selecione uma categoria no menu abaixo.\n\n" +
-                "✨ **Já disponíveis por `/`:** `blackjack`, `roleta`, `cacaniquel`, `config`, `ajuda`\n" +
-                "Os demais comandos usem com o prefixo do servidor (padrão: `macaco`).");
+                "Selecione uma categoria no menu abaixo para ver todos os comandos.\n\n" +
+                $"📊 **{slashCount}** comandos disponíveis por `/` (slash) — " +
+                $"**{prefixCount}** disponíveis por prefixo.\n\n" +
+                "💡 **Como usar:**\n" +
+                "• Slash: `/comando` — aparecem ao digitar `/` no chat\n" +
+                "• Prefixo: `{prefixo}comando` — digite o prefixo do servidor seguido do nome\n" +
+                "• Mencione o bot: `@bot comando` — funciona sempre independentemente do prefixo");
 
         embed.WithStandardFooter("Clique no menu para navegar entre as categorias");
         return embed.Build();
@@ -189,7 +155,16 @@ public static class CommandCatalog
 
         var sb = new System.Text.StringBuilder();
         foreach (var cmd in category.Commands)
-            sb.AppendLine($"`{cmd.Name}` — {cmd.Description}");
+        {
+            var badge = cmd.Kind switch
+            {
+                CommandKind.Slash => "`/`",
+                CommandKind.Prefix => "`!`",
+                CommandKind.Both => "`/!`",
+                _ => ""
+            };
+            sb.AppendLine($"{badge} `{cmd.Name}` — {cmd.Description}");
+        }
 
         return new EmbedBuilder()
             .WithBlurpleTheme()
