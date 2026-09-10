@@ -7,13 +7,18 @@ namespace GorillazDiscordBot.Services;
 public class EconomyMaintenanceService : IHostedService
 {
     private readonly IEconomyRepository _economyRepository;
+    private readonly IPetBonusProvider? _petBonus;
     private readonly ILogger<EconomyMaintenanceService> _logger;
     private readonly CancellationTokenSource _cts = new();
     private Task? _task;
 
-    public EconomyMaintenanceService(IEconomyRepository economyRepository, ILogger<EconomyMaintenanceService> logger)
+    public EconomyMaintenanceService(
+        IEconomyRepository economyRepository,
+        IPetBonusProvider petBonus,
+        ILogger<EconomyMaintenanceService> logger)
     {
         _economyRepository = economyRepository;
+        _petBonus = petBonus;
         _logger = logger;
     }
 
@@ -50,7 +55,7 @@ public class EconomyMaintenanceService : IHostedService
 
             try
             {
-                var affected = await _economyRepository.ApplyDailyMaintenanceAsync();
+                var affected = await _economyRepository.ApplyDailyMaintenanceAsync(_petBonus);
                 _logger.LogInformation("Manutenção econômica aplicada: {count} usuários afetados", affected);
             }
             catch (Exception ex)

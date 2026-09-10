@@ -66,22 +66,6 @@ public class ShopService
         }
     }
 
-    public async Task UpsertItemAsync(ShopItem item)
-    {
-        await _shop.UpsertAsync(item);
-        ForceReload();
-    }
-
-    public async Task<bool> RemoveItemAsync(string key)
-    {
-        var item = await _shop.GetByKeyAsync(key);
-        if (item == null) return false;
-
-        await _shop.DeleteAsync(key);
-        ForceReload();
-        return true;
-    }
-
     public async Task SeedIfEmptyAsync()
     {
         var existing = await _shop.GetAllAsync();
@@ -109,6 +93,7 @@ public class ShopService
             if (stored is null || stored.UpgradeEffect != UpgradeEffect.None)
                 continue;
 
+            pet.Id = stored.Id;
             await _shop.UpsertAsync(pet);
         }
     }
@@ -153,6 +138,16 @@ public class ShopService
 
                 if (petTypeCount >= MaxPetTypes)
                     return (false, $"🐾 Você já possui **{MaxPetTypes} tipos de pets**. Forme 1 deles para adotar um novo.", 0);
+            }
+            else
+            {
+                var catalog = await GetCatalogAsync();
+                var training = catalog.FirstOrDefault(c =>
+                    c is { Category: ItemCategory.Consumable } && c.TargetPetKey == item.Key);
+                var trainingLine = training != null
+                    ? $" Para evoluí-lo, compre **{training.Emoji} {training.Name}** na loja (categoria **Consumíveis**)."
+                    : string.Empty;
+                return (false, $"🐾 Você já adotou **{item.Emoji} {item.Name}**!{trainingLine}", 0);
             }
         }
 
@@ -283,13 +278,30 @@ public class ShopService
     public async Task<(bool success, string? message, ulong balance)> UseAsync(
         ulong userId, string username, ShopItem item)
     {
+        if (item.Category == ItemCategory.Consumable && !string.IsNullOrEmpty(item.TargetPetKey))
+        {
+            var petOwnerId = await _accessor.ResolveMainIdAsync(userId);
+            var petGate = GetUserLock(petOwnerId);
+            await petGate.WaitAsync();
+            try
+            {
+                return await LevelUpPetCoreAsync(petOwnerId, username, item);
+            }
+            finally
+            {
+                petGate.Release();
+            }
+        }
+
         if (item.Category != ItemCategory.Boost || item.Effect == BoostEffect.None)
             return (false, item.Category == ItemCategory.Asset
                 ? "📈 Este é um ativo de renda passiva: ele rende automaticamente junto com o `daily`, não precisa usar."
                 : item.Category == ItemCategory.Relic
                 ? "⌚ Este é um relógio equipável: use `equipar <id>` para ativar o bônus."
                 : item.Category == ItemCategory.Pet
-                ? "🐾 Este é um pet passivo: cada cópia aumenta o nível e o bônus permanentemente."
+                ? "🐾 Este é um pet passivo: o bônus acompanha o nível. Evolua comprando o consumível dele na loja."
+                : item.Category == ItemCategory.Consumable
+                ? "🧪 Este é um item de treino de pet: use para subir o nível do pet indicado."
                 : "🎨 Este item é cosmético e não pode ser usado.", 0);
 
         var mainId = await _accessor.ResolveMainIdAsync(userId);
@@ -335,6 +347,47 @@ public class ShopService
         return (true, null, balance);
     }
 
+    private async Task<(bool success, string? message, ulong balance)> LevelUpPetCoreAsync(
+        ulong mainId, string username, ShopItem consumable)
+    {
+        var petKey = consumable.TargetPetKey!;
+        var catalog = await GetCatalogAsync();
+        var pet = catalog.FirstOrDefault(c => c.Key == petKey);
+        if (pet is not { Category: ItemCategory.Pet })
+            return (false, "❌ Este consumível não está ligado a um pet válido.", 0);
+
+        var ownedPet = await _shop.GetInventoryByKeyAsync(mainId, pet.Key);
+        if (ownedPet == null || ownedPet.Quantity < 1)
+            return (false, $"🐾 Você ainda não adotou **{pet.Emoji} {pet.Name}**. Adote primeiro em `/loja`.", 0);
+
+        var ownedConsumable = await _shop.GetInventoryByKeyAsync(mainId, consumable.Key);
+        if (ownedConsumable == null || ownedConsumable.Quantity < 1)
+            return (false, $"❌ Você não possui **{consumable.Emoji} {consumable.Name}**. Compre na loja (categoria **Consumíveis**).", 0);
+
+        if (ownedPet.Quantity >= pet.MaxQuantity)
+            return (false, $"✨ **{pet.Emoji} {pet.Name}** já está no nível máximo (**{pet.MaxQuantity}**) e evoluiu! Não há mais níveis.", 0);
+
+        await _shop.DecrementOrRemoveInventoryAsync(mainId, consumable.Key);
+        await _shop.AddOrIncrementInventoryAsync(new InventoryItem
+        {
+            UserId = mainId,
+            ItemKey = pet.Key,
+            Quantity = 1
+        });
+
+        var newLevel = ownedPet.Quantity + 1;
+        var totalBonus = pet.UpgradeValue * newLevel;
+        var evolved = pet.EvolvedName != null && newLevel >= pet.MaxQuantity;
+        var evolutionLine = evolved
+            ? $"\n✨ **Evoluiu para {pet.EvolvedEmoji} {pet.EvolvedName}**! Bônus dobrado (+{pet.EvolvedUpgradeValue}%/nível)."
+            : string.Empty;
+
+        await _economy.LogTransactionAsync(mainId, EconomyTransactionType.BoostUse, 0, $"Evoluiu pet {pet.Name} para nível {newLevel}");
+
+        var balance = (await _economy.GetOrCreateAsync(mainId, username)).Money;
+        return (true, $"🧪 Uou! **{pet.Emoji} {pet.Name}** subiu para **nível {newLevel}/{pet.MaxQuantity}**! *(bônus total **{totalBonus}%**)*{evolutionLine}", balance);
+    }
+
     public async Task<List<InventoryItem>> GetInventoryAsync(ulong userId)
         => await _shop.GetInventoryAsync(await _accessor.ResolveMainIdAsync(userId));
 
@@ -369,6 +422,32 @@ public class ShopService
         return (true, $"⌚ **{item.Name}** desequipado.");
     }
 
+    public async Task<(bool success, string? message)> RenamePetAsync(ulong userId, string itemKey, string? nickname)
+    {
+        var mainId = await _accessor.ResolveMainIdAsync(userId);
+        var gate = GetUserLock(mainId);
+        await gate.WaitAsync();
+        try
+        {
+            var item = await FindItemAsync(itemKey);
+            if (item is not { Category: ItemCategory.Pet })
+                return (false, "❌ Esse item não é um pet.");
+
+            var owned = await _shop.GetInventoryByKeyAsync(mainId, item.Key);
+            if (owned == null || owned.Quantity < 1)
+                return (false, $"🐾 Você não possui **{item.Emoji} {item.Name}**.");
+
+            await _shop.SetPetNicknameAsync(mainId, item.Key, nickname);
+            return (true, nickname == null
+                ? $"🐾 **{item.Emoji} {item.Name}** voltou a se chamar **{item.Name}**."
+                : $"🐾 Seu **{item.Emoji} {item.Name}** agora se chama **{nickname}**!");
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
     public async Task<(ShopItem? relic, int value, bool cashback)> GetEquippedRelicAsync(ulong userId)
     {
         var mainId = await _accessor.ResolveMainIdAsync(userId);
@@ -387,12 +466,50 @@ public class ShopService
     public async Task<int> GetUpgradePercentAsync(ulong userId, UpgradeEffect effect)
         => await GetUpgradePercentCoreAsync(await _accessor.ResolveMainIdAsync(userId), effect);
 
+    public Task<int> GetUpgradePercentByMainIdAsync(ulong mainId, UpgradeEffect effect)
+        => GetUpgradePercentCoreAsync(mainId, effect);
+
+    public async Task<IReadOnlyDictionary<ulong, int>> GetUpgradePercentByMainIdsAsync(
+        IEnumerable<ulong> mainIds, UpgradeEffect effect)
+    {
+        var result = new Dictionary<ulong, int>();
+        if (effect == UpgradeEffect.None) return result;
+
+        var catalog = await GetCatalogAsync();
+        var petKeys = catalog
+            .Where(i => i is { Category: ItemCategory.Pet } && i.UpgradeEffect == effect)
+            .Select(i => i.Key)
+            .ToList();
+        if (petKeys.Count == 0) return result;
+
+        var entries = await _shop.GetPetLevelsAsync(mainIds, petKeys);
+        var catalogByKey = catalog
+            .Where(i => i is { Category: ItemCategory.Pet } && i.UpgradeEffect == effect)
+            .ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in entries)
+        {
+            if (entry.Quantity <= 0) continue;
+            if (!catalogByKey.TryGetValue(entry.ItemKey, out var item)) continue;
+
+            var valuePerLevel = ComputeValuePerLevel(item, entry.Quantity);
+            result[entry.UserId] = result.GetValueOrDefault(entry.UserId) + valuePerLevel * entry.Quantity;
+        }
+
+        return result;
+    }
+
+    private static int ComputeValuePerLevel(ShopItem pet, int level)
+        => pet is { EvolvedName: not null } && level >= pet.MaxQuantity
+            ? pet.EvolvedUpgradeValue
+            : pet.UpgradeValue;
+
     private async Task<int> GetUpgradePercentCoreAsync(ulong mainId, UpgradeEffect effect)
     {
         if (effect == UpgradeEffect.None) return 0;
 
         var catalog = await GetCatalogAsync();
-        var inventory = await _shop.GetInventoryAsync(mainId);
+        var inventory = await _shop.GetInventoryAsync(mainId) ?? new List<InventoryItem>();
         var catalogByKey = catalog.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
 
         var total = 0;
@@ -402,7 +519,7 @@ public class ShopService
             if (!catalogByKey.TryGetValue(entry.ItemKey, out var item)) continue;
             if (item is not { Category: ItemCategory.Pet } || item.UpgradeEffect != effect) continue;
 
-            total += item.UpgradeValue * entry.Quantity;
+            total += ComputeValuePerLevel(item, entry.Quantity) * entry.Quantity;
         }
 
         return total;
@@ -447,8 +564,17 @@ public class ShopService
             NewRelic("relogio_altobaixo", "Relógio das Cartas", "🃏", "+20% nos ganhos do maior/menor.", 85000, RelicEffect.GainBonus, RelicGameType.HighLow, 20, 30),
             NewRelic("relogio_bacara", "Relógio do Croupier", "🎴", "+20% nos ganhos do baccarat.", 140000, RelicEffect.GainBonus, RelicGameType.Baccarat, 20, 31),
 
-            NewPet("pet_macaco", "Macaco-Caçador", "🐒", "+2% no daily por nível. Máximo de 2 tipos de pets.", 15000, UpgradeEffect.Daily, 2, 10, 32),
-            NewPet("pet_gorila", "Gorila-Guarda-Costas", "🦍", "+3% no trabalho por nível. Máximo de 2 tipos de pets.", 40000, UpgradeEffect.Work, 3, 10, 33),
+            NewPet("pet_macaco", "Macaco-Caçador", "🐒", "+2% no daily por nível. Máximo de 2 tipos de pets.", 15000, UpgradeEffect.Daily, 2, 10, "Macaco-Alfa", "👑", 4, 32),
+            NewPet("pet_gorila", "Gorila-Guarda-Costas", "🦍", "+3% no trabalho por nível. Máximo de 2 tipos de pets.", 40000, UpgradeEffect.Work, 3, 10, "Gorila-Rei", "👑", 6, 33),
+            NewPet("pet_2d", "2D Sortudo", "🎤", "+2% nos ganhos de cassino por nível. Máximo de 2 tipos de pets.", 20000, UpgradeEffect.Casino, 2, 10, "2D Estrela", "✨", 4, 34),
+            NewPet("pet_russel", "Russell Sentinela", "🥁", "Reduz -3% do valor roubado de você por nível. Máximo de 2 tipos de pets.", 30000, UpgradeEffect.RobDefense, 3, 10, "Russell Protetor", "🛡️", 6, 35),
+            NewPet("pet_chaves", "Murdoc Banqueiro", "💸", "+2% nos juros da poupança por nível. Máximo de 2 tipos de pets.", 25000, UpgradeEffect.Savings, 2, 10, "Murdoc Mortadela", "👑", 4, 36),
+
+            NewConsumable("petup_macaco", "Banana da Sabedoria", "🍌", "Sobe +1 nível do Macaco-Caçador.", 4000, "pet_macaco", 37),
+            NewConsumable("petup_gorila", "Treino de Força", "🏋️", "Sobe +1 nível do Gorila-Guarda-Costas.", 10000, "pet_gorila", 38),
+            NewConsumable("petup_2d", "Palheta de Ouro", "🎸", "Sobe +1 nível do 2D Sortudo.", 5000, "pet_2d", 39),
+            NewConsumable("petup_russel", "Baqueta Turbo", "🥁", "Sobe +1 nível do Russell Sentinela.", 7500, "pet_russel", 40),
+            NewConsumable("petup_chaves", "Baixo Dourado", "🪕", "Sobe +1 nível do Murdoc Banqueiro.", 6500, "pet_chaves", 41),
         };
         return seed;
     }
@@ -494,7 +620,8 @@ public class ShopService
 
     private static ShopItem NewPet(
         string key, string name, string emoji, string description, ulong price,
-        UpgradeEffect effect, int valuePerLevel, int maxLevel, int sortOrder)
+        UpgradeEffect effect, int valuePerLevel, int maxLevel,
+        string evolvedName, string evolvedEmoji, int evolvedValue, int sortOrder)
         => new()
         {
             Key = key,
@@ -510,7 +637,30 @@ public class ShopService
             IsActive = true,
             SortOrder = sortOrder,
             UpgradeEffect = effect,
-            UpgradeValue = valuePerLevel
+            UpgradeValue = valuePerLevel,
+            EvolvedName = evolvedName,
+            EvolvedEmoji = evolvedEmoji,
+            EvolvedUpgradeValue = evolvedValue
+        };
+
+    private static ShopItem NewConsumable(
+        string key, string name, string emoji, string description, ulong price,
+        string targetPetKey, int sortOrder)
+        => new()
+        {
+            Key = key,
+            Name = name,
+            Emoji = emoji,
+            Description = description,
+            Price = price,
+            Category = ItemCategory.Consumable,
+            Effect = BoostEffect.None,
+            DurationHours = 0,
+            DailyIncome = 0,
+            MaxQuantity = 0,
+            IsActive = true,
+            SortOrder = sortOrder,
+            TargetPetKey = targetPetKey
         };
 
     private static ShopItem NewPlaceholder(string key, string name, string emoji, string description, int sortOrder)

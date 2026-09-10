@@ -10,4 +10,5 @@ public class InventoryItem
     public DateTime? AcquiredAt { get; set; }
     public DateTime? LastCollectedAt { get; set; }
     public bool IsEquipped { get; set; }
+    public string? PetNickname { get; set; }
 }

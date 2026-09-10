@@ -6,7 +6,8 @@ public enum ItemCategory
     Boost,
     Asset,
     Relic,
-    Pet
+    Pet,
+    Consumable
 }
 
 public enum BoostEffect
@@ -24,7 +25,9 @@ public enum UpgradeEffect
     Work,
     Rob,
     AssetIncome,
-    Savings
+    Savings,
+    RobDefense,
+    Casino
 }
 
 public enum RelicEffect
@@ -77,4 +80,10 @@ public class ShopItem
 
     public UpgradeEffect UpgradeEffect { get; set; }
     public int UpgradeValue { get; set; }
+
+    public string? TargetPetKey { get; set; }
+
+    public string? EvolvedName { get; set; }
+    public string? EvolvedEmoji { get; set; }
+    public int EvolvedUpgradeValue { get; set; }
 }

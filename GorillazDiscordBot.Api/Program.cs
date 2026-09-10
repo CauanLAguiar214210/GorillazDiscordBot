@@ -92,6 +92,7 @@ builder.Services.AddSingleton<GameSessionManager>();
 builder.Services.AddSingleton<CasinoSessionManager>();
 builder.Services.AddSingleton<CasinoPlayService>();
 builder.Services.AddSingleton<ShopService>();
+builder.Services.AddSingleton<IPetBonusProvider, PetBonusProvider>();
 
 // GIF URL Normalization
 builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>

@@ -3,6 +3,7 @@ using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Infra.Configuration;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace GorillazDiscordBot.Data.Repository;
@@ -19,6 +20,13 @@ public class ShopRepository : IShopRepository
         var database = client.GetDatabase(options.Value.DatabaseName);
         _items = database.GetCollection<ShopItem>(nameof(ShopItem));
         _inventory = database.GetCollection<InventoryItem>(nameof(InventoryItem));
+    }
+
+    internal ShopRepository(IMongoCollection<ShopItem> items, IMongoCollection<InventoryItem> inventory)
+    {
+        MongoMappings.Register();
+        _items = items;
+        _inventory = inventory;
     }
 
     public async Task EnsureIndexesAsync()
@@ -45,6 +53,9 @@ public class ShopRepository : IShopRepository
 
     public async Task UpsertAsync(ShopItem item)
     {
+        if (string.IsNullOrEmpty(item.Id))
+            item.Id = ObjectId.GenerateNewId().ToString();
+
         var filter = Builders<ShopItem>.Filter.Eq(i => i.Key, item.Key);
         var options = new ReplaceOptions { IsUpsert = true };
         await _items.ReplaceOneAsync(filter, item, options);
@@ -65,11 +76,34 @@ public class ShopRepository : IShopRepository
         return await _inventory.Find(filter).ToListAsync();
     }
 
+    public async Task<List<InventoryItem>> GetPetLevelsAsync(IEnumerable<ulong> userIds, IEnumerable<string> petKeys)
+    {
+        var userList = userIds.Distinct().ToList();
+        var keyList = petKeys.Distinct().ToList();
+        if (userList.Count == 0 || keyList.Count == 0)
+            return new List<InventoryItem>();
+
+        var filter = Builders<InventoryItem>.Filter.In(i => i.UserId, userList)
+            & Builders<InventoryItem>.Filter.In(i => i.ItemKey, keyList);
+        return await _inventory.Find(filter).ToListAsync();
+    }
+
     public async Task<InventoryItem?> GetInventoryByKeyAsync(ulong userId, string itemKey)
     {
         var filter = Builders<InventoryItem>.Filter.Eq(i => i.UserId, userId)
             & Builders<InventoryItem>.Filter.Eq(i => i.ItemKey, itemKey);
         return await _inventory.Find(filter).FirstOrDefaultAsync();
+    }
+
+    public async Task SetPetNicknameAsync(ulong userId, string itemKey, string? nickname)
+    {
+        var filter = Builders<InventoryItem>.Filter.Eq(i => i.UserId, userId)
+            & Builders<InventoryItem>.Filter.Eq(i => i.ItemKey, itemKey);
+
+        var nicknameUpdate = nickname == null
+            ? Builders<InventoryItem>.Update.Unset(i => i.PetNickname)
+            : Builders<InventoryItem>.Update.Set(i => i.PetNickname, nickname);
+        await _inventory.UpdateOneAsync(filter, nicknameUpdate);
     }
 
     public async Task AddOrIncrementInventoryAsync(InventoryItem inventory)

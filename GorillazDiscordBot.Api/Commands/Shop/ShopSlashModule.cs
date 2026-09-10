@@ -42,6 +42,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
                 ShopCategoryChoice.Ativos => ItemCategory.Asset,
                 ShopCategoryChoice.Relogios => ItemCategory.Relic,
                 ShopCategoryChoice.Pets => ItemCategory.Pet,
+                ShopCategoryChoice.Consumiveis => ItemCategory.Consumable,
                 _ => (ItemCategory?)null
             };
 
@@ -138,6 +139,12 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         if (!success)
         {
             await RespondAsync(message!, ephemeral: true);
+            return;
+        }
+
+        if (shopItem.Category == ItemCategory.Consumable)
+        {
+            await RespondAsync(message ?? $"✅ **{shopItem.Name}** usado!");
             return;
         }
 
@@ -568,7 +575,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         var owned = ownership.FirstOrDefault(i => i.ItemKey == shopItem.Key);
         var balance = balanceOverride ?? await _shop.GetBalanceAsync(ownerId, Context.User.Username);
 
-        var embed = BuildShopItemDetailEmbed(Context.User, shopItem, balance, owned, actionMessage);
+        var embed = BuildShopItemDetailEmbed(Context.User, shopItem, balance, owned, actionMessage, targetPet: await ResolveTargetPetAsync(shopItem));
         var reachedMax = owned != null && shopItem.MaxQuantity > 0 && owned.Quantity >= shopItem.MaxQuantity;
         var components = BuildShopItemComponents(ownerId, shopItem, reachedMax);
 
@@ -577,6 +584,15 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             m.Embed = embed;
             m.Components = components;
         });
+    }
+
+    private async Task<ShopItem?> ResolveTargetPetAsync(ShopItem shopItem)
+    {
+        if (shopItem.Category != ItemCategory.Consumable || shopItem.TargetPetKey is null)
+            return null;
+
+        var catalog = await _shop.GetCatalogAsync();
+        return catalog.FirstOrDefault(c => c.Key == shopItem.TargetPetKey);
     }
 
     private static Embed BuildCategorySectionEmbed(ItemCategory category, List<ShopItem> items)
@@ -598,7 +614,13 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             if (item.Category == ItemCategory.Relic)
                 sb.AppendLine($"   └ Efeito: {DescribeRelic(item)}");
             if (item.Category == ItemCategory.Pet)
-                sb.AppendLine($"   └ Efeito: {DescribePet(item)}");
+                sb.AppendLine($"   └ Efeito: {PetFormatter.DescribePet(item)}");
+            if (item.Category == ItemCategory.Consumable && item.TargetPetKey is not null)
+            {
+                var targetPet = items.FirstOrDefault(c => c.Key == item.TargetPetKey);
+                if (targetPet is not null)
+                    sb.AppendLine($"   └ Alvo: {targetPet.Emoji} **{targetPet.Name}** — sobe +1 nível");
+            }
             sb.AppendLine($"   └ id: `{item.Key}`");
             sb.AppendLine();
         }
@@ -618,6 +640,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Asset => ("📈", "Ativos de Renda"),
         ItemCategory.Relic => ("⌚", "Relógios Equipáveis"),
         ItemCategory.Pet => ("🐾", "Pets"),
+        ItemCategory.Consumable => ("🧪", "Consumíveis"),
         _ => ("📋", "Itens")
     };
 
@@ -628,6 +651,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Asset => "asset",
         ItemCategory.Relic => "relic",
         ItemCategory.Pet => "pet",
+        ItemCategory.Consumable => "consumable",
         _ => "other"
     };
 
@@ -638,6 +662,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         "asset" => ItemCategory.Asset,
         "relic" => ItemCategory.Relic,
         "pet" => ItemCategory.Pet,
+        "consumable" => ItemCategory.Consumable,
         _ => null
     };
 
@@ -648,6 +673,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Asset,
         ItemCategory.Relic,
         ItemCategory.Pet,
+        ItemCategory.Consumable,
     };
 
     private static Embed BuildShopOverviewEmbed(IUser user, List<ShopItem> real, List<ShopItem> placeholders)
@@ -722,7 +748,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     private static Embed BuildShopItemDetailEmbed(
-        IUser user, ShopItem item, ulong balance, InventoryItem? owned, string? actionMessage = null)
+        IUser user, ShopItem item, ulong balance, InventoryItem? owned,
+        string? actionMessage = null, ShopItem? targetPet = null)
     {
         var sb = new StringBuilder();
 
@@ -737,7 +764,16 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         if (item.Category == ItemCategory.Relic)
             sb.AppendLine($"⚙️ Efeito: {DescribeRelic(item)}");
         if (item.Category == ItemCategory.Pet)
-            sb.AppendLine($"🐾 Efeito: {DescribePet(item)}");
+        {
+            sb.AppendLine($"🐾 Efeito: {PetFormatter.DescribePet(item)}");
+            if (owned != null)
+                sb.AppendLine($"📊 {PetFormatter.ProgressLine(item, owned.Quantity)}");
+            var evolution = PetFormatter.EvolutionLine(item, owned?.Quantity ?? 0);
+            if (!string.IsNullOrEmpty(evolution) && owned != null)
+                sb.AppendLine(evolution);
+        }
+        if (item.Category == ItemCategory.Consumable && targetPet is not null)
+            sb.AppendLine($"🎯 Sobe +1 nível de: **{targetPet.Emoji} {targetPet.Name}**");
         if (owned != null)
             sb.AppendLine($"🎒 Você possui: **{owned.Quantity}**");
 
@@ -778,6 +814,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Asset => "Ativos de Renda",
         ItemCategory.Relic => "Relógios Equipáveis",
         ItemCategory.Pet => "Pets",
+        ItemCategory.Consumable => "Consumíveis",
         _ => "Itens"
     };
 
@@ -807,21 +844,6 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         return $"📈 **+{item.RelicValue}%** nos ganhos ({target})";
     }
 
-    private static string DescribePet(ShopItem item)
-    {
-        var target = item.UpgradeEffect switch
-        {
-            UpgradeEffect.Daily => "no daily",
-            UpgradeEffect.Work => "no trabalho",
-            UpgradeEffect.Rob => "nos roubos",
-            UpgradeEffect.AssetIncome => "na renda dos ativos",
-            UpgradeEffect.Savings => "nos juros da poupança",
-            _ => "?"
-        };
-        var max = item.MaxQuantity > 0 ? $" · máx. nível {item.MaxQuantity}" : "";
-        return $"🐾 **+{item.UpgradeValue}%** {target} por nível{max}";
-    }
-
     private static Embed BuildInventoryOverviewEmbed(
         IUser user, List<InventoryItem> ownership, List<ShopItem> catalog)
     {
@@ -830,14 +852,17 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         foreach (var invItem in ownership)
         {
             var shopItem = catalog.FirstOrDefault(c => c.Key == invItem.ItemKey);
-            var name = shopItem?.Name ?? invItem.ItemKey;
             var emoji = shopItem?.Emoji ?? "❔";
             var qty = invItem.Quantity;
             var validade = invItem.ExpiresAt is { } exp && exp > DateTime.UtcNow
                 ? $" *(expira {exp:dd/MM HH:mm} UTC)*"
                 : "";
 
-            var linha = $"{emoji} **{name}** × **{qty}**{validade}";
+            var nomeExib = invItem.PetNickname ?? shopItem?.Name ?? invItem.ItemKey;
+            var apelido = invItem.PetNickname != null && shopItem != null
+                ? $" *({shopItem.Name})*"
+                : string.Empty;
+            var linha = $"{emoji} **{nomeExib}**{apelido} × **{qty}**{validade}";
 
             if (invItem.IsEquipped)
                 linha += " · ⭐ **equipado**";
@@ -849,8 +874,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
                 linha += $" · **+{EconomyFormat.Full(shopItem.DailyIncome)}/dia** · {dias} dia(s) acumulados";
             }
 
-            if (shopItem is { Category: ItemCategory.Pet, UpgradeEffect: not UpgradeEffect.None })
-                linha += $" · 🐾 nível **{qty}** · {DescribePet(shopItem)}";
+            if (shopItem is { Category: ItemCategory.Pet })
+                linha += $" · {PetFormatter.ProgressLine(shopItem, qty)}";
 
             sb.AppendLine(linha);
         }
@@ -889,12 +914,15 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         var name = shopItem?.Name ?? invItem.ItemKey;
         var emoji = shopItem?.Emoji ?? "❔";
         var description = shopItem?.Description ?? "Sem descrição.";
+        var titleName = shopItem != null && invItem.PetNickname != null
+            ? $"{shopItem.Name} ({invItem.PetNickname})"
+            : shopItem?.Name ?? invItem.ItemKey;
 
         var sb = new StringBuilder();
         if (!string.IsNullOrEmpty(actionMessage))
             sb.AppendLine($"{actionMessage}\n");
 
-        sb.AppendLine($"{emoji} **{name}** × **{invItem.Quantity}**");
+        sb.AppendLine($"{emoji} **{titleName}** × **{invItem.Quantity}**");
         if (invItem.IsEquipped)
             sb.AppendLine("⭐ **Equipado**");
         if (invItem.ExpiresAt is { } exp && exp > DateTime.UtcNow)
@@ -907,8 +935,17 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         }
         if (shopItem?.Category == ItemCategory.Relic)
             sb.AppendLine($"⚙️ Efeito: {DescribeRelic(shopItem)}");
-        if (shopItem is { Category: ItemCategory.Pet, UpgradeEffect: not UpgradeEffect.None })
-            sb.AppendLine($"🐾 Nível **{invItem.Quantity}** · {DescribePet(shopItem)}");
+        if (shopItem is { Category: ItemCategory.Pet })
+        {
+            if (invItem.PetNickname is not null)
+                sb.AppendLine($"✏️ Apelido: **{invItem.PetNickname}**");
+            sb.AppendLine($"🐾 {PetFormatter.DescribePet(shopItem)}");
+            sb.AppendLine($"📊 {PetFormatter.ProgressLine(shopItem, invItem.Quantity)}");
+            var evolution = PetFormatter.EvolutionLine(shopItem, invItem.Quantity);
+            if (!string.IsNullOrEmpty(evolution))
+                sb.AppendLine(evolution);
+            sb.AppendLine($"\n💸 **Atenção:** vender o pet derruba o nível e o bônus permanente volta ao novo total.");
+        }
 
         sb.AppendLine($"\n{description}");
 
@@ -917,7 +954,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         return new EmbedBuilder()
             .WithBlurpleTheme()
             .WithAuthor($"{user.GetDisplayName()} — Inventário", user.GetAvatarUrl())
-            .WithTitle($"{emoji} {name}")
+            .WithTitle($"{emoji} {titleName}")
             .WithDescription(sb.ToString())
             .WithFooter($"Categoria: {categoryTitle}")
             .Build();
@@ -938,13 +975,13 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
                 .WithStyle(invItem.IsEquipped ? ButtonStyle.Secondary : ButtonStyle.Primary)
                 .WithEmote(new Emoji(invItem.IsEquipped ? "📤" : "📥")), actionRow);
         }
-        else if (shopItem?.Category == ItemCategory.Boost)
+        else if (shopItem?.Category is ItemCategory.Boost or ItemCategory.Consumable)
         {
             builder.WithButton(new ButtonBuilder()
                 .WithLabel("Usar")
                 .WithCustomId($"{InvPrefix}:use:{userId}:{itemKey}")
                 .WithStyle(ButtonStyle.Success)
-                .WithEmote(new Emoji("⚡")), actionRow);
+                .WithEmote(new Emoji(shopItem.Category == ItemCategory.Consumable ? "🧪" : "⚡")), actionRow);
         }
 
         var refund = shopItem != null
@@ -978,5 +1015,7 @@ public enum ShopCategoryChoice
     [ChoiceDisplay("⌚ Relógios Equipáveis")]
     Relogios,
     [ChoiceDisplay("🐾 Pets")]
-    Pets
+    Pets,
+    [ChoiceDisplay("🧪 Consumíveis")]
+    Consumiveis
 }

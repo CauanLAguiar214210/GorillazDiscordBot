@@ -28,9 +28,9 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
         var profile = await _economy.GetOrCreateAsync(mainId, Context.User.Username);
 
-        var dailyPetBonus = await _shop.GetUpgradePercentAsync(mainId, UpgradeEffect.Daily);
+        var dailyPetBonus = await _shop.GetUpgradePercentByMainIdAsync(mainId, UpgradeEffect.Daily);
         if (dailyPetBonus > 0)
-            reward += reward * dailyPetBonus / 100;
+            reward += reward * (ulong)dailyPetBonus / 100;
 
         var boost = profile.DailyBoostPending;
         if (boost && profile.DailyBoostExpiresAt is { } exp && exp <= DateTime.UtcNow)
@@ -61,7 +61,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
         var balance = newBalance + income;
 
-        await ReplyAsync($"💰 **Daily resgatado!** +{EconomyFormat.Full((ulong)reward)} moedas na carteira.{suffix}{incomeLine}\nSaldo atual: **{EconomyFormat.Full(balance)}**");
+        await ReplyAsync($"💰 **Daily resgatado!** +{EconomyFormat.Full(reward)} moedas na carteira.{suffix}{incomeLine}\nSaldo atual: **{EconomyFormat.Full(balance)}**");
     }
 
     [Command("saldo")]
@@ -262,7 +262,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
         var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
         var pay = job.TotalPay;
-        var workPetBonus = await _shop.GetUpgradePercentAsync(mainId, UpgradeEffect.Work);
+        var workPetBonus = await _shop.GetUpgradePercentByMainIdAsync(mainId, UpgradeEffect.Work);
         if (workPetBonus > 0)
             pay += pay * (ulong)workPetBonus / 100;
 
@@ -357,9 +357,15 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         {
             ulong stolen = EconomyRules.ComputeRobAmount(victim.Money, Random.Shared);
 
-            var robPetBonus = await _shop.GetUpgradePercentAsync(attackerMain, UpgradeEffect.Rob);
+            var robPetBonus = await _shop.GetUpgradePercentByMainIdAsync(attackerMain, UpgradeEffect.Rob);
             if (robPetBonus > 0)
                 stolen += stolen * (ulong)robPetBonus / 100;
+
+            var defense = await _shop.GetUpgradePercentByMainIdAsync(victimMain, UpgradeEffect.RobDefense);
+            if (defense > 0)
+                stolen -= stolen * (ulong)defense / 100;
+            if (stolen < 1)
+                stolen = 1;
 
             var (victimDeducted, _) = await _economy.TryDeductMoneyAsync(victimMain, stolen, EconomyTransactionType.Rob,
                 $"Roubado por {Context.User.GetDisplayName()}");
@@ -373,7 +379,10 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             await _economy.AddMoneyAsync(attackerMain, stolen, EconomyTransactionType.Rob,
                 $"Roubou {EconomyFormat.Full(stolen)} moedas de {target.GetDisplayName()}");
 
-            await ReplyAsync($"🕵️ **Você roubou {EconomyFormat.Full(stolen)} moedas** de **{target.GetDisplayName()}**!");
+            var defenseLine = defense > 0
+                ? $" *(pet de defesa cortou **{defense}%**)*"
+                : string.Empty;
+            await ReplyAsync($"🕵️ **Você roubou {EconomyFormat.Full(stolen)} moedas** de **{target.GetDisplayName()}**!{defenseLine}");
         }
         else
         {

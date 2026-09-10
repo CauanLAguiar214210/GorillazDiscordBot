@@ -17,7 +17,8 @@ public enum EconomyTransactionType
     Sell,
     BoostUse,
     Income,
-    Merge
+    Merge,
+    Welcome
 }
 
 public class EconomyTransaction

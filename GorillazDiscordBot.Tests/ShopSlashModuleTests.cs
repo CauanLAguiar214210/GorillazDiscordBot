@@ -78,6 +78,40 @@ public class ShopSlashModuleTests
         names.Should().BeEquivalentTo(expected);
     }
 
+    [Fact]
+    public async Task PetSlashModule_ShouldRegister_PetsCommandAndRenameHandlers()
+    {
+        var services = new ServiceCollection()
+            .AddSingleton(Substitute.For<ShopService>(
+                Substitute.For<IShopRepository>(),
+                Substitute.For<IEconomyRepository>(),
+                Substitute.For<IEconomyAccessor>()))
+            .BuildServiceProvider();
+
+        var interactions = new InteractionService(new DiscordSocketClient());
+        await interactions.AddModuleAsync(typeof(PetSlashModule), services);
+
+        var commandPaths = interactions.SlashCommands
+            .Select(GetCommandPath)
+            .Select(p => string.Join(" ", p))
+            .ToArray();
+
+        commandPaths.Should().BeEquivalentTo(new[] { "pets" });
+
+        var componentNames = interactions.ComponentCommands
+            .Select(c => c.Name)
+            .OrderBy(n => n)
+            .ToArray();
+
+        componentNames.Should().BeEquivalentTo(new[] { "pets:rename:*:*" });
+
+        var modalIds = interactions.ModalCommands
+            .Select(m => m.Name)
+            .ToArray();
+
+        modalIds.Should().BeEquivalentTo(new[] { "pets:rename:*:*" });
+    }
+
     private static string[] GetCommandPath(SlashCommandInfo command)
     {
         var segments = new List<string>();

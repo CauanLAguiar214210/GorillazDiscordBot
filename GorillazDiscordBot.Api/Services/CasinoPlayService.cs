@@ -55,6 +55,10 @@ public class CasinoPlayService
             }
         }
 
+        var petBonus = await _shop.GetUpgradePercentByMainIdAsync(mainId, UpgradeEffect.Casino);
+        if (petBonus > 0 && effective > 0)
+            effective += effective * (ulong)petBonus / 100UL;
+
         if (effective > 0)
         {
             await _economy.AddMoneyAsync(mainId, effective, EconomyTransactionType.Bet, description);

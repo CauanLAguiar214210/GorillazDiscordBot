@@ -22,10 +22,17 @@ public class EconomyRepository : IEconomyRepository
         _transactions = database.GetCollection<EconomyTransaction>(nameof(EconomyTransaction));
     }
 
+    internal EconomyRepository(IMongoCollection<EconomyProfile> profiles, IMongoCollection<EconomyTransaction> transactions)
+    {
+        MongoMappings.Register();
+        _collection = profiles;
+        _transactions = transactions;
+    }
+
     public async Task<EconomyProfile> GetOrCreateAsync(ulong userId, string username)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId);
-        var profile = await _collection.Find(filter).FirstOrDefaultAsync();
+        var profile = await FirstOrDefaultAsync(filter);
 
         if (profile != null)
         {
@@ -37,12 +44,26 @@ public class EconomyRepository : IEconomyRepository
             return profile;
         }
 
-        var newProfile = new EconomyProfile { UserId = userId, Username = username };
+        var newProfile = new EconomyProfile
+        {
+            UserId = userId,
+            Username = username,
+            Money = EconomyRules.WelcomeBonus
+        };
+
         await _collection.InsertOneAsync(newProfile);
+        await AddTransactionAsync(userId, EconomyTransactionType.Welcome, (long)EconomyRules.WelcomeBonus, "Bônus de boas-vindas");
         return newProfile;
     }
 
-    public async Task<(bool claimed, ulong newBalance)> TryClaimDailyAsync(ulong userId, int reward)
+    private Task<EconomyProfile?> FirstOrDefaultAsync(FilterDefinition<EconomyProfile> filter)
+    {
+        using var cursor = _collection.FindSync(filter, null, CancellationToken.None);
+        return Task.FromResult<EconomyProfile?>(
+            cursor.MoveNext(CancellationToken.None) ? cursor.Current.FirstOrDefault() : null);
+    }
+
+    public async Task<(bool claimed, ulong newBalance)> TryClaimDailyAsync(ulong userId, ulong reward)
     {
         var todayStart = DateTime.UtcNow.Date;
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
@@ -50,7 +71,7 @@ public class EconomyRepository : IEconomyRepository
                | Builders<EconomyProfile>.Filter.Lt(p => p.LastDailyClaim, todayStart));
 
         var update = Builders<EconomyProfile>.Update
-            .Inc(p => p.Money, (ulong)reward)
+            .Inc(p => p.Money, reward)
             .Set(p => p.LastDailyClaim, DateTime.UtcNow);
 
         var result = await _collection.FindOneAndUpdateAsync(filter, update,
@@ -137,7 +158,7 @@ public class EconomyRepository : IEconomyRepository
         return (true, result.Money, result.Bank);
     }
 
-    public async Task<(bool success, ulong wallet, ulong savings, int streak)> DepositSavingsAsync(ulong userId, ulong amount)
+    public async Task<(bool success, ulong wallet, ulong savings, ulong streak)> DepositSavingsAsync(ulong userId, ulong amount)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
             & Builders<EconomyProfile>.Filter.Gte(p => p.Money, amount);
@@ -154,10 +175,10 @@ public class EconomyRepository : IEconomyRepository
         if (result == null) return (false, 0, 0, 0);
 
         await AddTransactionAsync(userId, EconomyTransactionType.SavingsDeposit, -(long)amount, "Depósito na poupança");
-        return (true, result.Money, result.Savings, (int)result.SavingsStreak);
+        return (true, result.Money, result.Savings, result.SavingsStreak);
     }
 
-    public async Task<(bool success, ulong wallet, ulong savings, int streak)> WithdrawSavingsAsync(ulong userId, ulong amount)
+    public async Task<(bool success, ulong wallet, ulong savings, ulong streak)> WithdrawSavingsAsync(ulong userId, ulong amount)
     {
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
             & Builders<EconomyProfile>.Filter.Gte(p => p.Savings, amount);
@@ -178,7 +199,7 @@ public class EconomyRepository : IEconomyRepository
         if (result == null) return (false, 0, 0, 0);
 
         await AddTransactionAsync(userId, EconomyTransactionType.SavingsWithdraw, (long)amount, "Resgate da poupança");
-        return (true, result.Money, result.Savings, (int)result.SavingsStreak);
+        return (true, result.Money, result.Savings, result.SavingsStreak);
     }
 
     public async Task<bool> TryClaimWorkAsync(ulong userId, DateTime now, TimeSpan hours)
@@ -293,7 +314,7 @@ public class EconomyRepository : IEconomyRepository
             new BsonDocument("$toDecimal", "$Savings")
         }));
 
-    public async Task<int> ApplyDailyMaintenanceAsync()
+    public async Task<int> ApplyDailyMaintenanceAsync(IPetBonusProvider? petBonus = null)
     {
         var today = DateTime.UtcNow.Date;
 
@@ -303,6 +324,17 @@ public class EconomyRepository : IEconomyRepository
             Builders<EconomyProfile>.Filter.Or(
                 Builders<EconomyProfile>.Filter.Eq(p => p.SavingsLastInterestDate, null),
                 Builders<EconomyProfile>.Filter.Lt(p => p.SavingsLastInterestDate, today)));
+
+        var savingsPetBonus = new Dictionary<ulong, int>();
+        if (petBonus != null)
+        {
+            var savingsUserIds = await _collection.Find(savingsFilter)
+                .Project(p => p.UserId)
+                .ToListAsync();
+            if (savingsUserIds.Count > 0)
+                savingsPetBonus = (await petBonus.GetUpgradePercentByMainIdsAsync(
+                    savingsUserIds, UpgradeEffect.Savings)).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        }
 
         var filter = Builders<EconomyProfile>.Filter.Or(bankFilter, savingsFilter);
         var bulkOps = new List<WriteModel<EconomyProfile>>();
@@ -328,14 +360,20 @@ public class EconomyRepository : IEconomyRepository
 
                 if (profile.Savings > 0UL && (profile.SavingsLastInterestDate is null || profile.SavingsLastInterestDate.Value < today))
                 {
-                    var rate = EconomyRules.GetDailyInterestRate(Random.Shared, (int)profile.SavingsStreak);
-                    var interest = (ulong)EconomyRules.ComputeInterestAmount((int)profile.Savings, rate);
+                    var rate = EconomyRules.GetDailyInterestRate(Random.Shared, profile.SavingsStreak);
+                    var interest = EconomyRules.ComputeInterestAmount(profile.Savings, rate);
+
+                    savingsPetBonus.TryGetValue(profile.UserId, out var petPct);
+                    if (petPct > 0)
+                        interest += interest * (ulong)petPct / 100;
+
                     if (interest > 0UL)
                     {
                         ops.Add(Builders<EconomyProfile>.Update.Inc(p => p.Savings, interest));
                         ops.Add(Builders<EconomyProfile>.Update.Set(p => p.SavingsLastInterestDate, DateTime.UtcNow));
+                        var petsSuffix = petPct > 0 ? $" (+{petPct}% de pet)" : string.Empty;
                         toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Interest, (long)interest,
-                            $"Juros da poupança ({rate:P1} ao dia)"));
+                            $"Juros da poupança ({rate:P1} ao dia){petsSuffix}"));
                     }
                 }
 

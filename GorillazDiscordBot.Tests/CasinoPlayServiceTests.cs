@@ -71,6 +71,36 @@ public class CasinoPlayServiceTests
     }
 
     [Fact]
+    public async Task PayOutAsync_PetCasino_AplicaBonus()
+    {
+        _inventory.Add(new InventoryItem { UserId = 1, ItemKey = "pet_2d", Quantity = 3 });
+        _shopRepo.GetAllAsync().Returns(new List<ShopItem>
+        {
+            new()
+            {
+                Key = "pet_2d",
+                Name = "2D Sortudo",
+                Emoji = "🎤",
+                Price = 20000,
+                Category = ItemCategory.Pet,
+                MaxQuantity = 10,
+                UpgradeEffect = UpgradeEffect.Casino,
+                UpgradeValue = 2
+            }
+        });
+        _economy.AddMoneyAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<EconomyTransactionType>(), Arg.Any<string>())
+            .Returns(true);
+        _economy.GetOrCreateAsync(1, "alt").Returns(new EconomyProfile { UserId = 1, Money = 106 });
+        var service = CreateService();
+
+        var payout = await service.PayOutAsync(2, 100, "alt", "premio");
+
+        await _economy.Received(1).AddMoneyAsync(1, 106, EconomyTransactionType.Bet, "premio");
+        payout.Bonus.Should().Be(6);
+        payout.Relic.Should().BeNull();
+    }
+
+    [Fact]
     public async Task PayOutAsync_RetornoZero_NaoAdiciona()
     {
         _economy.GetOrCreateAsync(1, "alt").Returns(new EconomyProfile { UserId = 1 });

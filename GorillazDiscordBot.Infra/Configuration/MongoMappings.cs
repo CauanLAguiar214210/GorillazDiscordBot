@@ -120,6 +120,7 @@ public static class MongoMappings
             map.MapMember(c => c.AcquiredAt).SetElementName("AcquiredAt");
             map.MapMember(c => c.LastCollectedAt).SetElementName("LastCollectedAt");
             map.MapMember(c => c.IsEquipped).SetElementName("IsEquipped");
+            map.MapMember(c => c.PetNickname).SetElementName("PetNickname");
         });
 
         BsonClassMap.RegisterClassMap<ShopItem>(map =>
@@ -146,6 +147,10 @@ public static class MongoMappings
             map.MapMember(c => c.RelicValue).SetElementName("RelicValue");
             map.MapMember(c => c.UpgradeEffect).SetElementName("UpgradeEffect");
             map.MapMember(c => c.UpgradeValue).SetElementName("UpgradeValue");
+            map.MapMember(c => c.TargetPetKey).SetElementName("TargetPetKey");
+            map.MapMember(c => c.EvolvedName).SetElementName("EvolvedName");
+            map.MapMember(c => c.EvolvedEmoji).SetElementName("EvolvedEmoji");
+            map.MapMember(c => c.EvolvedUpgradeValue).SetElementName("EvolvedUpgradeValue");
         });
         }
     }
