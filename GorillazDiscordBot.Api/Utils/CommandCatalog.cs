@@ -33,7 +33,7 @@ public static class CommandCatalog
             new CommandEntry("trabalhar [serviço]", "Trabalha em um serviço e ganha moedas", CommandKind.Prefix),
             new CommandEntry("roubar <usuário>", "Tenta roubar moedas de outro usuário", CommandKind.Prefix),
             new CommandEntry("historico [n]", "Mostra o histórico de transações", CommandKind.Prefix),
-            new CommandEntry("ranking", "Ranking de riqueza com classes e Ral da Fama", CommandKind.Prefix),
+            new CommandEntry("ranking", "Ranking de riqueza com classes e Hall da Fama", CommandKind.Prefix),
             new CommandEntry("raldafama", "As lendas do servidor com títulos e frases", CommandKind.Prefix),
             new CommandEntry("tiers", "Lista as classificações do ranking", CommandKind.Prefix),
         }),
