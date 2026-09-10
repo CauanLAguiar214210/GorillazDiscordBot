@@ -7,6 +7,7 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
+[Group("cassino", "Jogos de cassino")]
 public class BaccaratSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
@@ -66,7 +67,7 @@ public class BaccaratSlashModule : InteractionModuleBase<SocketInteractionContex
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Baccarat == null)
         {
-            await FollowupAsync("🎴 Esta mesa não está mais ativa. Use `/baccarat` para começar outra.", ephemeral: true);
+            await FollowupAsync("🎴 Esta mesa não está mais ativa. Use `/cassino baccarat` para começar outra.", ephemeral: true);
             return;
         }
 

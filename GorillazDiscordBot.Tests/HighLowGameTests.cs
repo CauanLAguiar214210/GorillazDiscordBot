@@ -39,6 +39,7 @@ public class HighLowGameTests
         result.Should().Be(HighLowGuessResult.Lose);
         game.HasLost.Should().BeTrue();
         game.IsFinished.Should().BeTrue();
+        game.CurrentCard.Should().Be(Card(Rank.Five));
     }
 
     [Fact]
@@ -62,6 +63,7 @@ public class HighLowGameTests
 
         result.Should().Be(HighLowGuessResult.Lose);
         game.IsFinished.Should().BeTrue();
+        game.CurrentCard.Should().Be(Card(Rank.Ace));
     }
 
     [Fact]

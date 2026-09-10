@@ -24,13 +24,13 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Command("daily")]
     public async Task DailyAsync()
     {
-        var reward = EconomyRules.GetDailyReward(Random.Shared);
         var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
         var profile = await _economy.GetOrCreateAsync(mainId, Context.User.Username);
 
+        var baseReward = EconomyRules.GetDailyReward(Random.Shared);
         var dailyPetBonus = await _shop.GetUpgradePercentAsync(mainId, UpgradeEffect.Daily);
-        if (dailyPetBonus > 0)
-            reward += reward * (ulong)dailyPetBonus / 100;
+        var petReward = baseReward * (ulong)dailyPetBonus / 100;
+        var afterPet = baseReward + petReward;
 
         var boost = profile.DailyBoostPending;
         if (boost && profile.DailyBoostExpiresAt is { } exp && exp <= DateTime.UtcNow)
@@ -38,8 +38,8 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             await _economy.SetDailyBoostAsync(mainId, false);
             boost = false;
         }
-        if (boost)
-            reward *= 2;
+
+        var reward = boost ? afterPet * 2 : afterPet;
 
         var (claimed, newBalance) = await _economy.TryClaimDailyAsync(mainId, reward);
 
@@ -52,16 +52,34 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         if (boost)
             await _economy.SetDailyBoostAsync(mainId, false);
 
-        var (income, incomeDays, _) = await _shop.ApplyAssetIncomesAsync(mainId, Context.User.Username, boost);
+        var assetResult = await _shop.ApplyAssetIncomesAsync(mainId, Context.User.Username, boost);
 
-        var suffix = boost ? " ⚡ ** (com bônus x2!)**" : string.Empty;
-        var incomeLine = income > 0
-            ? $"\n📈 **+{EconomyFormat.Full(income)} moedas** de renda dos ativos ({incomeDays} dia(s))!"
-            : string.Empty;
+        var sb = new StringBuilder("💰 **Daily resgatado!**\n");
+        sb.AppendLine($"🎁 Valor base: **+{EconomyFormat.Full(baseReward)}** moedas");
+        if (dailyPetBonus > 0)
+            sb.AppendLine($"🐾 Bônus de pet (+{dailyPetBonus}%): **+{EconomyFormat.Full(petReward)}** moedas");
+        if (boost)
+            sb.AppendLine("⚡ **Com bônus x2!**");
+        sb.AppendLine($"**Total do daily: +{EconomyFormat.Full(reward)} moedas**");
 
-        var balance = newBalance + income;
+        if (assetResult.TotalIncome > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"📈 **Renda dos ativos** ({assetResult.DaysCollected} dia(s), {assetResult.ItemsCollected} ativo(s)):");
+            foreach (var a in assetResult.Assets)
+                sb.AppendLine($"   {a.Emoji} {a.Name}: **+{EconomyFormat.Full(a.Income)}** moedas ({a.Days} dia(s))");
+            if (assetResult.PetBonusPercent > 0)
+                sb.AppendLine($"   🐾 Bônus de pet de ativos (+{assetResult.PetBonusPercent}%): incluído");
+            sb.AppendLine($"**Total ativos: +{EconomyFormat.Full(assetResult.TotalIncome)} moedas**");
+        }
 
-        await ReplyAsync($"💰 **Daily resgatado!** +{EconomyFormat.Full(reward)} moedas na carteira.{suffix}{incomeLine}\nSaldo atual: **{EconomyFormat.Full(balance)}**");
+        var grandTotal = reward + assetResult.TotalIncome;
+        var balance = newBalance + assetResult.TotalIncome;
+        sb.AppendLine();
+        sb.AppendLine($"💰 **Total recebido: +{EconomyFormat.Full(grandTotal)} moedas**");
+        sb.AppendLine($"💰 Saldo atual: **{EconomyFormat.Full(balance)}** moedas");
+
+        await ReplyAsync(sb.ToString());
     }
 
     [Command("saldo")]

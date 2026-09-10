@@ -178,11 +178,13 @@ public class ShopPetTests
         _shopRepo.UpdateIncomeTimestampAsync(1, "fazenda", Arg.Any<DateTime>()).Returns(Task.CompletedTask);
         var shop = CreateService();
 
-        var (totalIncome, days, items) = await shop.ApplyAssetIncomesAsync(2, "alt");
+        var result = await shop.ApplyAssetIncomesAsync(2, "alt");
 
-        items.Should().Be(1);
-        days.Should().Be(2);
+        result.ItemsCollected.Should().Be(1);
+        result.DaysCollected.Should().Be(2);
+        result.PetBonusPercent.Should().Be(12);
         // renda base = 1000 * 2 dias = 2000; bônus do pet Fênix nível 3 = +12% → 2240
-        totalIncome.Should().Be(2240);
+        result.TotalIncome.Should().Be(2240);
+        result.Assets.Should().ContainSingle(a => a.Name == "Fazenda Gorillaz" && a.Income == 2240 && a.Days == 2);
     }
 }

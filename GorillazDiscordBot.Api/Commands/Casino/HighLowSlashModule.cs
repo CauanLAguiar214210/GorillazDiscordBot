@@ -7,6 +7,7 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
+[Group("cassino", "Jogos de cassino")]
 public class HighLowSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
@@ -73,7 +74,7 @@ public class HighLowSlashModule : InteractionModuleBase<SocketInteractionContext
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.HighLow == null)
         {
-            await FollowupAsync("🃏 Esta rodada não está mais ativa. Use `/altobaixo` para começar outra.", ephemeral: true);
+            await FollowupAsync("🃏 Esta rodada não está mais ativa. Use `/cassino altobaixo` para começar outra.", ephemeral: true);
             return;
         }
 
@@ -168,7 +169,7 @@ public class HighLowSlashModule : InteractionModuleBase<SocketInteractionContext
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.HighLow == null)
         {
-            await FollowupAsync("🃏 Esta rodada não está mais ativa. Use `/altobaixo` para começar outra.", ephemeral: true);
+            await FollowupAsync("🃏 Esta rodada não está mais ativa. Use `/cassino altobaixo` para começar outra.", ephemeral: true);
             return;
         }
 
@@ -184,8 +185,11 @@ public class HighLowSlashModule : InteractionModuleBase<SocketInteractionContext
                 Context.User.Id, 0, Context.User.Username, "Errou no maior/menor",
                 RelicGameType.HighLow, session.Bet);
 
-            var resultSection = $"❌ A carta era **`{previousCard.Symbol}`** e a próxima foi "
-                + $"**`{game.CurrentCard.Symbol}`** — você errou! Perdeu **{EconomyFormat.Full(session.Bet)}** moedas.\n"
+            var isImpossiblePick = game.CurrentCard.Symbol == previousCard.Symbol;
+            var resultSection = (isImpossiblePick
+                    ? $"❌ Jogada impossível com **`{previousCard.Symbol}`** — você perdeu na hora! Perdeu "
+                    : $"❌ A carta era **`{previousCard.Symbol}`** e a próxima foi **`{game.CurrentCard.Symbol}`** — você errou! Perdeu ")
+                + $"{EconomyFormat.Full(session.Bet)} moedas.\n"
                 + CasinoTableBuilder.DescribeAppliedRelic(payout);
 
             await Context.Interaction.ModifyOriginalResponseAsync(m =>

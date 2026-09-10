@@ -73,7 +73,7 @@ public class RankingModule : ModuleBase<SocketCommandContext>
                 if (!string.IsNullOrWhiteSpace(f.Phrase))
                     sb.AppendLine($"   *“{f.Phrase}”*");
             }
-            embed.AddField("🏆 Ral da Fama", sb.ToString());
+            embed.AddField("🏆 Hall da Fama", sb.ToString());
         }
 
         embed.WithStandardFooter("Use macaco tiers para ver todas as classificações");
@@ -88,12 +88,12 @@ public class RankingModule : ModuleBase<SocketCommandContext>
 
         if (fame.Count == 0)
         {
-            await ReplyAsync("👑 O Ral da Fama ainda está vazio!");
+            await ReplyAsync("👑 O Hall da Fama ainda está vazio!");
             return;
         }
 
         var embed = new EmbedBuilder()
-            .WithTitle("\U0001F451 Ral da Fama")
+            .WithTitle("\U0001F451 Hall da Fama")
             .WithGoldTheme()
             .WithAuthor($"{Context.User.GetDisplayName()}", Context.User.GetAvatarUrl())
             .WithDescription("As lendas que marcaram o servidor.");

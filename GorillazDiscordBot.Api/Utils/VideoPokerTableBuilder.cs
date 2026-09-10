@@ -54,7 +54,7 @@ public static class VideoPokerTableBuilder
 
         embed.WithStandardFooter(resultSection == null
             ? "Segure as cartas boas e troque o resto! 🃏"
-            : "Nova mão: `/poker`");
+            : "Nova mão: `/cassino poker`");
 
         return embed.Build();
     }

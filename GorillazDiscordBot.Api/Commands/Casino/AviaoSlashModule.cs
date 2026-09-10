@@ -7,6 +7,7 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
+[Group("cassino", "Jogos de cassino")]
 public class AviaoSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
@@ -69,7 +70,7 @@ public class AviaoSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Aviao == null)
         {
-            await FollowupAsync("✈️ Este voo não está mais ativo. Use `/aviaozinho` para começar outro.", ephemeral: true);
+            await FollowupAsync("✈️ Este voo não está mais ativo. Use `/cassino aviaozinho` para começar outro.", ephemeral: true);
             return;
         }
 
@@ -118,7 +119,7 @@ public class AviaoSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Aviao == null)
         {
-            await FollowupAsync("✈️ Este voo não está mais ativo. Use `/aviaozinho` para começar outro.", ephemeral: true);
+            await FollowupAsync("✈️ Este voo não está mais ativo. Use `/cassino aviaozinho` para começar outro.", ephemeral: true);
             return;
         }
 

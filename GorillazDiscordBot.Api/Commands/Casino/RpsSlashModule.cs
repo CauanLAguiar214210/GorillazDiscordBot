@@ -7,6 +7,7 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
+[Group("cassino", "Jogos de cassino")]
 public class RpsSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
@@ -66,7 +67,7 @@ public class RpsSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Rps == null)
         {
-            await FollowupAsync("🤚 Este jokenpô não está mais ativo. Use `/jokenpo` para começar outro.", ephemeral: true);
+            await FollowupAsync("🤚 Este jokenpô não está mais ativo. Use `/cassino jokenpo` para começar outro.", ephemeral: true);
             return;
         }
 

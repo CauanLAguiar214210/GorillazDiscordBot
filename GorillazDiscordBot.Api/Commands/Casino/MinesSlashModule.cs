@@ -7,6 +7,7 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
+[Group("cassino", "Jogos de cassino")]
 public class MinesSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
@@ -66,7 +67,7 @@ public class MinesSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Mines == null)
         {
-            await FollowupAsync("🧨 Este campo não está mais ativo. Use `/minas` para começar outro.", ephemeral: true);
+            await FollowupAsync("🧨 Este campo não está mais ativo. Use `/cassino minas` para começar outro.", ephemeral: true);
             return;
         }
 
@@ -111,7 +112,7 @@ public class MinesSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Mines == null)
         {
-            await FollowupAsync("🧨 Este campo não está mais ativo. Use `/minas` para começar outro.", ephemeral: true);
+            await FollowupAsync("🧨 Este campo não está mais ativo. Use `/cassino minas` para começar outro.", ephemeral: true);
             return;
         }
 

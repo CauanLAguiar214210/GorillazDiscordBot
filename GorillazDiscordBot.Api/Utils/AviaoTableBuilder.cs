@@ -45,7 +45,7 @@ public static class AviaoTableBuilder
 
         embed.WithStandardFooter(resultSection == null
             ? "Pule antes que o aviãozinho exploda! ✈️"
-            : "Novo voo: `/aviaozinho`");
+            : "Novo voo: `/cassino aviaozinho`");
 
         return embed.Build();
     }

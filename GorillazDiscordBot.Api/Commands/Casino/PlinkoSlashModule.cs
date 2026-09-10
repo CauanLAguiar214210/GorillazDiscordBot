@@ -8,6 +8,7 @@ using GorillazDiscordBot.Utils;
 namespace GorillazDiscordBot.Commands.Casino;
 
 [DontAutoRegister]
+[Group("cassino", "Jogos de cassino")]
 public class PlinkoSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
@@ -66,7 +67,7 @@ public class PlinkoSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Plinko == null)
         {
-            await FollowupAsync("🎱 Este plinko não está mais ativo. Use `/plinko` para começar outro.", ephemeral: true);
+            await FollowupAsync("🎱 Este plinko não está mais ativo. Use `/cassino plinko` para começar outro.", ephemeral: true);
             return;
         }
 

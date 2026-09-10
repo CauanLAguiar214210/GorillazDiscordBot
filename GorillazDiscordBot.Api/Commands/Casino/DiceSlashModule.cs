@@ -7,6 +7,7 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
+[Group("cassino", "Jogos de cassino")]
 public class DiceSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
@@ -66,7 +67,7 @@ public class DiceSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Dice == null)
         {
-            await FollowupAsync("🎲 Esta mesa não tem dados ativos. Use `/dados` para começar outra.", ephemeral: true);
+            await FollowupAsync("🎲 Esta mesa não tem dados ativos. Use `/cassino dados` para começar outra.", ephemeral: true);
             return;
         }
 

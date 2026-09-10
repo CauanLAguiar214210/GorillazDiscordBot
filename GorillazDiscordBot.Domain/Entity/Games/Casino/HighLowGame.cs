@@ -67,6 +67,7 @@ public sealed class HighLowGame
         if (!isWin)
         {
             HasLost = true;
+            CurrentCard = drawn;
             return HighLowGuessResult.Lose;
         }
 
