@@ -16,28 +16,69 @@ public class NewCasinoModulesTests
 
     public NewCasinoModulesTests()
     {
+        var economy = Substitute.For<IEconomyRepository>();
+        var accessor = Substitute.For<IEconomyAccessor>();
+
         _services = new ServiceCollection()
+            .AddSingleton<IEconomyRepository>(economy)
+            .AddSingleton<IEconomyAccessor>(accessor)
+            .AddSingleton(Substitute.For<ShopService>(
+                Substitute.For<IShopRepository>(),
+                economy,
+                accessor))
             .AddSingleton(Substitute.For<CasinoPlayService>(
-                Substitute.For<IEconomyRepository>(),
-                Substitute.For<IEconomyAccessor>(),
+                economy,
+                accessor,
                 Substitute.For<ShopService>(
                     Substitute.For<IShopRepository>(),
-                    Substitute.For<IEconomyRepository>(),
-                    Substitute.For<IEconomyAccessor>())))
+                    economy,
+                    accessor)))
             .AddSingleton(new CasinoSessionManager())
+            .AddSingleton(new GameSessionManager())
             .BuildServiceProvider();
+    }
+
+    [Fact]
+    public async Task CasinoSlashModule_ShouldRegister_SingleCassinoGroup_WithAllGames()
+    {
+        var interactions = new InteractionService(new DiscordSocketClient());
+        await interactions.AddModuleAsync(typeof(CasinoSlashModule), _services);
+
+        interactions.Modules
+            .Where(m => m.SlashGroupName == "cassino")
+            .Should().ContainSingle();
+
+        var slashNames = interactions.SlashCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
+        slashNames.Should().BeEquivalentTo(new[]
+        {
+            "altobaixo",
+            "aviaozinho",
+            "baccarat",
+            "blackjack",
+            "cacaniquel",
+            "caraoucoroa",
+            "corrida",
+            "dados",
+            "jokenpo",
+            "limbo",
+            "minas",
+            "poker",
+            "roleta"
+        });
+
+        interactions.ComponentCommands.Should().HaveCount(58);
     }
 
     [Fact]
     public async Task DiceSlashModule_ShouldRegister_SlashAndComponents()
     {
         var interactions = new InteractionService(new DiscordSocketClient());
-        await interactions.AddModuleAsync(typeof(DiceSlashModule), _services);
+        await interactions.AddModuleAsync(typeof(CasinoSlashModule), _services);
 
         interactions.SlashCommands.Select(c => c.Name).Should().Contain("dados");
 
         var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
-        names.Should().BeEquivalentTo(new[]
+        names.Should().Contain(new[]
         {
             "dic:leave:*",
             "dic:paytable",
@@ -50,12 +91,12 @@ public class NewCasinoModulesTests
     public async Task CoinFlipSlashModule_ShouldRegister_SlashAndComponents()
     {
         var interactions = new InteractionService(new DiscordSocketClient());
-        await interactions.AddModuleAsync(typeof(CoinFlipSlashModule), _services);
+        await interactions.AddModuleAsync(typeof(CasinoSlashModule), _services);
 
         interactions.SlashCommands.Select(c => c.Name).Should().Contain("caraoucoroa");
 
         var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
-        names.Should().BeEquivalentTo(new[]
+        names.Should().Contain(new[]
         {
             "coin:flip",
             "coin:leave:*",
@@ -68,12 +109,12 @@ public class NewCasinoModulesTests
     public async Task AviaoSlashModule_ShouldRegister_SlashAndComponents()
     {
         var interactions = new InteractionService(new DiscordSocketClient());
-        await interactions.AddModuleAsync(typeof(AviaoSlashModule), _services);
+        await interactions.AddModuleAsync(typeof(CasinoSlashModule), _services);
 
         interactions.SlashCommands.Select(c => c.Name).Should().Contain("aviaozinho");
 
         var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
-        names.Should().BeEquivalentTo(new[]
+        names.Should().Contain(new[]
         {
             "aviao:fly",
             "aviao:leave:*",
@@ -87,12 +128,12 @@ public class NewCasinoModulesTests
     public async Task VideoPokerSlashModule_ShouldRegister_SlashAndComponents()
     {
         var interactions = new InteractionService(new DiscordSocketClient());
-        await interactions.AddModuleAsync(typeof(VideoPokerSlashModule), _services);
+        await interactions.AddModuleAsync(typeof(CasinoSlashModule), _services);
 
         interactions.SlashCommands.Select(c => c.Name).Should().Contain("poker");
 
         var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
-        names.Should().BeEquivalentTo(new[]
+        names.Should().Contain(new[]
         {
             "poker:draw",
             "poker:hold:*",
@@ -106,12 +147,12 @@ public class NewCasinoModulesTests
     public async Task MinesSlashModule_ShouldRegister_SlashAndComponents()
     {
         var interactions = new InteractionService(new DiscordSocketClient());
-        await interactions.AddModuleAsync(typeof(MinesSlashModule), _services);
+        await interactions.AddModuleAsync(typeof(CasinoSlashModule), _services);
 
         interactions.SlashCommands.Select(c => c.Name).Should().Contain("minas");
 
         var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
-        names.Should().BeEquivalentTo(new[]
+        names.Should().Contain(new[]
         {
             "mines:leave:*",
             "mines:paytable",
@@ -125,12 +166,12 @@ public class NewCasinoModulesTests
     public async Task LimboSlashModule_ShouldRegister_SlashAndComponents()
     {
         var interactions = new InteractionService(new DiscordSocketClient());
-        await interactions.AddModuleAsync(typeof(LimboSlashModule), _services);
+        await interactions.AddModuleAsync(typeof(CasinoSlashModule), _services);
 
         interactions.SlashCommands.Select(c => c.Name).Should().Contain("limbo");
 
         var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
-        names.Should().BeEquivalentTo(new[]
+        names.Should().Contain(new[]
         {
             "limbo:leave:*",
             "limbo:paytable",
@@ -143,12 +184,12 @@ public class NewCasinoModulesTests
     public async Task RpsSlashModule_ShouldRegister_SlashAndComponents()
     {
         var interactions = new InteractionService(new DiscordSocketClient());
-        await interactions.AddModuleAsync(typeof(RpsSlashModule), _services);
+        await interactions.AddModuleAsync(typeof(CasinoSlashModule), _services);
 
         interactions.SlashCommands.Select(c => c.Name).Should().Contain("jokenpo");
 
         var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
-        names.Should().BeEquivalentTo(new[]
+        names.Should().Contain(new[]
         {
             "rps:jogar",
             "rps:leave:*",
@@ -161,12 +202,12 @@ public class NewCasinoModulesTests
     public async Task RaceSlashModule_ShouldRegister_SlashAndComponents()
     {
         var interactions = new InteractionService(new DiscordSocketClient());
-        await interactions.AddModuleAsync(typeof(RaceSlashModule), _services);
+        await interactions.AddModuleAsync(typeof(CasinoSlashModule), _services);
 
         interactions.SlashCommands.Select(c => c.Name).Should().Contain("corrida");
 
         var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
-        names.Should().BeEquivalentTo(new[]
+        names.Should().Contain(new[]
         {
             "race:largada",
             "race:leave:*",
@@ -184,7 +225,7 @@ public class NewCasinoModulesTests
         interactions.SlashCommands.Select(c => c.Name).Should().Contain("plinko");
 
         var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
-        names.Should().BeEquivalentTo(new[]
+        names.Should().Contain(new[]
         {
             "plinko:largar",
             "plinko:leave:*",
@@ -202,7 +243,7 @@ public class NewCasinoModulesTests
         interactions.SlashCommands.Select(c => c.Name).Should().Contain("roda");
 
         var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
-        names.Should().BeEquivalentTo(new[]
+        names.Should().Contain(new[]
         {
             "roda:girar",
             "roda:leave:*",
@@ -215,12 +256,12 @@ public class NewCasinoModulesTests
     public async Task HighLowSlashModule_ShouldRegister_SlashAndComponents()
     {
         var interactions = new InteractionService(new DiscordSocketClient());
-        await interactions.AddModuleAsync(typeof(HighLowSlashModule), _services);
+        await interactions.AddModuleAsync(typeof(CasinoSlashModule), _services);
 
         interactions.SlashCommands.Select(c => c.Name).Should().Contain("altobaixo");
 
         var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
-        names.Should().BeEquivalentTo(new[]
+        names.Should().Contain(new[]
         {
             "hl:leave:*",
             "hl:maior",
@@ -235,17 +276,35 @@ public class NewCasinoModulesTests
     public async Task BaccaratSlashModule_ShouldRegister_SlashAndComponents()
     {
         var interactions = new InteractionService(new DiscordSocketClient());
-        await interactions.AddModuleAsync(typeof(BaccaratSlashModule), _services);
+        await interactions.AddModuleAsync(typeof(CasinoSlashModule), _services);
 
         interactions.SlashCommands.Select(c => c.Name).Should().Contain("baccarat");
 
         var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
-        names.Should().BeEquivalentTo(new[]
+        names.Should().Contain(new[]
         {
             "bac:leave:*",
             "bac:paytable",
             "bac:replay:*:*:*",
             "bac:revelar"
+        });
+    }
+
+    [Fact]
+    public async Task BlackjackSlashModule_ShouldRegister_SlashAndComponents()
+    {
+        var interactions = new InteractionService(new DiscordSocketClient());
+        await interactions.AddModuleAsync(typeof(CasinoSlashModule), _services);
+
+        interactions.SlashCommands.Select(c => c.Name).Should().Contain("blackjack");
+
+        var names = interactions.ComponentCommands.Select(c => c.Name).OrderBy(n => n).ToArray();
+        names.Should().Contain(new[]
+        {
+            "bj:*",
+            "bjk:leave:*",
+            "bjk:paytable",
+            "bjk:replay:*:*"
         });
     }
 }

@@ -7,9 +7,10 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
-[Group("cassino", "Jogos de cassino")]
-public class AviaoSlashModule : InteractionModuleBase<SocketInteractionContext>
+public partial class CasinoSlashModule
 {
+    public class AviaoSlashModule : InteractionModuleBase<SocketInteractionContext>
+    {
     private readonly CasinoPlayService _play;
     private readonly CasinoSessionManager _sessions;
 
@@ -216,5 +217,6 @@ public class AviaoSlashModule : InteractionModuleBase<SocketInteractionContext>
                 Context.User.Id, 0, Context.User.Username, "Aviaozinho expirado",
                 RelicGameType.Aviao, expired.Bet);
         }
+    }
     }
 }

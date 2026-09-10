@@ -8,7 +8,6 @@ using GorillazDiscordBot.Utils;
 namespace GorillazDiscordBot.Commands.Casino;
 
 [DontAutoRegister]
-[Group("cassino", "Jogos de cassino")]
 public class PlinkoSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;

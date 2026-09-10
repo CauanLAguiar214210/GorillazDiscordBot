@@ -7,9 +7,10 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
-[Group("cassino", "Jogos de cassino")]
-public class RpsSlashModule : InteractionModuleBase<SocketInteractionContext>
+public partial class CasinoSlashModule
 {
+    public class RpsSlashModule : InteractionModuleBase<SocketInteractionContext>
+    {
     private readonly CasinoPlayService _play;
     private readonly CasinoSessionManager _sessions;
 
@@ -179,6 +180,7 @@ public class RpsSlashModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     private static RpsMove toMove(RpsMoveChoice choice) => (RpsMove)choice;
+    }
 }
 
 public enum RpsMoveChoice

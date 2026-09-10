@@ -8,7 +8,7 @@ using GorillazDiscordBot.Utils;
 namespace GorillazDiscordBot.Commands.Casino;
 
 [Group("cassino", "Jogos de cassino")]
-public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
+public partial class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
     private readonly CasinoSessionManager _sessions;

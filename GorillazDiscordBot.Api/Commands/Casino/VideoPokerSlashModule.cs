@@ -7,9 +7,10 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
-[Group("cassino", "Jogos de cassino")]
-public class VideoPokerSlashModule : InteractionModuleBase<SocketInteractionContext>
+public partial class CasinoSlashModule
 {
+    public class VideoPokerSlashModule : InteractionModuleBase<SocketInteractionContext>
+    {
     private readonly CasinoPlayService _play;
     private readonly CasinoSessionManager _sessions;
 
@@ -198,5 +199,6 @@ public class VideoPokerSlashModule : InteractionModuleBase<SocketInteractionCont
         if (returnAmount == 0)
             return $"😢 Nenhuma combinação — perdeu. Boa sorte na próxima!\n";
         return $"🎉 **{VideoPokerTableBuilder.DescribeOutcome(outcome)}** — você venceu! Recebeu **{EconomyFormat.Full(returnAmount)}** moedas.\n";
+    }
     }
 }
