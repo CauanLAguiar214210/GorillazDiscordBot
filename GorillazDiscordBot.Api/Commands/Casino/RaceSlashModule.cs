@@ -7,6 +7,7 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
+[Group("cassino", "Jogos de cassino")]
 public class RaceSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
@@ -66,7 +67,7 @@ public class RaceSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Race == null)
         {
-            await FollowupAsync("🏇 Esta corrida não está mais ativa. Use `/corrida` para começar outra.", ephemeral: true);
+            await FollowupAsync("🏇 Esta corrida não está mais ativa. Use `/cassino corrida` para começar outra.", ephemeral: true);
             return;
         }
 

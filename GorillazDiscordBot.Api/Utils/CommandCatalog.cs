@@ -37,24 +37,21 @@ public static class CommandCatalog
             new CommandEntry("raldafama", "As lendas do servidor com títulos e frases", CommandKind.Prefix),
             new CommandEntry("tiers", "Lista as classificações do ranking", CommandKind.Prefix),
         }),
-        new("jogos", "🃏", "Jogos", new[]
-        {
-            new CommandEntry("/blackjack <valor>", "Inicia uma mão de Blackjack com botões", CommandKind.Slash),
-        }),
         new("cassino", "🎰", "Cassino", new[]
         {
-            new CommandEntry("/roleta <valor>", "Aposta na roleta com botões (número, cor, par/ímpar, metade)", CommandKind.Slash),
-            new CommandEntry("/cacaniquel <valor>", "Caça-níquel com botões", CommandKind.Slash),
-            new CommandEntry("/dados <valor> <tipo>", "Aposta nos dados (alta, baixa, sete, dupla)", CommandKind.Slash),
-            new CommandEntry("/caraoucoroa <valor> <lado>", "Aposta em cara ou coroa", CommandKind.Slash),
-            new CommandEntry("/aviaozinho <valor>", "Aposte no aviaozinho botão por botão", CommandKind.Slash),
-            new CommandEntry("/poker <valor>", "Poker de máquina (Jacks or Better)", CommandKind.Slash),
-            new CommandEntry("/minas <valor> [minas]", "Revela células seguras antes de achar uma mina", CommandKind.Slash),
-            new CommandEntry("/limbo <valor> <alvo>", "El número sorteado que pasa del objetivo multiplica el valor", CommandKind.Slash),
-            new CommandEntry("/jokenpo <valor> <jogada>", "Pedra, papel e tesoura valendo moedas", CommandKind.Slash),
-            new CommandEntry("/corrida <valor> <cavalo>", "Aposta no cavalo que vai vencer a corrida", CommandKind.Slash),
-            new CommandEntry("/altobaixo <valor>", "Acerte se a próxima carta é maior ou menor", CommandKind.Slash),
-            new CommandEntry("/baccarat <valor> <aposta>", "Aposte no jogador, no banco ou no empate", CommandKind.Slash),
+            new CommandEntry("/cassino blackjack <valor>", "Inicia uma mão de Blackjack com botões", CommandKind.Slash),
+            new CommandEntry("/cassino roleta <valor>", "Aposta na roleta com botões (número, cor, par/ímpar, metade)", CommandKind.Slash),
+            new CommandEntry("/cassino cacaniquel <valor>", "Caça-níquel com botões", CommandKind.Slash),
+            new CommandEntry("/cassino dados <valor> <tipo>", "Aposta nos dados (alta, baixa, sete, dupla)", CommandKind.Slash),
+            new CommandEntry("/cassino caraoucoroa <valor> <lado>", "Aposta em cara ou coroa", CommandKind.Slash),
+            new CommandEntry("/cassino aviaozinho <valor>", "Aposte no aviaozinho botão por botão", CommandKind.Slash),
+            new CommandEntry("/cassino poker <valor>", "Poker de máquina (Jacks or Better)", CommandKind.Slash),
+            new CommandEntry("/cassino minas <valor> [minas]", "Revela células seguras antes de achar uma mina", CommandKind.Slash),
+            new CommandEntry("/cassino limbo <valor> <alvo>", "El número sorteado que pasa del objetivo multiplica el valor", CommandKind.Slash),
+            new CommandEntry("/cassino jokenpo <valor> <jogada>", "Pedra, papel e tesoura valendo moedas", CommandKind.Slash),
+            new CommandEntry("/cassino corrida <valor> <cavalo>", "Aposta no cavalo que vai vencer a corrida", CommandKind.Slash),
+            new CommandEntry("/cassino altobaixo <valor>", "Acerte se a próxima carta é maior ou menor", CommandKind.Slash),
+            new CommandEntry("/cassino baccarat <valor> <aposta>", "Aposte no jogador, no banco ou no empate", CommandKind.Slash),
         }),
         new("loja", "🛒", "Loja", new[]
         {

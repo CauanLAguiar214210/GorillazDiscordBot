@@ -4,6 +4,17 @@ using GorillazDiscordBot.Domain.Interfaces;
 
 namespace GorillazDiscordBot.Services;
 
+public sealed record AssetIncomeEntry(string Emoji, string Name, int Days, ulong Income);
+
+public sealed class AssetIncomesResult
+{
+    public ulong TotalIncome { get; init; }
+    public int DaysCollected { get; init; }
+    public int ItemsCollected { get; init; }
+    public int PetBonusPercent { get; init; }
+    public IReadOnlyList<AssetIncomeEntry> Assets { get; init; } = [];
+}
+
 public class ShopService
 {
     public static readonly TimeSpan CatalogCacheDuration = TimeSpan.FromMinutes(10);
@@ -195,7 +206,7 @@ public class ShopService
         return profile.Money;
     }
 
-    public async Task<(ulong totalIncome, int daysCollected, int itemsCollected)> ApplyAssetIncomesAsync(
+    public async Task<AssetIncomesResult> ApplyAssetIncomesAsync(
         ulong userId, string username, bool boosted = false)
     {
         var mainId = await _accessor.ResolveMainIdAsync(userId);
@@ -208,14 +219,14 @@ public class ShopService
             .ToHashSet();
 
         if (assetKeys.Count == 0)
-            return (0, 0, 0);
+            return new AssetIncomesResult();
 
         var inventory = await _shop.GetInventoryAsync(mainId);
         var now = DateTime.UtcNow;
         var assetPetBonus = await GetUpgradePercentCoreAsync(mainId, UpgradeEffect.AssetIncome);
         ulong total = 0;
         int daysTotal = 0;
-        int items = 0;
+        var entries = new List<AssetIncomeEntry>();
 
         foreach (var entry in inventory)
         {
@@ -241,11 +252,18 @@ public class ShopService
 
                 total += income;
                 daysTotal += days;
-                items++;
+                entries.Add(new AssetIncomeEntry(item.Emoji, item.Name, days, income));
             }
         }
 
-        return (total, daysTotal, items);
+        return new AssetIncomesResult
+        {
+            TotalIncome = total,
+            DaysCollected = daysTotal,
+            ItemsCollected = entries.Count,
+            PetBonusPercent = assetPetBonus,
+            Assets = entries
+        };
     }
 
     public async Task<(bool success, string? message, ulong balance)> SellAsync(

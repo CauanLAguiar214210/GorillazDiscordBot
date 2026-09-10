@@ -7,6 +7,7 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
+[Group("cassino", "Jogos de cassino")]
 public class LimboSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
@@ -66,7 +67,7 @@ public class LimboSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Limbo == null)
         {
-            await FollowupAsync("🔮 Este limbo não está mais ativo. Use `/limbo` para começar outro.", ephemeral: true);
+            await FollowupAsync("🔮 Este limbo não está mais ativo. Use `/cassino limbo` para começar outro.", ephemeral: true);
             return;
         }
 

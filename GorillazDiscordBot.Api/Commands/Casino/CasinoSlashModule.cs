@@ -7,6 +7,7 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
+[Group("cassino", "Jogos de cassino")]
 public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
@@ -116,7 +117,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Roulette == null)
         {
-            await FollowupAsync("🎰 Esta mesa não tem uma roleta ativa. Use `/roleta` para começar outra.", ephemeral: true);
+            await FollowupAsync("🎰 Esta mesa não tem uma roleta ativa. Use `/cassino roleta` para começar outra.", ephemeral: true);
             return;
         }
 
@@ -145,7 +146,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Roulette == null)
         {
-            await RespondAsync("🎰 Esta mesa não tem uma roleta ativa. Use `/roleta` para começar outra.",
+            await RespondAsync("🎰 Esta mesa não tem uma roleta ativa. Use `/cassino roleta` para começar outra.",
                 ephemeral: true, components: new ComponentBuilder().Build());
             return;
         }
@@ -161,7 +162,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Roulette == null)
         {
-            await FollowupAsync("🎰 O tempo para adicionar aposta expirou. Use `/roleta` novamente.", ephemeral: true);
+            await FollowupAsync("🎰 O tempo para adicionar aposta expirou. Use `/cassino roleta` novamente.", ephemeral: true);
             return;
         }
 
@@ -207,7 +208,7 @@ public class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Slots == null)
         {
-            await FollowupAsync("🎰 Esta máquina não tem um jogo ativo. Use `/cacaniquel` para começar outro.", ephemeral: true);
+            await FollowupAsync("🎰 Esta máquina não tem um jogo ativo. Use `/cassino cacaniquel` para começar outro.", ephemeral: true);
             return;
         }
 

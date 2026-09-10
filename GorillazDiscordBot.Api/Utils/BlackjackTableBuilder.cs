@@ -48,7 +48,7 @@ public static class BlackjackTableBuilder
 
         embed.WithStandardFooter(resultSection == null
             ? "Use os botões abaixo ou `macaco hit` / `macaco stand` / `macaco double`"
-            : "Nova mão: `/blackjack` ou `macaco blackjack <valor>`");
+            : "Nova mão: `/cassino blackjack` ou `macaco blackjack <valor>`");
 
         return embed.Build();
     }

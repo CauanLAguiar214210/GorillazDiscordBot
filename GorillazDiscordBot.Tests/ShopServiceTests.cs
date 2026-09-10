@@ -211,11 +211,12 @@ public class ShopServiceTests
         _economy.AddMoneyAsync(1, Arg.Any<ulong>(), EconomyTransactionType.Income, Arg.Any<string>()).Returns(true);
         var service = CreateService();
 
-        var (total, days, items) = await service.ApplyAssetIncomesAsync(2, "alt");
+        var result = await service.ApplyAssetIncomesAsync(2, "alt");
 
-        total.Should().Be(4000);
-        days.Should().Be(2);
-        items.Should().Be(1);
+        result.TotalIncome.Should().Be(4000);
+        result.DaysCollected.Should().Be(2);
+        result.ItemsCollected.Should().Be(1);
+        result.Assets.Should().ContainSingle(a => a.Name == "Ações da Fazenda" && a.Income == 4000 && a.Days == 2);
         await _economy.Received(1).AddMoneyAsync(1, 4000, EconomyTransactionType.Income, Arg.Any<string>());
         await _shop.Received(1).UpdateIncomeTimestampAsync(1, "acoes", Arg.Any<DateTime>());
     }
@@ -234,10 +235,10 @@ public class ShopServiceTests
         _economy.AddMoneyAsync(1, Arg.Any<ulong>(), EconomyTransactionType.Income, Arg.Any<string>()).Returns(true);
         var service = CreateService();
 
-        var (total, days, _) = await service.ApplyAssetIncomesAsync(2, "alt");
+        var result = await service.ApplyAssetIncomesAsync(2, "alt");
 
-        total.Should().Be(6000); // 3 dias máx x 2000
-        days.Should().Be(3);
+        result.TotalIncome.Should().Be(6000); // 3 dias máx x 2000
+        result.DaysCollected.Should().Be(3);
     }
 
     [Fact]
@@ -253,11 +254,11 @@ public class ShopServiceTests
         });
         var service = CreateService();
 
-        var (total, days, items) = await service.ApplyAssetIncomesAsync(2, "alt");
+        var result = await service.ApplyAssetIncomesAsync(2, "alt");
 
-        total.Should().Be(0);
-        days.Should().Be(0);
-        items.Should().Be(0);
+        result.TotalIncome.Should().Be(0);
+        result.DaysCollected.Should().Be(0);
+        result.ItemsCollected.Should().Be(0);
         await _economy.DidNotReceive().AddMoneyAsync(
             Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<EconomyTransactionType>(), Arg.Any<string>());
     }
@@ -308,10 +309,10 @@ public class ShopServiceTests
         _economy.AddMoneyAsync(1, Arg.Any<ulong>(), EconomyTransactionType.Income, Arg.Any<string>()).Returns(true);
         var service = CreateService();
 
-        var (total, days, items) = await service.ApplyAssetIncomesAsync(2, "alt");
+        var result = await service.ApplyAssetIncomesAsync(2, "alt");
 
-        items.Should().Be(1);
-        total.Should().Be(2000);
+        result.ItemsCollected.Should().Be(1);
+        result.TotalIncome.Should().Be(2000);
     }
 
     [Fact]

@@ -7,6 +7,7 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
+[Group("cassino", "Jogos de cassino")]
 public class VideoPokerSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
@@ -65,7 +66,7 @@ public class VideoPokerSlashModule : InteractionModuleBase<SocketInteractionCont
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.VideoPoker == null)
         {
-            await FollowupAsync("🃏 Esta mesa não tem uma mão ativa. Use `/poker` para começar outra.", ephemeral: true);
+            await FollowupAsync("🃏 Esta mesa não tem uma mão ativa. Use `/cassino poker` para começar outra.", ephemeral: true);
             return;
         }
 
@@ -91,7 +92,7 @@ public class VideoPokerSlashModule : InteractionModuleBase<SocketInteractionCont
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.VideoPoker == null)
         {
-            await FollowupAsync("🃏 Esta mesa não tem uma mão ativa. Use `/poker` para começar outra.", ephemeral: true);
+            await FollowupAsync("🃏 Esta mesa não tem uma mão ativa. Use `/cassino poker` para começar outra.", ephemeral: true);
             return;
         }
 

@@ -8,6 +8,7 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Api.Commands.Casino;
 
+[Group("cassino", "Jogos de cassino")]
 public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly IEconomyRepository _economy;
@@ -99,7 +100,7 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
 
         if (game == null)
         {
-            await FollowupAsync("🃏 Esta mesa não tem mais uma mão ativa ou não é sua. Use `/blackjack` para começar outra.", ephemeral: true);
+            await FollowupAsync("🃏 Esta mesa não tem mais uma mão ativa ou não é sua. Use `/cassino blackjack` para começar outra.", ephemeral: true);
             return;
         }
 

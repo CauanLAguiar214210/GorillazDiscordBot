@@ -7,6 +7,7 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
+[Group("cassino", "Jogos de cassino")]
 public class CoinFlipSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoPlayService _play;
@@ -66,7 +67,7 @@ public class CoinFlipSlashModule : InteractionModuleBase<SocketInteractionContex
         var session = _sessions.GetActive(Context.User.Id);
         if (session?.Coin == null)
         {
-            await FollowupAsync("🪙 Esta mesa não tem uma moeda ativa. Use `/caraoucoroa` para começar outra.", ephemeral: true);
+            await FollowupAsync("🪙 Esta mesa não tem uma moeda ativa. Use `/cassino caraoucoroa` para começar outra.", ephemeral: true);
             return;
         }
 
