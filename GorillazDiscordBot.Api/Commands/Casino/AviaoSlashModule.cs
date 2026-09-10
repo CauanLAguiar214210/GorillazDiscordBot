@@ -54,7 +54,7 @@ public class AviaoSlashModule : InteractionModuleBase<SocketInteractionContext>
 
         await RespondAsync(
             embed: AviaoTableBuilder.BuildAviaoTable(game, Context.User, balance),
-            components: AviaoTableBuilder.BuildFlightComponents());
+            components: AviaoTableBuilder.BuildFlightComponents(game));
     }
 
     [ComponentInteraction(AviaoTableBuilder.CustomIdPrefix + AviaoTableBuilder.FlyAction, true)]
@@ -102,7 +102,7 @@ public class AviaoSlashModule : InteractionModuleBase<SocketInteractionContext>
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
             m.Embed = AviaoTableBuilder.BuildAviaoTable(game, Context.User, balance);
-            m.Components = AviaoTableBuilder.BuildFlightComponents();
+            m.Components = AviaoTableBuilder.BuildFlightComponents(game);
         });
     }
 
@@ -179,7 +179,7 @@ public class AviaoSlashModule : InteractionModuleBase<SocketInteractionContext>
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
             m.Embed = AviaoTableBuilder.BuildAviaoTable(game, Context.User, balance);
-            m.Components = AviaoTableBuilder.BuildFlightComponents();
+            m.Components = AviaoTableBuilder.BuildFlightComponents(game);
         });
     }
 

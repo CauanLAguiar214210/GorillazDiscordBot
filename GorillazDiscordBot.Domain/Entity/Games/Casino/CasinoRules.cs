@@ -2,8 +2,8 @@ namespace GorillazDiscordBot.Domain.Entity.Games.Casino;
 
 public static class CasinoRules
 {
-    public const int MinBet = 10;
-    public const int MaxBet = 1_000_000;
+    public const ulong MinBet = 10;
+    public const ulong MaxBet = 1_000_000;
 
     public const int RouletteNumberCount = 37;
 
@@ -19,6 +19,7 @@ public static class CasinoRules
     public const int CoinFlipPayout = 2;
 
     public const double AviaoStartMultiplier = 1.0;
+    public const double AviaoMinCashOutMultiplier = 1.10;
     public const double AviaoStepMultiplier = 0.1;
     public const double AviaoMinCrash = 1.0;
     public const double AviaoMaxCrash = 5.0;
@@ -41,6 +42,6 @@ public static class CasinoRules
 
     public const int BaccaratTiePayout = 9;
 
-    public static bool IsValidBet(int amount)
+    public static bool IsValidBet(ulong amount)
         => amount >= MinBet && amount <= MaxBet;
 }

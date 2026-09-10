@@ -11,11 +11,12 @@ public sealed class AviaoGame
 
     public double CrashMultiplier { get; private set; }
 
-    public bool HasCrashed { get; private set; }
-
+public bool HasCrashed { get; private set; }
     public bool HasCashedOut { get; private set; }
-
     public bool IsFinished => HasCrashed || HasCashedOut;
+
+    public bool CanCashOut
+        => !IsFinished && _currentMultiplier >= CasinoRules.AviaoMinCashOutMultiplier;
 
     public AviaoGame(ulong bet, Func<double>? crashPoint = null)
     {
@@ -47,10 +48,13 @@ public sealed class AviaoGame
         return HasCrashed;
     }
 
-    public ulong CashOut()
+public ulong CashOut()
     {
         if (IsFinished)
-            throw new InvalidOperationException("Este aviãozinho já encerrou o voo.");
+            throw new InvalidOperationException("Este aviao ja encerrou o voo.");
+
+        if (!CanCashOut)
+            throw new InvalidOperationException("O aviao ainda nao atingiu o multiplicador minimo para sacar.");
 
         HasCashedOut = true;
         return (ulong)Math.Floor(Bet * _currentMultiplier);

@@ -47,7 +47,7 @@ public class CasinoPlayService
                 effective = totalBet * (ulong)value / 100UL;
                 appliedRelic = CreateAppliedRelic(relic);
             }
-            else if (!isCashback && returnAmount > 0)
+            else if (!isCashback && totalBet > 0 && returnAmount > totalBet)
             {
                 effective = returnAmount + (returnAmount * (ulong)value / 100UL);
                 if (effective > returnAmount)

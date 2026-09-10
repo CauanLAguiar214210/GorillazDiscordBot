@@ -73,7 +73,7 @@ public static class HighLowTableBuilder
         sb.AppendLine("**Regras**");
         sb.AppendLine();
         sb.AppendLine("• Decida se a **próxima carta** é maior 🔼 ou menor 🔽 que a atual");
-        sb.AppendLine("• Cada acerto multiplica a aposta por **2x**");
+        sb.AppendLine("• Cada acerto soma **+2x** ao multiplicador");
         sb.AppendLine("• Carta **igual** é empate: nova carta, sem perder o multiplicador");
         sb.AppendLine("• Prever um lado impossível (Maior no Ás, Menor no 2) perde na hora");
         sb.AppendLine("• **Sacar** a qualquer momento para resgatar `aposta × multiplicador`");
