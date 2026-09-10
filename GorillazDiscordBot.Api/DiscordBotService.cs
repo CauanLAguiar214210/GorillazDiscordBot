@@ -76,7 +76,7 @@ public class DiscordBotService : IHostedService
 
         var moduleTypes = Assembly.GetEntryAssembly()!.GetTypes()
             .Where(t => typeof(InteractionModuleBase<SocketInteractionContext>).IsAssignableFrom(t)
-                        && t is { IsAbstract: false, IsInterface: false });
+                        && t is { IsAbstract: false, IsInterface: false, DeclaringType: null });
 
         foreach (var type in moduleTypes)
         {

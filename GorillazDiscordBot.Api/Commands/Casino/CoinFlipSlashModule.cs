@@ -7,9 +7,10 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
-[Group("cassino", "Jogos de cassino")]
-public class CoinFlipSlashModule : InteractionModuleBase<SocketInteractionContext>
+public partial class CasinoSlashModule
 {
+    public class CoinFlipSlashModule : InteractionModuleBase<SocketInteractionContext>
+    {
     private readonly CasinoPlayService _play;
     private readonly CasinoSessionManager _sessions;
 
@@ -177,6 +178,7 @@ public class CoinFlipSlashModule : InteractionModuleBase<SocketInteractionContex
         CoinSideChoice.Coroa => CoinSide.Coroa,
         _ => CoinSide.Cara
     };
+    }
 }
 
 public enum CoinSideChoice

@@ -7,9 +7,10 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
-[Group("cassino", "Jogos de cassino")]
-public class MinesSlashModule : InteractionModuleBase<SocketInteractionContext>
+public partial class CasinoSlashModule
 {
+    public class MinesSlashModule : InteractionModuleBase<SocketInteractionContext>
+    {
     private readonly CasinoPlayService _play;
     private readonly CasinoSessionManager _sessions;
 
@@ -212,6 +213,7 @@ public class MinesSlashModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     private static int ToMinesCount(MinesCountChoice choice) => (int)choice + 1;
+    }
 }
 
 public enum MinesCountChoice

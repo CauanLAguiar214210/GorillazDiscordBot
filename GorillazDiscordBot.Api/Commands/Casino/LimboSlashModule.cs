@@ -7,9 +7,10 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
-[Group("cassino", "Jogos de cassino")]
-public class LimboSlashModule : InteractionModuleBase<SocketInteractionContext>
+public partial class CasinoSlashModule
 {
+    public class LimboSlashModule : InteractionModuleBase<SocketInteractionContext>
+    {
     private readonly CasinoPlayService _play;
     private readonly CasinoSessionManager _sessions;
 
@@ -177,6 +178,7 @@ public class LimboSlashModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     private static double toTarget(LimboTargetChoice choice) => ((int)choice) / 100d;
+    }
 }
 
 public enum LimboTargetChoice

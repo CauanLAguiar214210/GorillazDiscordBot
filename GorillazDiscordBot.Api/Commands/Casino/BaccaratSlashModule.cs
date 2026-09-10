@@ -7,9 +7,10 @@ using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
-[Group("cassino", "Jogos de cassino")]
-public class BaccaratSlashModule : InteractionModuleBase<SocketInteractionContext>
+public partial class CasinoSlashModule
 {
+    public class BaccaratSlashModule : InteractionModuleBase<SocketInteractionContext>
+    {
     private readonly CasinoPlayService _play;
     private readonly CasinoSessionManager _sessions;
 
@@ -183,6 +184,7 @@ public class BaccaratSlashModule : InteractionModuleBase<SocketInteractionContex
     }
 
     private static BaccaratBetType ToBetType(BaccaratBetChoice choice) => (BaccaratBetType)choice;
+    }
 }
 
 public enum BaccaratBetChoice

@@ -6,11 +6,12 @@ using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
 
-namespace GorillazDiscordBot.Api.Commands.Casino;
+namespace GorillazDiscordBot.Commands.Casino;
 
-[Group("cassino", "Jogos de cassino")]
-public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionContext>
+public partial class CasinoSlashModule
 {
+    public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionContext>
+    {
     private readonly IEconomyRepository _economy;
     private readonly IEconomyAccessor _accessor;
     private readonly GameSessionManager _sessions;
@@ -265,5 +266,6 @@ public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionConte
     {
         var embed = await SettleAndBuildAsync(expired, "⏳ Sua mão anterior expirou e o dealer jogou por você.\n\n");
         await FollowupAsync(embed: embed, ephemeral: true);
+    }
     }
 }
