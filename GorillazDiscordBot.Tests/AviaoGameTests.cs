@@ -54,13 +54,14 @@ public class AviaoGameTests
     }
 
     [Fact]
-    public void CashOut_Imediato_DevolveAposta()
+    public void CashOut_AbaixoDoMinimo_LancaExcecao()
     {
         var game = new AviaoGame(100, () => 5.0);
 
-        var amount = game.CashOut();
+        game.CanCashOut.Should().BeFalse();
+        var act = () => game.CashOut();
 
-        amount.Should().Be(100);
+        act.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
@@ -79,6 +80,7 @@ public class AviaoGameTests
     public void Fly_DepoisDeAbrirMao_LancaExcecao()
     {
         var game = new AviaoGame(100, () => 5.0);
+        game.Fly();
         game.CashOut();
 
         var act = () => game.Fly();

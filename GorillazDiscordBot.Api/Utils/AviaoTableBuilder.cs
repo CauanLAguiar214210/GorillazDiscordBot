@@ -50,11 +50,11 @@ public static class AviaoTableBuilder
         return embed.Build();
     }
 
-    public static MessageComponent BuildFlightComponents()
+    public static MessageComponent BuildFlightComponents(AviaoGame game)
     {
         return new ComponentBuilder()
             .WithButton("Voar", $"{CustomIdPrefix}{FlyAction}", ButtonStyle.Primary, new Emoji("✈️"))
-            .WithButton("Pegar", $"{CustomIdPrefix}{CashOutAction}", ButtonStyle.Success, new Emoji("🪂"))
+            .WithButton("Pegar", $"{CustomIdPrefix}{CashOutAction}", ButtonStyle.Success, new Emoji("🪂"), disabled: !game.CanCashOut)
             .WithButton("Pagamentos", $"{CustomIdPrefix}{PaytableAction}", ButtonStyle.Secondary, new Emoji("📊"))
             .Build();
     }
@@ -84,6 +84,7 @@ public static class AviaoTableBuilder
 
         sb.AppendLine("**Regras:**");
         sb.AppendLine("• O multiplicador sobe **+0.10x** a cada clique em Voar");
+        sb.AppendLine("• Você só pode sacar a partir de **1.10x**");
         sb.AppendLine("• O aviãozinho explode em um ponto aleatório (1.00x a 5.00x)");
         sb.AppendLine("• Aperte **Pegar** antes de explodir para resgatar");
         sb.AppendLine("• Pagamento = aposta x multiplicador atual");

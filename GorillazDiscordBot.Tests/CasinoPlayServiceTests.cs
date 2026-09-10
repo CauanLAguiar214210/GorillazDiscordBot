@@ -138,6 +138,66 @@ public class CasinoPlayServiceTests
     }
 
     [Fact]
+    public async Task PayOutAsync_RelogioGainBonus_NaoAplicaEmEmpate_RetornoIgualAposta()
+    {
+        _inventory.Add(new InventoryItem { UserId = 1, ItemKey = "relogio", Quantity = 1, IsEquipped = true });
+        _shopRepo.GetAllAsync().Returns(new List<ShopItem>
+        {
+            MakeRelic("relogio", RelicEffect.GainBonus, RelicGameType.Rps, 20)
+        });
+        _economy.AddMoneyAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<EconomyTransactionType>(), Arg.Any<string>())
+            .Returns(true);
+        _economy.GetOrCreateAsync(1, "alt").Returns(new EconomyProfile { UserId = 1, Money = 100 });
+        var service = CreateService();
+
+        var payout = await service.PayOutAsync(2, 100, "alt", "empate do jokenpô", RelicGameType.Rps, 100);
+
+        await _economy.Received(1).AddMoneyAsync(1, 100, EconomyTransactionType.Bet, "empate do jokenpô");
+        payout.Bonus.Should().Be(0);
+        payout.Relic.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task PayOutAsync_RelogioGainBonus_NaoAplicaEmRefundoParcial()
+    {
+        _inventory.Add(new InventoryItem { UserId = 1, ItemKey = "relogio", Quantity = 1, IsEquipped = true });
+        _shopRepo.GetAllAsync().Returns(new List<ShopItem>
+        {
+            MakeRelic("relogio", RelicEffect.GainBonus, RelicGameType.Wheel, 20)
+        });
+        _economy.AddMoneyAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<EconomyTransactionType>(), Arg.Any<string>())
+            .Returns(true);
+        _economy.GetOrCreateAsync(1, "alt").Returns(new EconomyProfile { UserId = 1, Money = 100 });
+        var service = CreateService();
+
+        var payout = await service.PayOutAsync(2, 40, "alt", "faixa da roda", RelicGameType.Wheel, 100);
+
+        await _economy.Received(1).AddMoneyAsync(1, 40, EconomyTransactionType.Bet, "faixa da roda");
+        payout.Bonus.Should().Be(0);
+        payout.Relic.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task PayOutAsync_RelogioGainBonus_NaoAplicaEmPushDeBlackjack()
+    {
+        _inventory.Add(new InventoryItem { UserId = 1, ItemKey = "relogio", Quantity = 1, IsEquipped = true });
+        _shopRepo.GetAllAsync().Returns(new List<ShopItem>
+        {
+            MakeRelic("relogio", RelicEffect.GainBonus, RelicGameType.Blackjack, 20)
+        });
+        _economy.AddMoneyAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<EconomyTransactionType>(), Arg.Any<string>())
+            .Returns(true);
+        _economy.GetOrCreateAsync(1, "alt").Returns(new EconomyProfile { UserId = 1, Money = 100 });
+        var service = CreateService();
+
+        var payout = await service.PayOutAsync(2, 100, "alt", "push do blackjack", RelicGameType.Blackjack, 100);
+
+        await _economy.Received(1).AddMoneyAsync(1, 100, EconomyTransactionType.Bet, "push do blackjack");
+        payout.Bonus.Should().Be(0);
+        payout.Relic.Should().BeNull();
+    }
+
+    [Fact]
     public async Task PayOutAsync_RelogioCashback_DevolvePercentualNaDerrota()
     {
         _inventory.Add(new InventoryItem { UserId = 1, ItemKey = "relogio_cash", Quantity = 1, IsEquipped = true });

@@ -173,6 +173,7 @@ public class HighLowSlashModule : InteractionModuleBase<SocketInteractionContext
         }
 
         var game = session.HighLow;
+        var previousCard = game.CurrentCard;
         var result = game.Guess(higher);
 
         if (result == HighLowGuessResult.Lose)
@@ -183,8 +184,8 @@ public class HighLowSlashModule : InteractionModuleBase<SocketInteractionContext
                 Context.User.Id, 0, Context.User.Username, "Errou no maior/menor",
                 RelicGameType.HighLow, session.Bet);
 
-            var resultSection = $"❌ A próxima carta foi **{game.CurrentCard.Symbol}** "
-                + $"e você errou! Perdeu **{EconomyFormat.Full(session.Bet)}** moedas.\n"
+            var resultSection = $"❌ A carta era **`{previousCard.Symbol}`** e a próxima foi "
+                + $"**`{game.CurrentCard.Symbol}`** — você errou! Perdeu **{EconomyFormat.Full(session.Bet)}** moedas.\n"
                 + CasinoTableBuilder.DescribeAppliedRelic(payout);
 
             await Context.Interaction.ModifyOriginalResponseAsync(m =>
@@ -199,8 +200,8 @@ public class HighLowSlashModule : InteractionModuleBase<SocketInteractionContext
         var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
 
         var section = result == HighLowGuessResult.Tie
-            ? $"🤝 Empate! Carta trocada para **`{game.CurrentCard.Symbol}`**."
-            : $"✅ Acertou! A carta agora é **`{game.CurrentCard.Symbol}`**.";
+            ? $"🤝 Empate! **`{previousCard.Symbol}`** → **`{game.CurrentCard.Symbol}`** — carta trocada."
+            : $"✅ Acertou! **`{previousCard.Symbol}`** → **`{game.CurrentCard.Symbol}`** — carta atual!";
 
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {

@@ -30,7 +30,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
         var dailyPetBonus = await _shop.GetUpgradePercentAsync(mainId, UpgradeEffect.Daily);
         if (dailyPetBonus > 0)
-            reward += reward * dailyPetBonus / 100;
+            reward += reward * (ulong)dailyPetBonus / 100;
 
         var boost = profile.DailyBoostPending;
         if (boost && profile.DailyBoostExpiresAt is { } exp && exp <= DateTime.UtcNow)
@@ -61,7 +61,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
 
         var balance = newBalance + income;
 
-        await ReplyAsync($"💰 **Daily resgatado!** +{EconomyFormat.Full((ulong)reward)} moedas na carteira.{suffix}{incomeLine}\nSaldo atual: **{EconomyFormat.Full(balance)}**");
+        await ReplyAsync($"💰 **Daily resgatado!** +{EconomyFormat.Full(reward)} moedas na carteira.{suffix}{incomeLine}\nSaldo atual: **{EconomyFormat.Full(balance)}**");
     }
 
     [Command("saldo")]
@@ -380,44 +380,6 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
             await _economy.SetRobAttemptAsync(attackerMain, now, now.Add(EconomyRules.RobCaughtLockout));
             await ReplyAsync($"🚨 **Você foi pego roubando** **{target.GetDisplayName()}**! Ficará **3 horas** sem poder roubar.");
         }
-    }
-
-    [Command("ranking")]
-    [Alias("rank")]
-    public async Task RankingAsync()
-    {
-        var top = await _economy.GetTopUsersAsync(10);
-
-        if (top.Count == 0)
-        {
-            await ReplyAsync("📭 Ninguém tem patrimônio ainda.");
-            return;
-        }
-
-        var sb = new StringBuilder("🏆 **Ranking de Riqueza**\n\n");
-        int pos = 1;
-
-        foreach (var u in top)
-        {
-            var medal = pos switch
-            {
-                1 => "🥇",
-                2 => "🥈",
-                3 => "🥉",
-                _ => $"{pos}º"
-            };
-            sb.AppendLine($"{medal} **{await ResolveGlobalNameAsync(u)}** — {EconomyFormat.Compact(u.NetWorth)}");
-            pos++;
-        }
-
-        await ReplyAsync(sb.ToString());
-    }
-
-    private async Task<string> ResolveGlobalNameAsync(EconomyProfile profile)
-    {
-        IUser? cached = Context.Client.GetUser(profile.UserId);
-        var user = cached ?? await Context.Client.GetUserAsync(profile.UserId);
-        return user?.GetDisplayName() ?? profile.Username;
     }
 
     [Command("historico")]

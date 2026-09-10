@@ -17,7 +17,7 @@ public class HighLowGameTests
     }
 
     [Fact]
-    public void Guess_Acerto_MultiplicaEMudaCarta()
+    public void Guess_Acerto_SomaEMudaCarta()
     {
         var game = new HighLowGame(100, MakeDeck(Card(Rank.Seven), Card(Rank.Nine)));
 
@@ -25,7 +25,7 @@ public class HighLowGameTests
 
         result.Should().Be(HighLowGuessResult.Win);
         game.CurrentCard.Should().Be(Card(Rank.Nine));
-        game.Multiplier.Should().Be(2.0);
+        game.Multiplier.Should().Be(3.0);
         game.IsFinished.Should().BeFalse();
     }
 
@@ -82,7 +82,7 @@ public class HighLowGameTests
 
         var amount = game.CashOut();
 
-        amount.Should().Be(400);
+        amount.Should().Be(500);
         game.HasCashedOut.Should().BeTrue();
         game.IsFinished.Should().BeTrue();
     }

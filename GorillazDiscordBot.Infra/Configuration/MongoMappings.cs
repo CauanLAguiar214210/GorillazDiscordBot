@@ -5,6 +5,7 @@ using MongoDB.Bson.Serialization.Serializers;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Entity.Ranking;
 
 namespace GorillazDiscordBot.Infra.Configuration;
 
@@ -146,6 +147,33 @@ public static class MongoMappings
             map.MapMember(c => c.RelicValue).SetElementName("RelicValue");
             map.MapMember(c => c.UpgradeEffect).SetElementName("UpgradeEffect");
             map.MapMember(c => c.UpgradeValue).SetElementName("UpgradeValue");
+        });
+
+        BsonClassMap.RegisterClassMap<RankingTier>(map =>
+        {
+            map.SetIgnoreExtraElements(true);
+            map.MapIdMember(c => c.Id)
+               .SetSerializer(new StringSerializer(BsonType.ObjectId))
+               .SetIdGenerator(StringObjectIdGenerator.Instance);
+            map.MapMember(c => c.Key).SetElementName("Key");
+            map.MapMember(c => c.Title).SetElementName("Title");
+            map.MapMember(c => c.Emoji).SetElementName("Emoji");
+            map.MapMember(c => c.MinNetWorth).SetElementName("MinNetWorth");
+            map.MapMember(c => c.SortOrder).SetElementName("SortOrder");
+            map.MapMember(c => c.IsActive).SetElementName("IsActive");
+        });
+
+        BsonClassMap.RegisterClassMap<HallOfFame>(map =>
+        {
+            map.SetIgnoreExtraElements(true);
+            map.MapIdMember(c => c.Id)
+               .SetSerializer(new StringSerializer(BsonType.ObjectId))
+               .SetIdGenerator(StringObjectIdGenerator.Instance);
+            map.MapMember(c => c.UserId).SetElementName("UserId");
+            map.MapMember(c => c.Phase).SetElementName("Phase");
+            map.MapMember(c => c.Title).SetElementName("Title");
+            map.MapMember(c => c.Phrase).SetElementName("Phrase");
+            map.MapMember(c => c.SortOrder).SetElementName("SortOrder");
         });
         }
     }

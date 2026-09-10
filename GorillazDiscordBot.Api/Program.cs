@@ -74,6 +74,7 @@ builder.Services.AddSingleton<IEconomyRepository, EconomyRepository>();
 builder.Services.AddSingleton<IShopRepository, ShopRepository>();
 builder.Services.AddSingleton<IGifRepository, GifRepository>();
 builder.Services.AddSingleton<IGuildMemberRepository, GuildMemberRepository>();
+builder.Services.AddSingleton<IRankingRepository, RankingRepository>();
 
 // Guild settings (cache + MongoDB, um documento por servidor)
 builder.Services.AddSingleton(typeof(ISettingsRepository<>), typeof(SettingsRepository<>));
@@ -122,10 +123,11 @@ try
     await host.Services.GetRequiredService<IGuildMemberRepository>().EnsureIndexesAsync();
     await host.Services.GetRequiredService<IUserRepository>().EnsureIndexesAsync();
     await host.Services.GetRequiredService<IShopRepository>().EnsureIndexesAsync();
+    await host.Services.GetRequiredService<IRankingRepository>().EnsureIndexesAsync();
 }
 catch (Exception ex)
 {
-    logger.LogWarning(ex, "Falha ao garantir índices das collections (GuildMember/DiscordUserProfile/Shop)");
+    logger.LogWarning(ex, "Falha ao garantir índices das collections (GuildMember/DiscordUserProfile/Shop/Ranking)");
 }
 
 await host.RunAsync();

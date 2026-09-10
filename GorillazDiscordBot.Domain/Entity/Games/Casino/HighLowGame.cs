@@ -71,7 +71,7 @@ public sealed class HighLowGame
         }
 
         CurrentCard = drawn;
-        Multiplier = Math.Min(Multiplier * CasinoRules.HighLowMultiplierStep, MaxMultiplier);
+        Multiplier = Math.Min(Multiplier + CasinoRules.HighLowMultiplierStep, MaxMultiplier);
         return HighLowGuessResult.Win;
     }
 
