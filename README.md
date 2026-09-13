@@ -77,6 +77,10 @@ Config via `.env` (carregado por DotNetEnv em `GorillazDiscordBot.Api/.env`, tem
 | `MONGODB_DATABASE_NAME` | Não | `gorillazbot` |
 | `COMMAND_PREFIX` | Não | `macaco ` |
 | `OWM_API_KEY` | Não | — |
+| `LUCKY_MONKEY_URL` | Não | `http://localhost:8080` |
+| `LUCKY_MONKEY_API_KEY` | Não | — (header `X-Api-Key` do cassino) |
+| `LUCKY_MONKEY_JWT_SIGNING_KEY` | Não | — (deve ser a mesma `LuckyMonkey:Jwt:SigningKey` do serviço de cassino) |
+| `LUCKY_MONKEY_JWT_ISSUER` / `LUCKY_MONKEY_JWT_AUDIENCE` | Não | `LuckyMonkey` / `LuckyMonkey.Clients` |
 | `AWS_LOG_GROUP` / `AWS_REGION` | Não | — (ativa logging CloudWatch) |
 
 ## Build, teste e execução

@@ -1,9 +1,9 @@
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
-using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.Enums;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -16,16 +16,16 @@ public static class CoinTableBuilder
     public const string LeaveAction = "leave";
 
     public static Embed BuildCoinFlipTable(
-        CoinFlipGame game, CoinSide chosen, IUser player, ulong balance, string? resultSection = null)
+        CoinState state, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine(game.HasFlipped
-            ? $"🪙 Caiu: **{DescribeSide(game.Result!.Value)}** {DescribeEmoji(game.Result!.Value)}"
+        sb.AppendLine(state.HasFlipped
+            ? $"🪙 Caiu: **{DescribeSide(state.Result!.Value)}** {DescribeEmoji(state.Result!.Value)}"
             : "🪙 A moeda está no ar…");
 
         sb.AppendLine();
-        sb.AppendLine($"🎯 Aposta: **{DescribeSide(chosen)}**");
+        sb.AppendLine($"🎯 Aposta: **{DescribeSide(state.Side)}**");
 
         if (resultSection != null)
         {

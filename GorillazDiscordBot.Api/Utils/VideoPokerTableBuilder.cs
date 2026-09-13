@@ -1,10 +1,9 @@
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
-using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.Enums;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -18,15 +17,14 @@ public static class VideoPokerTableBuilder
     public const string LeaveAction = "leave";
 
     public static Embed BuildVideoPokerTable(
-        VideoPokerGame game, ulong bet, IUser player, ulong balance, string? resultSection = null)
+        VideoPokerState state, ulong bet, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine(FormatCards(game));
-        if (game.HasDrawn)
+        sb.AppendLine(FormatCards(state));
+        if (state.HasDrawn)
         {
-            var outcome = game.Evaluate();
-            sb.AppendLine($"📊 Mão: **{DescribeOutcome(outcome)}**");
+            sb.AppendLine($"📊 Mão: **{DescribeOutcome(state.Outcome ?? VideoPokerHandOutcome.None)}**");
         }
         else
         {
@@ -59,13 +57,13 @@ public static class VideoPokerTableBuilder
         return embed.Build();
     }
 
-    public static MessageComponent BuildHoldComponents(VideoPokerGame game, ulong ownerId)
+    public static MessageComponent BuildHoldComponents(VideoPokerState state, ulong ownerId)
     {
         var builder = new ComponentBuilder();
 
-        for (var i = 0; i < game.Hand.Count; i++)
+        for (var i = 0; i < state.Hand.Count; i++)
         {
-            var held = game.HeldPositions.Contains(i);
+            var held = state.HeldPositions.Contains(i);
             builder.WithButton(
                 new ButtonBuilder
                 {
@@ -146,14 +144,14 @@ public static class VideoPokerTableBuilder
         _ => "Nenhuma combinação"
     };
 
-    private static string FormatCards(VideoPokerGame game)
+    private static string FormatCards(VideoPokerState state)
     {
         var sb = new StringBuilder();
-        for (var i = 0; i < game.Hand.Count; i++)
+        for (var i = 0; i < state.Hand.Count; i++)
         {
-            var held = game.HeldPositions.Contains(i);
+            var held = state.HeldPositions.Contains(i);
             var prefix = held ? "🔒" : "";
-            sb.Append($"`{prefix}{game.Hand[i].Symbol}` ");
+            sb.Append($"`{prefix}{CasinoCards.CardText(state.Hand[i])}` ");
         }
         return sb.ToString().TrimEnd();
     }

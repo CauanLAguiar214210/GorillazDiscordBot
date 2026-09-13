@@ -18,11 +18,13 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.3" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.3" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\GorillazDiscordBot.Domain\GorillazDiscordBot.Domain.csproj" />
     <ProjectReference Include="..\GorillazDiscordBot.Infra\GorillazDiscordBot.Infra.csproj" />
+    <PackageReference Include="LuckyMonkey.Contracts" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,9 +2,8 @@ using System.Globalization;
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
-using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -18,14 +17,14 @@ public static class AviaoTableBuilder
     public const string LeaveAction = "leave";
 
     public static Embed BuildAviaoTable(
-        AviaoGame game, IUser player, ulong balance, string? resultSection = null)
+        AviaoState state, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine(DescribeFlight(game));
+        sb.AppendLine(DescribeFlight(state));
 
         sb.AppendLine();
-        sb.AppendLine($"💰 Aposta: **{EconomyFormat.Full(game.Bet)}** moedas");
+        sb.AppendLine($"💰 Aposta: **{EconomyFormat.Full(state.Bet)}** moedas");
 
         if (resultSection != null)
         {
@@ -50,11 +49,11 @@ public static class AviaoTableBuilder
         return embed.Build();
     }
 
-    public static MessageComponent BuildFlightComponents(AviaoGame game)
+    public static MessageComponent BuildFlightComponents(AviaoState state)
     {
         return new ComponentBuilder()
             .WithButton("Voar", $"{CustomIdPrefix}{FlyAction}", ButtonStyle.Primary, new Emoji("✈️"))
-            .WithButton("Pegar", $"{CustomIdPrefix}{CashOutAction}", ButtonStyle.Success, new Emoji("🪂"), disabled: !game.CanCashOut)
+            .WithButton("Pegar", $"{CustomIdPrefix}{CashOutAction}", ButtonStyle.Success, new Emoji("🪂"), disabled: !state.CanCashOut)
             .WithButton("Pagamentos", $"{CustomIdPrefix}{PaytableAction}", ButtonStyle.Secondary, new Emoji("📊"))
             .Build();
     }
@@ -96,15 +95,15 @@ public static class AviaoTableBuilder
             .Build();
     }
 
-    private static string DescribeFlight(AviaoGame game)
+    private static string DescribeFlight(AviaoState state)
     {
-        if (game.HasCrashed)
-            return $"💥 **Crash!** O aviãozinho explodiu em **{FormatMultiplier(game.CrashMultiplier)}**.";
+        if (state.HasCrashed)
+            return $"💥 **Crash!** O aviãozinho explodiu em **{FormatMultiplier(state.CrashMultiplier!.Value)}**.";
 
-        if (game.HasCashedOut)
-            return $"🪂 Você pulou em **{FormatMultiplier(game.CurrentMultiplier)}**!";
+        if (state.HasCashedOut)
+            return $"🪂 Você pulou em **{FormatMultiplier(state.CurrentMultiplier)}**!";
 
-        return $"✈️ Voando… multiplicador atual **{FormatMultiplier(game.CurrentMultiplier)}**";
+        return $"✈️ Voando… multiplicador atual **{FormatMultiplier(state.CurrentMultiplier)}**";
     }
 
     public static string FormatMultiplier(double value)

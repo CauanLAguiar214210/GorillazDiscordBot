@@ -1,27 +1,30 @@
 using Discord;
 using Discord.Interactions;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.Common;
+using LuckyMonkey.Contracts.Enums;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
 [DontAutoRegister]
 public class PlinkoSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
-    private readonly CasinoPlayService _play;
-    private readonly CasinoSessionManager _sessions;
+    private readonly CasinoApiClient _casino;
+    private readonly PayoutService _play;
+    private readonly CasinoBetTracker _bets;
 
-    public PlinkoSlashModule(CasinoPlayService play, CasinoSessionManager sessions)
+    public PlinkoSlashModule(CasinoApiClient casino, PayoutService play, CasinoBetTracker bets)
     {
+        _casino = casino;
         _play = play;
-        _sessions = sessions;
+        _bets = bets;
     }
 
     [SlashCommand("plinko", "Solte a bolinha e veja onde ela cai")]
     public async Task PlinkoAsync(
-        [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M, 1B")] string valor)
+        [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M")] string valor)
     {
         if (!EconomyAmountParser.TryParse(valor, out var amount, out var parseError))
         {
@@ -29,32 +32,23 @@ public class PlinkoSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var expired = _sessions.TakeExpired(Context.User.Id);
-        if (expired != null)
+        var opened = await CasinoApiFlow.OpenBetAsync(
+            this, _casino, _play, _bets, GameKind.Plinko, Context.User.Id, amount, null,
+            "🎱 Você já tem um plinko em andamento! Use os botões do jogo aberto.");
+        if (opened == null)
+            return;
+
+        if (opened.ExpiredSettle is { } expired)
             await SettleExpiredAsync(expired);
 
-        if (_sessions.GetActive(Context.User.Id) != null)
-        {
-            await RespondAsync("🎱 Você já tem um plinko em andamento! Use os botões do jogo aberto.", ephemeral: true);
+        if (!await DeductOrLeaveAsync(amount, "Aposta no plinko"))
             return;
-        }
 
-        var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, amount, Context.User.Username, "Aposta no plinko");
-
-        if (!deducted)
-        {
-            await RespondAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
-            return;
-        }
-
-        var game = new PlinkoGame();
-        _sessions.Add(Context.User.Id, CasinoSession.ForPlinko(amount, game));
+        _bets.Set(Context.User.Id, amount);
 
         var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
-
         await RespondAsync(
-            embed: PlinkoTableBuilder.BuildPlinkoTable(game, amount, Context.User, balance),
+            embed: PlinkoTableBuilder.BuildPlinkoTable(opened.State.Plinko!, amount, Context.User, balance),
             components: PlinkoTableBuilder.BuildPlinkoComponents());
     }
 
@@ -63,39 +57,32 @@ public class PlinkoSlashModule : InteractionModuleBase<SocketInteractionContext>
     {
         await DeferAsync();
 
-        var session = _sessions.GetActive(Context.User.Id);
-        if (session?.Plinko == null)
-        {
-            await FollowupAsync("🎱 Este plinko não está mais ativo. Use `/cassino plinko` para começar outro.", ephemeral: true);
+        var done = await CasinoApiFlow.RunActionAsync(
+            this, _casino, GameKind.Plinko, Context.User.Id, "drop", null,
+            "🎱 Este plinko não está mais ativo. Use `/cassino plinko` para começar outro.");
+        if (done == null)
             return;
-        }
 
-        var game = session.Plinko;
-        game.Drop();
-        _sessions.Remove(Context.User.Id);
-
-        var returnAmount = game.CalculateReturn(session.Bet);
-
+        var bet = _bets.Get(Context.User.Id);
+        var returnAmount = done.Outcome?.ReturnAmount ?? 0;
         var payout = await _play.PayOutAsync(
             Context.User.Id, returnAmount, Context.User.Username, "Resultado do plinko",
-            RelicGameType.Plinko, session.Bet);
+            RelicGameType.Plinko, bet);
+        _bets.Remove(Context.User.Id);
 
-        var multiplier = PlinkoTableBuilder.FormatMultiplier(PlinkoGame.Multiplier(game.ResultBin!.Value));
-
-        var resultSection = returnAmount > 0
-            ? $"🎱 A bolinha caiu na faixa **{game.ResultBin.Value + 1}** "
-                + $"e você ganhou **{EconomyFormat.Full(returnAmount)}** moedas ({multiplier})!\n"
-                + CasinoTableBuilder.DescribeAppliedRelic(payout)
-            : $"❌ A bolinha caiu na faixa **{game.ResultBin.Value + 1}** "
-                + $"e você perdeu **{EconomyFormat.Full(session.Bet)}** moedas.\n"
-                + CasinoTableBuilder.DescribeAppliedRelic(payout);
+        var state = done.State.Plinko!;
+        var resultSection = (returnAmount > 0
+                ? $"🎱 A bolinha caiu na faixa **{state.ResultBin!.Value + 1}** "
+                    + $"e você ganhou **{EconomyFormat.Full(returnAmount)}** moedas "
+                    + $"({PlinkoTableBuilder.FormatMultiplier(state.Multiplier)})!\n"
+                : $"❌ A bolinha caiu na faixa **{state.ResultBin!.Value + 1}** "
+                    + $"e você perdeu **{EconomyFormat.Full(bet)}** moedas.\n")
+            + CasinoTableBuilder.DescribeAppliedRelic(payout);
 
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
-            m.Embed = PlinkoTableBuilder.BuildPlinkoTable(
-                game, session.Bet, Context.User, payout.Balance, resultSection);
-            m.Components = PlinkoTableBuilder.BuildPlinkoResultComponents(
-                Context.User.Id, session.Bet);
+            m.Embed = PlinkoTableBuilder.BuildPlinkoTable(state, bet, Context.User, payout.Balance, resultSection);
+            m.Components = PlinkoTableBuilder.BuildPlinkoResultComponents(Context.User.Id, bet);
         });
     }
 
@@ -110,33 +97,24 @@ public class PlinkoSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var expired = _sessions.TakeExpired(Context.User.Id);
-        if (expired != null)
+        var opened = await CasinoApiFlow.OpenBetAsync(
+            this, _casino, _play, _bets, GameKind.Plinko, Context.User.Id, bet, null,
+            "🎱 Você já tem um plinko em andamento! Use os botões do jogo aberto.", followup: true);
+        if (opened == null)
+            return;
+
+        if (opened.ExpiredSettle is { } expired)
             await SettleExpiredAsync(expired);
 
-        if (_sessions.GetActive(Context.User.Id) != null)
-        {
-            await FollowupAsync("🎱 Você já tem um plinko em andamento! Use os botões do jogo aberto.", ephemeral: true);
+        if (!await DeductOrLeaveAsync(bet, "Novo plinko", followup: true))
             return;
-        }
 
-        var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, bet, Context.User.Username, "Novo plinko");
-
-        if (!deducted)
-        {
-            await FollowupAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
-            return;
-        }
-
-        var game = new PlinkoGame();
-        _sessions.Add(Context.User.Id, CasinoSession.ForPlinko(bet, game));
+        _bets.Set(Context.User.Id, bet);
 
         var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
-
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
-            m.Embed = PlinkoTableBuilder.BuildPlinkoTable(game, bet, Context.User, balance);
+            m.Embed = PlinkoTableBuilder.BuildPlinkoTable(opened.State.Plinko!, bet, Context.User, balance);
             m.Components = PlinkoTableBuilder.BuildPlinkoComponents();
         });
     }
@@ -156,7 +134,8 @@ public class PlinkoSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        _sessions.Remove(Context.User.Id);
+        await CasinoApiFlow.LeaveAsync(_casino, GameKind.Plinko, Context.User.Id);
+        _bets.Remove(Context.User.Id);
 
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
@@ -164,14 +143,29 @@ public class PlinkoSlashModule : InteractionModuleBase<SocketInteractionContext>
         });
     }
 
-    private async Task SettleExpiredAsync(CasinoSession expired)
+    private async Task SettleExpiredAsync(Outcome expired)
     {
-        if (expired.Plinko is { } plinko && !plinko.HasDropped)
-        {
-            plinko.Drop();
-            await _play.PayOutAsync(
-                Context.User.Id, plinko.CalculateReturn(expired.Bet), Context.User.Username, "Plinko expirado",
-                RelicGameType.Plinko, expired.Bet);
-        }
+        await _play.PayOutAsync(
+            Context.User.Id, expired.ReturnAmount, Context.User.Username,
+            "Plinko expirado", RelicGameType.Plinko, _bets.Get(Context.User.Id));
+    }
+
+    private async Task<bool> DeductOrLeaveAsync(ulong amount, string description, bool followup = false)
+    {
+        var (deducted, _) = await _play.DeductBetAsync(
+            Context.User.Id, amount, Context.User.Username, description);
+
+        if (deducted)
+            return true;
+
+        await CasinoApiFlow.LeaveAsync(_casino, GameKind.Plinko, Context.User.Id);
+
+        var message = "❌ Você não tem moedas suficientes na carteira.";
+        if (followup)
+            await FollowupAsync(message, ephemeral: true);
+        else
+            await RespondAsync(message, ephemeral: true);
+
+        return false;
     }
 }

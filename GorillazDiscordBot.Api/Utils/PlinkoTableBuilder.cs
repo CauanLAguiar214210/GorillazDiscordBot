@@ -1,8 +1,8 @@
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -15,13 +15,13 @@ public static class PlinkoTableBuilder
     public const string LeaveAction = "leave";
 
     public static Embed BuildPlinkoTable(
-        PlinkoGame game, ulong bet, IUser player, ulong balance, string? resultSection = null)
+        PlinkoState state, ulong bet, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine(FormatBoard(game));
-        sb.AppendLine(game.HasDropped
-            ? $"🎱 A bolinha caiu na faixa **{game.ResultBin!.Value + 1}** — {FormatMultiplier(PlinkoGame.Multiplier(game.ResultBin.Value))}"
+        sb.AppendLine(FormatBoard());
+        sb.AppendLine(state.HasDropped
+            ? $"🎱 A bolinha caiu na faixa **{state.ResultBin!.Value + 1}** — {FormatMultiplier(state.Multiplier)}"
             : "🎱 A bolinha está no topo…");
 
         sb.AppendLine();
@@ -94,7 +94,7 @@ public static class PlinkoTableBuilder
     public static string FormatMultiplier(double value)
         => $"{value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}x";
 
-    private static string FormatBoard(PlinkoGame game)
+    private static string FormatBoard()
     {
         var sb = new StringBuilder();
         sb.AppendLine("```");

@@ -2,8 +2,8 @@ using System.Globalization;
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -16,16 +16,16 @@ public static class LimboTableBuilder
     public const string LeaveAction = "leave";
 
     public static Embed BuildLimboTable(
-        LimboGame game, IUser player, ulong balance, string? resultSection = null)
+        LimboState state, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine(game.HasRolled
-            ? DescribeRoll(game)
+        sb.AppendLine(state.HasRolled
+            ? DescribeRoll(state)
             : "🔮 O número ainda não foi revelado…");
 
         sb.AppendLine();
-        sb.AppendLine($"🎯 Alvo: **{FormatMultiplier(game.Target)}**");
+        sb.AppendLine($"🎯 Alvo: **{FormatMultiplier(state.Target)}**");
 
         if (resultSection != null)
         {
@@ -88,9 +88,10 @@ public static class LimboTableBuilder
     public static string FormatMultiplier(double value)
         => $"{value.ToString("0.00", CultureInfo.InvariantCulture)}x";
 
-    private static string DescribeRoll(LimboGame game)
+    private static string DescribeRoll(LimboState state)
     {
-        var badge = game.IsWin ? " ✅✨" : " ❌";
-        return $"🔮 Resultado: **{FormatMultiplier(game.Result!.Value)}**{badge}";
+        var isWin = state.HasRolled && state.Result!.Value >= state.Target;
+        var badge = isWin ? " ✅✨" : " ❌";
+        return $"🔮 Resultado: **{FormatMultiplier(state.Result!.Value)}**{badge}";
     }
 }

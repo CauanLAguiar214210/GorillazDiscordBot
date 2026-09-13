@@ -10,6 +10,8 @@ WORKDIR /src
 COPY GorillazDiscordBot.Api/GorillazDiscordBot.Api.csproj GorillazDiscordBot.Api/
 COPY GorillazDiscordBot.Domain/GorillazDiscordBot.Domain.csproj GorillazDiscordBot.Domain/
 COPY GorillazDiscordBot.Infra/GorillazDiscordBot.Infra.csproj GorillazDiscordBot.Infra/
+COPY nuget.config ./
+COPY packages ./packages
 
 RUN dotnet restore "GorillazDiscordBot.Api/GorillazDiscordBot.Api.csproj"
 

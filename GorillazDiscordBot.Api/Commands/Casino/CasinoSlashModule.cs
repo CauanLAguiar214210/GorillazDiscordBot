@@ -1,27 +1,33 @@
 using Discord;
 using Discord.Interactions;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.Bets;
+using LuckyMonkey.Contracts.Common;
+using LuckyMonkey.Contracts.Enums;
+using LuckyMonkey.Contracts.Sessions;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
 [Group("cassino", "Jogos de cassino")]
 public partial class CasinoSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
-    private readonly CasinoPlayService _play;
-    private readonly CasinoSessionManager _sessions;
+    private readonly CasinoApiClient _casino;
+    private readonly PayoutService _play;
+    private readonly CasinoBetTracker _bets;
 
-    public CasinoSlashModule(CasinoPlayService play, CasinoSessionManager sessions)
+    public CasinoSlashModule(CasinoApiClient casino, PayoutService play, CasinoBetTracker bets)
     {
+        _casino = casino;
         _play = play;
-        _sessions = sessions;
+        _bets = bets;
     }
 
     [SlashCommand("roleta", "Aposta na roleta com botões")]
     public async Task RouletteAsync(
-        [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M, 1B")] string valor,
+        [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M")] string valor,
         [Summary("tipo", "Tipo de aposta")] RouletteBetChoice tipo = RouletteBetChoice.Numero,
         [Summary("alvo", "Número de 0 a 36 (só para tipo número)")] int? alvo = null)
     {
@@ -37,41 +43,32 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
             await RespondAsync(error, ephemeral: true);
             return;
         }
-        var expired = _sessions.TakeExpired(Context.User.Id);
-        if (expired != null)
-            await SettleExpiredAsync(expired);
 
-        if (_sessions.GetActive(Context.User.Id) != null)
-        {
-            await RespondAsync("🎰 Você já tem uma roleta em andamento! Use os botões da mesa aberta.", ephemeral: true);
+        var opened = await CasinoApiFlow.OpenBetAsync(
+            this, _casino, _play, _bets, GameKind.Roulette, Context.User.Id, amount,
+            new BetOptions { RouletteBet = betType, RouletteTarget = target },
+            "🎰 Você já tem uma roleta em andamento! Use os botões da mesa aberta.");
+        if (opened == null)
             return;
-        }
 
-        var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, amount, Context.User.Username, "Aposta na roleta");
+        await SettleExpiredAsync(opened.ExpiredSettle, RelicGameType.Roulette);
 
-        if (!deducted)
-        {
-            await RespondAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
+        if (!await DeductOrLeaveAsync(amount, GameKind.Roulette, "Aposta na roleta"))
             return;
-        }
 
-        var game = new RouletteGame();
-        game.AddBet(amount, betType, target);
-
-        var session = CasinoSession.ForRoulette(amount, game);
-        _sessions.Add(Context.User.Id, session);
+        _bets.Set(Context.User.Id, amount);
 
         var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
+        var state = opened.State.Roulette!;
 
         await RespondAsync(
-            embed: CasinoTableBuilder.BuildRouletteTable(game, Context.User, balance),
-            components: CasinoTableBuilder.BuildRouletteComponents(game.Bets.Count > 0));
+            embed: CasinoTableBuilder.BuildRouletteTable(state, Context.User, balance),
+            components: CasinoTableBuilder.BuildRouletteComponents(state.Bets.Count > 0));
     }
 
     [SlashCommand("cacaniquel", "Joga na caça-níquel com botões")]
     public async Task SlotAsync(
-        [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M, 1B")] string valor)
+        [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M")] string valor)
     {
         if (!EconomyAmountParser.TryParse(valor, out var amount, out var parseError))
         {
@@ -79,34 +76,25 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
             return;
         }
 
-        var expired = _sessions.TakeExpired(Context.User.Id);
-        if (expired != null)
-            await SettleExpiredAsync(expired);
-
-        if (_sessions.GetActive(Context.User.Id) != null)
-        {
-            await RespondAsync("🎰 Você já tem uma máquina em andamento! Use o botão da máquina aberta.", ephemeral: true);
+        var opened = await CasinoApiFlow.OpenBetAsync(
+            this, _casino, _play, _bets, GameKind.Slots, Context.User.Id, amount, null,
+            "🎰 Você já tem uma máquina em andamento! Use o botão da máquina aberta.");
+        if (opened == null)
             return;
-        }
 
-        var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, amount, Context.User.Username, "Aposta na caça-níquel");
+        await SettleExpiredAsync(opened.ExpiredSettle, RelicGameType.Slots);
 
-        if (!deducted)
-        {
-            await RespondAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
+        if (!await DeductOrLeaveAsync(amount, GameKind.Slots, "Aposta na caça-níquel"))
             return;
-        }
 
-        var slots = new SlotMachineGame();
-        var session = CasinoSession.ForSlots(amount, slots);
-        _sessions.Add(Context.User.Id, session);
+        _bets.Set(Context.User.Id, amount);
 
         var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
+        var state = opened.State.Slots!;
 
         await RespondAsync(
-            embed: CasinoTableBuilder.BuildSlotTable(slots, amount, Context.User, balance),
-            components: CasinoTableBuilder.BuildSlotComponents(slots.HasSpun));
+            embed: CasinoTableBuilder.BuildSlotTable(state, amount, Context.User, balance),
+            components: CasinoTableBuilder.BuildSlotComponents(state.HasSpun));
     }
 
     [ComponentInteraction(CasinoTableBuilder.RoulCustomIdPrefix + CasinoTableBuilder.RoulSpinAction, true)]
@@ -114,57 +102,40 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
     {
         await DeferAsync();
 
-        var session = _sessions.GetActive(Context.User.Id);
-        if (session?.Roulette == null)
-        {
-            await FollowupAsync("🎰 Esta mesa não tem uma roleta ativa. Use `/cassino roleta` para começar outra.", ephemeral: true);
+        var action = await CasinoApiFlow.RunActionAsync(
+            this, _casino, GameKind.Roulette, Context.User.Id, "spin", null,
+            "🎰 Esta mesa não tem uma roleta ativa. Use `/cassino roleta` para começar outra.");
+        if (action == null)
             return;
-        }
-
-        var game = session.Roulette;
-        var firstBet = game.Bets.FirstOrDefault();
-        game.Spin();
-        _sessions.Remove(Context.User.Id);
 
         var payout = await _play.PayOutAsync(
-            Context.User.Id, game.CalculateTotalReturn(), Context.User.Username, "Pagamento da roleta",
-            RelicGameType.Roulette, game.TotalBet);
+            Context.User.Id, action.Outcome?.ReturnAmount ?? 0, Context.User.Username, "Pagamento da roleta",
+            RelicGameType.Roulette, action.State.Roulette?.TotalBet ?? _bets.Get(Context.User.Id));
+        _bets.Remove(Context.User.Id);
 
-        var resultSection = DescribeRouletteResult(game) + CasinoTableBuilder.DescribeAppliedRelic(payout);
+        var state = action.State.Roulette!;
+        var firstBet = state.Bets.FirstOrDefault();
+        var resultSection = DescribeRouletteResult(state)
+            + CasinoTableBuilder.DescribeAppliedRelic(payout);
+
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
-            m.Embed = CasinoTableBuilder.BuildRouletteTable(game, Context.User, payout.Balance, resultSection);
+            m.Embed = CasinoTableBuilder.BuildRouletteTable(state, Context.User, payout.Balance, resultSection);
             m.Components = firstBet == null
                 ? new ComponentBuilder().Build()
-                : CasinoTableBuilder.BuildRouletteReplayComponents(Context.User.Id, session.Bet, firstBet.Type, firstBet.Target);
+                : CasinoTableBuilder.BuildRouletteReplayComponents(
+                    Context.User.Id, firstBet.Amount, firstBet.Type, firstBet.Target);
         });
     }
 
     [ComponentInteraction(CasinoTableBuilder.RoulCustomIdPrefix + CasinoTableBuilder.RoulAddBetAction, true)]
     public async Task RouletteAddBetAsync()
-    {
-        var session = _sessions.GetActive(Context.User.Id);
-        if (session?.Roulette == null)
-        {
-            await RespondAsync("🎰 Esta mesa não tem uma roleta ativa. Use `/cassino roleta` para começar outra.",
-                ephemeral: true, components: new ComponentBuilder().Build());
-            return;
-        }
-
-        await RespondWithModalAsync<AddBetModal>("roul:addbet:modal");
-    }
+        => await RespondWithModalAsync<AddBetModal>("roul:addbet:modal");
 
     [ModalInteraction("roul:addbet:modal")]
     public async Task RouletteAddBetModalAsync(AddBetModal modal)
     {
         await DeferAsync();
-
-        var session = _sessions.GetActive(Context.User.Id);
-        if (session?.Roulette == null)
-        {
-            await FollowupAsync("🎰 O tempo para adicionar aposta expirou. Use `/cassino roleta` novamente.", ephemeral: true);
-            return;
-        }
 
         if (!EconomyAmountParser.TryParse(modal.Valor, out var amount, out var parseError))
         {
@@ -188,15 +159,26 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
             return;
         }
 
-        session.Roulette.AddBet(amount, betType, target);
-        _sessions.Touch(Context.User.Id);
+        StakeResponse stake;
+        try
+        {
+            stake = await _casino.AddStakeAsync(GameKind.Roulette, Context.User.Id,
+                new AddStakeRequest { Amount = amount, BetType = betType, Target = target });
+        }
+        catch (CasinoApiException ex)
+        {
+            await _play.RefundAsync(
+                Context.User.Id, amount, Context.User.Username, "Reembolso de aposta extra na roleta");
+            await FollowupAsync(ex.Message, ephemeral: true);
+            return;
+        }
 
         var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
 
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
-            m.Embed = CasinoTableBuilder.BuildRouletteTable(session.Roulette, Context.User, balance);
-            m.Components = CasinoTableBuilder.BuildRouletteComponents(session.Roulette.Bets.Count > 0);
+            m.Embed = CasinoTableBuilder.BuildRouletteTable(stake.State.Roulette!, Context.User, balance);
+            m.Components = CasinoTableBuilder.BuildRouletteComponents(stake.State.Roulette!.Bets.Count > 0);
         });
     }
 
@@ -205,22 +187,20 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
     {
         await DeferAsync();
 
-        var session = _sessions.GetActive(Context.User.Id);
-        if (session?.Slots == null)
-        {
-            await FollowupAsync("🎰 Esta máquina não tem um jogo ativo. Use `/cassino cacaniquel` para começar outro.", ephemeral: true);
+        var action = await CasinoApiFlow.RunActionAsync(
+            this, _casino, GameKind.Slots, Context.User.Id, "spin", null,
+            "🎰 Esta máquina não tem um jogo ativo. Use `/cassino cacaniquel` para começar outro.");
+        if (action == null)
             return;
-        }
 
-        var slots = session.Slots;
-        slots.Spin();
-        _sessions.Remove(Context.User.Id);
-
-        var returnAmount = SlotMachineGame.CalculateReturn(session.Bet, slots.Reels);
+        var bet = _bets.Get(Context.User.Id);
+        var returnAmount = action.Outcome?.ReturnAmount ?? 0;
         var payout = await _play.PayOutAsync(
             Context.User.Id, returnAmount, Context.User.Username, "Pagamento da caça-níquel",
-            RelicGameType.Slots, session.Bet);
+            RelicGameType.Slots, bet);
+        _bets.Remove(Context.User.Id);
 
+        var state = action.State.Slots!;
         var resultSection = (returnAmount > 0
             ? $"🎉 **Você ganhou!** Recebeu **{EconomyFormat.Full(returnAmount)}** moedas."
             : "😢 Você não acertou nenhuma combinação. Boa sorte na próxima!")
@@ -228,8 +208,8 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
 
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
-            m.Embed = CasinoTableBuilder.BuildSlotTable(slots, session.Bet, Context.User, payout.Balance, resultSection);
-            m.Components = CasinoTableBuilder.BuildSlotReplayComponents(Context.User.Id, session.Bet);
+            m.Embed = CasinoTableBuilder.BuildSlotTable(state, bet, Context.User, payout.Balance, resultSection);
+            m.Components = CasinoTableBuilder.BuildSlotReplayComponents(Context.User.Id, bet);
         });
     }
 
@@ -244,32 +224,30 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
             return;
         }
 
-        var expired = _sessions.TakeExpired(Context.User.Id);
-        if (expired != null)
-            await SettleExpiredAsync(expired);
-
-        if (_sessions.GetActive(Context.User.Id) != null)
-        {
-            await FollowupAsync("🎰 Você já tem uma máquina em andamento! Use o botão da máquina aberta.", ephemeral: true);
+        var opened = await CasinoApiFlow.OpenBetAsync(
+            this, _casino, _play, _bets, GameKind.Slots, Context.User.Id, bet, null,
+            "🎰 Você já tem uma máquina em andamento! Use o botão da máquina aberta.", followup: true);
+        if (opened == null)
             return;
-        }
 
-        var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, bet, Context.User.Username, "Nova rodada na caça-níquel");
+        await SettleExpiredAsync(opened.ExpiredSettle, RelicGameType.Slots);
 
-        if (!deducted)
-        {
-            await FollowupAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
+        if (!await DeductOrLeaveAsync(bet, GameKind.Slots, "Nova rodada na caça-níquel", followup: true))
             return;
-        }
 
-        var slots = new SlotMachineGame();
-        slots.Spin();
+        _bets.Set(Context.User.Id, bet);
 
-        var returnAmount = SlotMachineGame.CalculateReturn(bet, slots.Reels);
+        var spin = await CasinoApiFlow.RunActionAsync(
+            this, _casino, GameKind.Slots, Context.User.Id, "spin", null,
+            "🎰 Esta máquina não tem um jogo ativo. Use `/cassino cacaniquel` para começar outro.");
+        if (spin == null)
+            return;
+
+        var returnAmount = spin.Outcome?.ReturnAmount ?? 0;
         var payout = await _play.PayOutAsync(
             Context.User.Id, returnAmount, Context.User.Username, "Pagamento da caça-níquel",
             RelicGameType.Slots, bet);
+        _bets.Remove(Context.User.Id);
 
         var resultSection = (returnAmount > 0
             ? $"🎉 **Você ganhou!** Recebeu **{EconomyFormat.Full(returnAmount)}** moedas."
@@ -278,7 +256,7 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
 
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
-            m.Embed = CasinoTableBuilder.BuildSlotTable(slots, bet, Context.User, payout.Balance, resultSection);
+            m.Embed = CasinoTableBuilder.BuildSlotTable(spin.State.Slots!, bet, Context.User, payout.Balance, resultSection);
             m.Components = CasinoTableBuilder.BuildSlotReplayComponents(ownerId, bet);
         });
     }
@@ -294,37 +272,27 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
             return;
         }
 
-        var expired = _sessions.TakeExpired(Context.User.Id);
-        if (expired != null)
-            await SettleExpiredAsync(expired);
-
-        if (_sessions.GetActive(Context.User.Id) != null)
-        {
-            await FollowupAsync("🎰 Você já tem uma roleta em andamento! Use os botões da mesa aberta.", ephemeral: true);
+        var opened = await CasinoApiFlow.OpenBetAsync(
+            this, _casino, _play, _bets, GameKind.Roulette, Context.User.Id, bet,
+            new BetOptions { RouletteBet = (RouletteBetType)type, RouletteTarget = target },
+            "🎰 Você já tem uma roleta em andamento! Use os botões da mesa aberta.", followup: true);
+        if (opened == null)
             return;
-        }
 
-        var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, bet, Context.User.Username, "Nova rodada na roleta");
+        await SettleExpiredAsync(opened.ExpiredSettle, RelicGameType.Roulette);
 
-        if (!deducted)
-        {
-            await FollowupAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
+        if (!await DeductOrLeaveAsync(bet, GameKind.Roulette, "Nova rodada na roleta", followup: true))
             return;
-        }
 
-        var game = new RouletteGame();
-        game.AddBet(bet, (RouletteBetType)type, target);
-
-        var session = CasinoSession.ForRoulette(bet, game);
-        _sessions.Add(Context.User.Id, session);
+        _bets.Set(Context.User.Id, bet);
 
         var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
+        var state = opened.State.Roulette!;
 
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
-            m.Embed = CasinoTableBuilder.BuildRouletteTable(game, Context.User, balance);
-            m.Components = CasinoTableBuilder.BuildRouletteComponents(game.Bets.Count > 0);
+            m.Embed = CasinoTableBuilder.BuildRouletteTable(state, Context.User, balance);
+            m.Components = CasinoTableBuilder.BuildRouletteComponents(state.Bets.Count > 0);
         });
     }
 
@@ -347,7 +315,8 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
             return;
         }
 
-        _sessions.Remove(Context.User.Id);
+        await CasinoApiFlow.LeaveAsync(_casino, GameKind.Roulette, Context.User.Id);
+        _bets.Remove(Context.User.Id);
 
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
@@ -366,7 +335,8 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
             return;
         }
 
-        _sessions.Remove(Context.User.Id);
+        await CasinoApiFlow.LeaveAsync(_casino, GameKind.Slots, Context.User.Id);
+        _bets.Remove(Context.User.Id);
 
         await Context.Interaction.ModifyOriginalResponseAsync(m =>
         {
@@ -374,30 +344,45 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
         });
     }
 
-    private async Task SettleExpiredAsync(CasinoSession expired)
+    private async Task SettleExpiredAsync(Outcome? expired, RelicGameType gameType)
     {
-        if (expired.Roulette is { } roulette && roulette.Bets.Count > 0)
+        if (expired is { } outcome)
         {
-            roulette.Spin();
             await _play.PayOutAsync(
-                Context.User.Id, roulette.CalculateTotalReturn(), Context.User.Username, "Roleta expirada",
-                RelicGameType.Roulette, roulette.TotalBet);
-        }
-        else if (expired.Slots is { } slots && !slots.HasSpun)
-        {
-            slots.Spin();
-            await _play.PayOutAsync(
-                Context.User.Id, SlotMachineGame.CalculateReturn(expired.Bet, slots.Reels),
-                Context.User.Username, "Caça-níquel expirada", RelicGameType.Slots, expired.Bet);
+                Context.User.Id, outcome.ReturnAmount, Context.User.Username,
+                $"{gameType} expirado(a)", gameType, _bets.Get(Context.User.Id));
         }
     }
 
-    private static string DescribeRouletteResult(RouletteGame game)
+    private async Task<bool> DeductOrLeaveAsync(
+        ulong amount, GameKind game, string description, bool followup = false)
+    {
+        var (deducted, _) = await _play.DeductBetAsync(
+            Context.User.Id, amount, Context.User.Username, description);
+
+        if (deducted)
+            return true;
+
+        await CasinoApiFlow.LeaveAsync(_casino, game, Context.User.Id);
+
+        var message = "❌ Você não tem moedas suficientes na carteira.";
+        if (followup)
+            await FollowupAsync(message, ephemeral: true);
+        else
+            await RespondAsync(message, ephemeral: true);
+
+        return false;
+    }
+
+    private static string DescribeRouletteResult(RouletteState state)
     {
         var sb = new System.Text.StringBuilder();
-        foreach (var bet in game.Bets)
+        if (state.ResultNumber is not { } result)
+            return sb.ToString();
+
+        foreach (var bet in state.Bets)
         {
-            var win = game.CalculateReturn(bet);
+            var win = BetReturn(bet, result);
             if (win > 0)
                 sb.AppendLine($"✅ {DescribeBet(bet)} — venceu **{EconomyFormat.Full(win)}**");
             else
@@ -406,9 +391,26 @@ public partial class CasinoSlashModule : InteractionModuleBase<SocketInteraction
         return sb.ToString();
     }
 
-    private static string DescribeBet(RouletteBet bet)
+    private static string DescribeBet(RouletteBetState bet)
+        => $"{EconomyFormat.Full(bet.Amount)} moedas em {bet.Type} ({bet.Target})";
+
+    private static ulong BetReturn(RouletteBetState bet, int resultNumber)
     {
-        return $"{EconomyFormat.Full(bet.Amount)} moedas em {bet.Type} ({bet.Target})";
+        var isWin = bet.Type switch
+        {
+            RouletteBetType.Number => resultNumber == bet.Target,
+            RouletteBetType.Color => resultNumber != 0
+                && RouletteRules.ColorOf(resultNumber) == (RouletteColor)bet.Target,
+            RouletteBetType.Parity => resultNumber != 0 && resultNumber % 2 == bet.Target,
+            RouletteBetType.Half => bet.Target == 0 ? resultNumber is >= 1 and <= 18 : resultNumber >= 19,
+            _ => false
+        };
+
+        return !isWin
+            ? 0
+            : bet.Type == RouletteBetType.Number
+                ? bet.Amount * (ulong)RouletteRules.StraightPayout
+                : (ulong)Math.Floor(bet.Amount * RouletteRules.EvenMoneyPayout);
     }
 
     private static (RouletteBetType type, int target, string? error) ParseModalBet(AddBetModal modal)

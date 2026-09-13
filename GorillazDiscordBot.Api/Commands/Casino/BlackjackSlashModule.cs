@@ -1,10 +1,10 @@
 using Discord;
 using Discord.Interactions;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games;
-using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.Common;
+using LuckyMonkey.Contracts.Enums;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
@@ -12,260 +12,273 @@ public partial class CasinoSlashModule
 {
     public class BlackjackSlashModule : InteractionModuleBase<SocketInteractionContext>
     {
-    private readonly IEconomyRepository _economy;
-    private readonly IEconomyAccessor _accessor;
-    private readonly GameSessionManager _sessions;
-    private readonly CasinoPlayService _play;
+        private readonly CasinoApiClient _casino;
+        private readonly PayoutService _play;
+        private readonly CasinoBetTracker _bets;
 
-    public BlackjackSlashModule(IEconomyRepository economy, IEconomyAccessor accessor, GameSessionManager sessions, CasinoPlayService play)
-    {
-        _economy = economy;
-        _accessor = accessor;
-        _sessions = sessions;
-        _play = play;
-    }
-
-    [SlashCommand("blackjack", "Inicia uma mão de Blackjack com botões")]
-    public async Task BlackjackAsync(
-        [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M, 1B")] string valor)
-    {
-        if (!EconomyAmountParser.TryParse(valor, out var amount, out var error))
+        public BlackjackSlashModule(CasinoApiClient casino, PayoutService play, CasinoBetTracker bets)
         {
-            await RespondAsync(error, ephemeral: true);
-            return;
+            _casino = casino;
+            _play = play;
+            _bets = bets;
         }
 
-        var userId = Context.User.Id;
-
-        var expired = _sessions.TakeExpired(userId);
-        if (expired != null)
-            expired.Stand();
-
-        if (_sessions.GetActive(userId) != null)
+        [SlashCommand("blackjack", "Inicia uma mão de Blackjack com botões")]
+        public async Task BlackjackAsync(
+            [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M")] string valor)
         {
-            await RespondAsync("🃏 Você já tem uma mão em andamento! Use os botões da mesa aberta.", ephemeral: true);
-            return;
-        }
+            if (!EconomyAmountParser.TryParse(valor, out var amount, out var error))
+            {
+                await RespondAsync(error, ephemeral: true);
+                return;
+            }
 
-        var (deducted, _) = await _economy.TryDeductMoneyAsync(
-            await _accessor.ResolveMainIdAsync(userId), amount, EconomyTransactionType.Bet, "Aposta no blackjack");
+            var userId = Context.User.Id;
 
-        if (!deducted)
-        {
-            await RespondAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
-            return;
-        }
+            var opened = await CasinoApiFlow.OpenBetAsync(
+                this, _casino, _play, _bets, GameKind.Blackjack, userId, amount, null,
+                "🃏 Você já tem uma mão em andamento! Use os botões da mesa aberta.");
+            if (opened == null)
+                return;
 
-        var game = new BlackjackGame(amount);
+            if (opened.ExpiredSettle is { } expired)
+                await SettleExpiredAsync(expired);
 
-        if (game.Phase == BlackjackPhase.Finished)
-        {
-            var settledEmbed = await SettleAndBuildAsync(game);
+            if (!await DeductOrLeaveAsync(amount, "Aposta no blackjack"))
+                return;
+
+            _bets.Set(userId, amount);
+
+            if (opened.Settled is { } settled)
+            {
+                var payout = await _play.PayOutAsync(
+                    userId, settled.ReturnAmount, Context.User.Username, "Pagamento do blackjack",
+                    RelicGameType.Blackjack, amount);
+                _bets.Remove(userId);
+
+                var state = opened.State.Blackjack!;
+                var resultSection = BlackjackTableBuilder.DescribeResult(state, settled.ReturnAmount)
+                    + CasinoTableBuilder.DescribeAppliedRelic(payout)
+                    + $"\n💰 Saldo atual: **{EconomyFormat.Full(payout.Balance)}** moedas";
+
+                await RespondAsync(
+                    embed: BlackjackTableBuilder.BuildTable(state, Context.User, resultSection),
+                    components: BlackjackTableBuilder.BuildResultComponents(userId, state.Bet));
+                return;
+            }
+
+            _bets.SetState(userId, opened.State);
+
+            var balance = await _play.GetBalanceAsync(userId, Context.User.Username);
             await RespondAsync(
-                embed: settledEmbed,
-                components: BlackjackTableBuilder.BuildResultComponents(Context.User.Id, game.Bet));
-
-            if (expired != null)
-                await ReportExpiredAsync(expired);
-
-            return;
+                embed: BlackjackTableBuilder.BuildTable(opened.State.Blackjack!, Context.User),
+                components: BlackjackTableBuilder.BuildActionComponents(opened.State.Blackjack!));
         }
 
-        _sessions.Add(userId, game);
-
-        await RespondAsync(
-            embed: BlackjackTableBuilder.BuildTable(game, Context.User),
-            components: BlackjackTableBuilder.BuildActionComponents(game));
-
-        if (expired != null)
-            await ReportExpiredAsync(expired);
-    }
-
-    [ComponentInteraction("bj:*", true)]
-    public async Task BlackjackActionAsync(string action)
-    {
-        await DeferAsync();
-
-        var userId = Context.User.Id;
-
-        var expired = _sessions.TakeExpired(userId);
-        if (expired != null)
+        [ComponentInteraction("bj:*", true)]
+        public async Task BlackjackActionAsync(string action)
         {
-            expired.Stand();
-            var expiredEmbed = await SettleAndBuildAsync(expired, "⏳ Sua mão anterior expirou e o dealer jogou por você.\n\n");
-            await ReplaceWithResultAsync(expiredEmbed, Context.User.Id, expired.Bet);
-            return;
+            await DeferAsync();
+
+            var userId = Context.User.Id;
+
+            switch (action)
+            {
+                case BlackjackTableBuilder.PaytableAction:
+                    await FollowupAsync(embed: BlackjackTableBuilder.BuildBlackjackPaytable(), ephemeral: true);
+                    return;
+
+                case BlackjackTableBuilder.HitAction:
+                    await BlackjackStepAsync("hit");
+                    return;
+
+                case BlackjackTableBuilder.StandAction:
+                    await BlackjackStepAsync("stand");
+                    return;
+
+                case BlackjackTableBuilder.DoubleAction:
+                    await BlackjackDoubleAsync();
+                    return;
+
+                default:
+                    await FollowupAsync("Ação desconhecida.", ephemeral: true);
+                    return;
+            }
         }
 
-        var game = _sessions.GetActive(userId);
-
-        if (game == null)
+        [ComponentInteraction(BlackjackTableBuilder.ResultCustomIdPrefix + BlackjackTableBuilder.ReplayAction + ":*:*", true)]
+        public async Task BlackjackReplayAsync(ulong ownerId, ulong bet)
         {
-            await FollowupAsync("🃏 Esta mesa não tem mais uma mão ativa ou não é sua. Use `/cassino blackjack` para começar outra.", ephemeral: true);
-            return;
-        }
+            await DeferAsync();
 
-        switch (action)
-        {
-            case BlackjackTableBuilder.PaytableAction:
-                await FollowupAsync(embed: BlackjackTableBuilder.BuildBlackjackPaytable(), ephemeral: true);
+            if (ownerId != Context.User.Id)
+            {
+                await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
+                return;
+            }
+
+            var userId = Context.User.Id;
+
+            var opened = await CasinoApiFlow.OpenBetAsync(
+                this, _casino, _play, _bets, GameKind.Blackjack, userId, bet, null,
+                "🃏 Você já tem uma mão em andamento! Use os botões da mesa aberta.", followup: true);
+            if (opened == null)
                 return;
 
-            case BlackjackTableBuilder.HitAction:
-                game.Hit();
-                _sessions.Touch(userId);
-                break;
+            if (opened.ExpiredSettle is { } expired)
+                await SettleExpiredAsync(expired);
 
-            case BlackjackTableBuilder.StandAction:
-                game.Stand();
-                break;
-
-            case BlackjackTableBuilder.DoubleAction:
-                if (!BlackjackTableBuilder.CanDouble(game))
-                {
-                    await FollowupAsync("⚠️ Dobrar é permitido apenas com as duas primeiras cartas.", ephemeral: true);
-                    return;
-                }
-
-                var (deducted, _) = await _economy.TryDeductMoneyAsync(
-                    await _accessor.ResolveMainIdAsync(userId), game.Bet, EconomyTransactionType.Bet, "Double no blackjack");
-
-                if (!deducted)
-                {
-                    await FollowupAsync("❌ Você não tem moedas suficientes na carteira para dobrar.", ephemeral: true);
-                    return;
-                }
-
-                game.DoubleDown();
-                break;
-
-            default:
-                await FollowupAsync("Ação desconhecida.", ephemeral: true);
+            if (!await DeductOrLeaveAsync(bet, "Nova mão no blackjack", followup: true))
                 return;
-        }
 
-        if (game.Phase == BlackjackPhase.Finished)
-        {
-            var embed = await SettleAndBuildAsync(game);
-            await ReplaceWithResultAsync(embed, Context.User.Id, game.Bet);
-        }
-        else
-        {
+            _bets.Set(userId, bet);
+
+            if (opened.Settled is { } settled)
+            {
+                var payout = await _play.PayOutAsync(
+                    userId, settled.ReturnAmount, Context.User.Username, "Pagamento do blackjack",
+                    RelicGameType.Blackjack, bet);
+                _bets.Remove(userId);
+
+                var state = opened.State.Blackjack!;
+                var resultSection = BlackjackTableBuilder.DescribeResult(state, settled.ReturnAmount)
+                    + CasinoTableBuilder.DescribeAppliedRelic(payout)
+                    + $"\n💰 Saldo atual: **{EconomyFormat.Full(payout.Balance)}** moedas";
+
+                await Context.Interaction.ModifyOriginalResponseAsync(m =>
+                {
+                    m.Embed = BlackjackTableBuilder.BuildTable(state, Context.User, resultSection);
+                    m.Components = BlackjackTableBuilder.BuildResultComponents(ownerId, state.Bet);
+                });
+                return;
+            }
+
+            _bets.SetState(userId, opened.State);
+
+            var balance = await _play.GetBalanceAsync(userId, Context.User.Username);
             await Context.Interaction.ModifyOriginalResponseAsync(m =>
             {
-                m.Embed = BlackjackTableBuilder.BuildTable(game, Context.User);
-                m.Components = BlackjackTableBuilder.BuildActionComponents(game);
+                m.Embed = BlackjackTableBuilder.BuildTable(opened.State.Blackjack!, Context.User);
+                m.Components = BlackjackTableBuilder.BuildActionComponents(opened.State.Blackjack!);
             });
         }
-    }
 
-    [ComponentInteraction(BlackjackTableBuilder.ResultCustomIdPrefix + BlackjackTableBuilder.ReplayAction + ":*:*", true)]
-    public async Task BlackjackReplayAsync(ulong ownerId, ulong bet)
-    {
-        await DeferAsync();
-
-        if (ownerId != Context.User.Id)
+        [ComponentInteraction(BlackjackTableBuilder.ResultCustomIdPrefix + BlackjackTableBuilder.LeaveAction + ":*", true)]
+        public async Task BlackjackLeaveAsync(ulong ownerId)
         {
-            await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
-            return;
+            await DeferAsync();
+
+            if (ownerId != Context.User.Id)
+            {
+                await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
+                return;
+            }
+
+            await CasinoApiFlow.LeaveAsync(_casino, GameKind.Blackjack, Context.User.Id);
+            _bets.Remove(Context.User.Id);
+
+            await Context.Interaction.ModifyOriginalResponseAsync(m =>
+            {
+                m.Components = new ComponentBuilder().Build();
+            });
         }
 
-        var userId = Context.User.Id;
+        [ComponentInteraction(BlackjackTableBuilder.ResultCustomIdPrefix + BlackjackTableBuilder.PaytableAction, true)]
+        public async Task BlackjackResultPaytableAsync()
+            => await RespondAsync(embed: BlackjackTableBuilder.BuildBlackjackPaytable(), ephemeral: true);
 
-        var expired = _sessions.TakeExpired(userId);
-        if (expired != null)
+        private async Task BlackjackDoubleAsync()
         {
-            expired.Stand();
-            var expiredEmbed = await SettleAndBuildAsync(expired, "⏳ Sua mão anterior expirou e o dealer jogou por você.\n\n");
-            await ReplaceWithResultAsync(expiredEmbed, ownerId, expired.Bet);
-            return;
+            var userId = Context.User.Id;
+
+            var current = _bets.GetState(userId)?.Blackjack;
+            if (current == null || !current.CanDouble)
+            {
+                await FollowupAsync("⚠️ Dobrar é permitido apenas com as duas primeiras cartas.", ephemeral: true);
+                return;
+            }
+
+            var bet = _bets.Get(userId);
+            var (deducted, _) = await _play.DeductBetAsync(
+                userId, bet, Context.User.Username, "Double no blackjack");
+
+            if (!deducted)
+            {
+                await FollowupAsync("❌ Você não tem moedas suficientes na carteira para dobrar.", ephemeral: true);
+                return;
+            }
+
+            await BlackjackStepAsync("double", bet);
         }
 
-        if (_sessions.GetActive(userId) != null)
+        private async Task BlackjackStepAsync(string action, ulong? extraBet = null)
         {
-            await FollowupAsync("🃏 Você já tem uma mão em andamento! Use os botões da mesa aberta.", ephemeral: true);
-            return;
+            var userId = Context.User.Id;
+
+            var done = await CasinoApiFlow.RunActionAsync(
+                this, _casino, GameKind.Blackjack, userId, action, null,
+                "🃏 Esta mesa não tem mais uma mão ativa ou não é sua. Use `/cassino blackjack` para começar outra.");
+            if (done == null)
+            {
+                if (extraBet is { } bet)
+                    await _play.RefundAsync(userId, bet, Context.User.Username, "Reembolso do double no blackjack");
+                return;
+            }
+
+            _bets.SetState(userId, done.State);
+
+            if (done.Outcome is { } outcome)
+            {
+                var payout = await _play.PayOutAsync(
+                    userId, outcome.ReturnAmount, Context.User.Username, "Pagamento do blackjack",
+                    RelicGameType.Blackjack, _bets.Get(userId));
+                _bets.Remove(userId);
+
+                var state = done.State.Blackjack!;
+                var resultSection = BlackjackTableBuilder.DescribeResult(state, outcome.ReturnAmount)
+                    + CasinoTableBuilder.DescribeAppliedRelic(payout)
+                    + $"\n💰 Saldo atual: **{EconomyFormat.Full(payout.Balance)}** moedas";
+
+                await Context.Interaction.ModifyOriginalResponseAsync(m =>
+                {
+                    m.Embed = BlackjackTableBuilder.BuildTable(state, Context.User, resultSection);
+                    m.Components = BlackjackTableBuilder.BuildResultComponents(userId, state.Bet);
+                });
+            }
+            else
+            {
+                await Context.Interaction.ModifyOriginalResponseAsync(m =>
+                {
+                    m.Embed = BlackjackTableBuilder.BuildTable(done.State.Blackjack!, Context.User);
+                    m.Components = BlackjackTableBuilder.BuildActionComponents(done.State.Blackjack!);
+                });
+            }
         }
 
-        var (deducted, _) = await _economy.TryDeductMoneyAsync(
-            await _accessor.ResolveMainIdAsync(userId), bet, EconomyTransactionType.Bet, "Nova mão no blackjack");
-
-        if (!deducted)
+        private async Task SettleExpiredAsync(Outcome expired)
         {
-            await FollowupAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
-            return;
+            await _play.PayOutAsync(
+                Context.User.Id, expired.ReturnAmount, Context.User.Username,
+                "Blackjack expirado", RelicGameType.Blackjack, _bets.Get(Context.User.Id));
         }
 
-        var game = new BlackjackGame(bet);
-
-        if (game.Phase == BlackjackPhase.Finished)
+        private async Task<bool> DeductOrLeaveAsync(ulong amount, string description, bool followup = false)
         {
-            var settledEmbed = await SettleAndBuildAsync(game);
-            await ReplaceWithResultAsync(settledEmbed, ownerId, game.Bet);
-            return;
+            var (deducted, _) = await _play.DeductBetAsync(
+                Context.User.Id, amount, Context.User.Username, description);
+
+            if (deducted)
+                return true;
+
+            await CasinoApiFlow.LeaveAsync(_casino, GameKind.Blackjack, Context.User.Id);
+
+            var message = "❌ Você não tem moedas suficientes na carteira.";
+            if (followup)
+                await FollowupAsync(message, ephemeral: true);
+            else
+                await RespondAsync(message, ephemeral: true);
+
+            return false;
         }
-
-        _sessions.Add(userId, game);
-
-        await Context.Interaction.ModifyOriginalResponseAsync(m =>
-        {
-            m.Embed = BlackjackTableBuilder.BuildTable(game, Context.User);
-            m.Components = BlackjackTableBuilder.BuildActionComponents(game);
-        });
-    }
-
-    [ComponentInteraction(BlackjackTableBuilder.ResultCustomIdPrefix + BlackjackTableBuilder.LeaveAction + ":*", true)]
-    public async Task BlackjackLeaveAsync(ulong ownerId)
-    {
-        await DeferAsync();
-
-        if (ownerId != Context.User.Id)
-        {
-            await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
-            return;
-        }
-
-        _sessions.Remove(Context.User.Id);
-
-        await Context.Interaction.ModifyOriginalResponseAsync(m =>
-        {
-            m.Components = new ComponentBuilder().Build();
-        });
-    }
-
-    [ComponentInteraction(BlackjackTableBuilder.ResultCustomIdPrefix + BlackjackTableBuilder.PaytableAction, true)]
-    public async Task BlackjackResultPaytableAsync()
-        => await RespondAsync(embed: BlackjackTableBuilder.BuildBlackjackPaytable(), ephemeral: true);
-
-    private async Task<Embed> SettleAndBuildAsync(BlackjackGame game, string prefix = "")
-    {
-        _sessions.Remove(Context.User.Id);
-
-        var totalReturn = game.CalculateTotalReturn();
-
-        var payout = await _play.PayOutAsync(
-            Context.User.Id, totalReturn, Context.User.Username, "Pagamento do blackjack",
-            RelicGameType.Blackjack, game.Bet);
-
-        var resultSection = prefix
-            + BlackjackTableBuilder.DescribeResult(game, totalReturn)
-            + CasinoTableBuilder.DescribeAppliedRelic(payout)
-            + $"\n💰 Saldo atual: **{EconomyFormat.Full(payout.Balance)}** moedas";
-
-        return BlackjackTableBuilder.BuildTable(game, Context.User, resultSection);
-    }
-
-    private Task ReplaceWithResultAsync(Embed embed, ulong ownerId, ulong bet)
-        => Context.Interaction.ModifyOriginalResponseAsync(m =>
-        {
-            m.Embed = embed;
-            m.Components = BlackjackTableBuilder.BuildResultComponents(ownerId, bet);
-        });
-
-    private async Task ReportExpiredAsync(BlackjackGame expired)
-    {
-        var embed = await SettleAndBuildAsync(expired, "⏳ Sua mão anterior expirou e o dealer jogou por você.\n\n");
-        await FollowupAsync(embed: embed, ephemeral: true);
-    }
     }
 }

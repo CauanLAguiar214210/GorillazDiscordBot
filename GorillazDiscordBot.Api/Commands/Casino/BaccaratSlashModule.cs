@@ -1,9 +1,12 @@
 using Discord;
 using Discord.Interactions;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.Bets;
+using LuckyMonkey.Contracts.Common;
+using LuckyMonkey.Contracts.Enums;
+using LuckyMonkey.Contracts.Sessions;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
@@ -11,179 +14,182 @@ public partial class CasinoSlashModule
 {
     public class BaccaratSlashModule : InteractionModuleBase<SocketInteractionContext>
     {
-    private readonly CasinoPlayService _play;
-    private readonly CasinoSessionManager _sessions;
+        private readonly CasinoApiClient _casino;
+        private readonly PayoutService _play;
+        private readonly CasinoBetTracker _bets;
 
-    public BaccaratSlashModule(CasinoPlayService play, CasinoSessionManager sessions)
-    {
-        _play = play;
-        _sessions = sessions;
-    }
-
-    [SlashCommand("baccarat", "Aposte no jogador, no banco ou no empate")]
-    public async Task BaccaratAsync(
-        [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M, 1B")] string valor,
-        [Summary("aposta", "Em quem você quer apostar")] BaccaratBetChoice aposta)
-    {
-        if (!EconomyAmountParser.TryParse(valor, out var amount, out var parseError))
+        public BaccaratSlashModule(CasinoApiClient casino, PayoutService play, CasinoBetTracker bets)
         {
-            await RespondAsync(parseError, ephemeral: true);
-            return;
+            _casino = casino;
+            _play = play;
+            _bets = bets;
         }
 
-        var expired = _sessions.TakeExpired(Context.User.Id);
-        if (expired != null)
-            await SettleExpiredAsync(expired);
-
-        if (_sessions.GetActive(Context.User.Id) != null)
+        [SlashCommand("baccarat", "Aposte no jogador, no banco ou no empate")]
+        public async Task BaccaratAsync(
+            [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M")] string valor,
+            [Summary("aposta", "Em quem você quer apostar")] BaccaratBetChoice aposta)
         {
-            await RespondAsync("🎴 Você já tem uma partida em andamento! Use os botões da mesa aberta.", ephemeral: true);
-            return;
+            if (!EconomyAmountParser.TryParse(valor, out var amount, out var parseError))
+            {
+                await RespondAsync(parseError, ephemeral: true);
+                return;
+            }
+
+            var opened = await CasinoApiFlow.OpenBetAsync(
+                this, _casino, _play, _bets, GameKind.Baccarat, Context.User.Id, amount,
+                new BetOptions { BaccaratBet = ToBetType(aposta) },
+                "🎴 Você já tem uma partida em andamento! Use os botões da mesa aberta.");
+            if (opened == null)
+                return;
+
+            if (opened.ExpiredSettle is { } expired)
+                await SettleExpiredAsync(expired);
+
+            if (!await DeductOrLeaveAsync(amount, "Aposta no baccarat"))
+                return;
+
+            _bets.Set(Context.User.Id, amount);
+
+            var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
+            await RespondAsync(
+                embed: BaccaratTableBuilder.BuildBaccaratTable(opened.State.Baccarat!, Context.User, balance),
+                components: BaccaratTableBuilder.BuildBaccaratComponents(Context.User.Id));
         }
 
-        var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, amount, Context.User.Username, "Aposta no baccarat");
-
-        if (!deducted)
+        [ComponentInteraction(BaccaratTableBuilder.CustomIdPrefix + BaccaratTableBuilder.RevealAction, true)]
+        public async Task BaccaratRevealAsync()
         {
-            await RespondAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
-            return;
+            await DeferAsync();
+
+            var done = await CasinoApiFlow.RunActionAsync(
+                this, _casino, GameKind.Baccarat, Context.User.Id, "reveal", null,
+                "🎴 Esta mesa não está mais ativa. Use `/cassino baccarat` para começar outra.");
+            if (done == null)
+                return;
+
+            var bet = _bets.Get(Context.User.Id);
+            var payout = await _play.PayOutAsync(
+                Context.User.Id, done.Outcome?.ReturnAmount ?? 0, Context.User.Username,
+                "Resultado do baccarat", RelicGameType.Baccarat, bet);
+            _bets.Remove(Context.User.Id);
+
+            var state = done.State.Baccarat!;
+            var resultSection = DescribeResult(state, bet, done.Outcome?.ReturnAmount ?? 0)
+                + CasinoTableBuilder.DescribeAppliedRelic(payout);
+
+            await Context.Interaction.ModifyOriginalResponseAsync(m =>
+            {
+                m.Embed = BaccaratTableBuilder.BuildBaccaratTable(state, Context.User, payout.Balance, resultSection);
+                m.Components = BaccaratTableBuilder.BuildBaccaratResultComponents(Context.User.Id, bet, (int)state.BetType);
+            });
         }
 
-        var game = new BaccaratGame(amount, ToBetType(aposta));
-        _sessions.Add(Context.User.Id, CasinoSession.ForBaccarat(amount, game));
-
-        var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
-
-        await RespondAsync(
-            embed: BaccaratTableBuilder.BuildBaccaratTable(game, Context.User, balance),
-            components: BaccaratTableBuilder.BuildBaccaratComponents(Context.User.Id));
-    }
-
-    [ComponentInteraction(BaccaratTableBuilder.CustomIdPrefix + BaccaratTableBuilder.RevealAction, true)]
-    public async Task BaccaratRevealAsync()
-    {
-        await DeferAsync();
-
-        var session = _sessions.GetActive(Context.User.Id);
-        if (session?.Baccarat == null)
+        [ComponentInteraction(BaccaratTableBuilder.CustomIdPrefix + BaccaratTableBuilder.ReplayAction + ":*:*:*", true)]
+        public async Task BaccaratReplayAsync(ulong ownerId, ulong bet, int betType)
         {
-            await FollowupAsync("🎴 Esta mesa não está mais ativa. Use `/cassino baccarat` para começar outra.", ephemeral: true);
-            return;
+            await DeferAsync();
+
+            if (ownerId != Context.User.Id)
+            {
+                await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
+                return;
+            }
+
+            var opened = await CasinoApiFlow.OpenBetAsync(
+                this, _casino, _play, _bets, GameKind.Baccarat, Context.User.Id, bet,
+                new BetOptions { BaccaratBet = (BaccaratBetType)betType },
+                "🎴 Você já tem uma partida em andamento! Use os botões da mesa aberta.", followup: true);
+            if (opened == null)
+                return;
+
+            if (opened.ExpiredSettle is { } expired)
+                await SettleExpiredAsync(expired);
+
+            if (!await DeductOrLeaveAsync(bet, "Nova mão de baccarat", followup: true))
+                return;
+
+            _bets.Set(Context.User.Id, bet);
+
+            var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
+            await Context.Interaction.ModifyOriginalResponseAsync(m =>
+            {
+                m.Embed = BaccaratTableBuilder.BuildBaccaratTable(opened.State.Baccarat!, Context.User, balance);
+                m.Components = BaccaratTableBuilder.BuildBaccaratComponents(Context.User.Id);
+            });
         }
 
-        var game = session.Baccarat;
-        game.Reveal();
-        _sessions.Remove(Context.User.Id);
+        [ComponentInteraction(BaccaratTableBuilder.CustomIdPrefix + BaccaratTableBuilder.PaytableAction, true)]
+        public async Task BaccaratPaytableAsync()
+            => await RespondAsync(embed: BaccaratTableBuilder.BuildBaccaratPaytable(), ephemeral: true);
 
-        var returnAmount = game.CalculateReturn(session.Bet);
-
-        var payout = await _play.PayOutAsync(
-            Context.User.Id, returnAmount, Context.User.Username, "Resultado do baccarat",
-            RelicGameType.Baccarat, session.Bet);
-
-        var resultSection = DescribeResult(game, returnAmount)
-            + CasinoTableBuilder.DescribeAppliedRelic(payout);
-
-        await Context.Interaction.ModifyOriginalResponseAsync(m =>
+        [ComponentInteraction(BaccaratTableBuilder.CustomIdPrefix + BaccaratTableBuilder.LeaveAction + ":*", true)]
+        public async Task BaccaratLeaveAsync(ulong ownerId)
         {
-            m.Embed = BaccaratTableBuilder.BuildBaccaratTable(game, Context.User, payout.Balance, resultSection);
-            m.Components = BaccaratTableBuilder.BuildBaccaratResultComponents(
-                Context.User.Id, session.Bet, (int)game.BetType);
-        });
-    }
+            await DeferAsync();
 
-    [ComponentInteraction(BaccaratTableBuilder.CustomIdPrefix + BaccaratTableBuilder.ReplayAction + ":*:*:*", true)]
-    public async Task BaccaratReplayAsync(ulong ownerId, ulong bet, int betType)
-    {
-        await DeferAsync();
+            if (ownerId != Context.User.Id)
+            {
+                await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
+                return;
+            }
 
-        if (ownerId != Context.User.Id)
-        {
-            await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
-            return;
+            await CasinoApiFlow.LeaveAsync(_casino, GameKind.Baccarat, Context.User.Id);
+            _bets.Remove(Context.User.Id);
+
+            await Context.Interaction.ModifyOriginalResponseAsync(m =>
+            {
+                m.Components = new ComponentBuilder().Build();
+            });
         }
 
-        var expired = _sessions.TakeExpired(Context.User.Id);
-        if (expired != null)
-            await SettleExpiredAsync(expired);
-
-        if (_sessions.GetActive(Context.User.Id) != null)
+        private async Task SettleExpiredAsync(Outcome expired)
         {
-            await FollowupAsync("🎴 Você já tem uma partida em andamento! Use os botões da mesa aberta.", ephemeral: true);
-            return;
-        }
-
-        var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, bet, Context.User.Username, "Nova mão de baccarat");
-
-        if (!deducted)
-        {
-            await FollowupAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
-            return;
-        }
-
-        var game = new BaccaratGame(bet, (BaccaratBetType)betType);
-        _sessions.Add(Context.User.Id, CasinoSession.ForBaccarat(bet, game));
-
-        var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
-
-        await Context.Interaction.ModifyOriginalResponseAsync(m =>
-        {
-            m.Embed = BaccaratTableBuilder.BuildBaccaratTable(game, Context.User, balance);
-            m.Components = BaccaratTableBuilder.BuildBaccaratComponents(Context.User.Id);
-        });
-    }
-
-    [ComponentInteraction(BaccaratTableBuilder.CustomIdPrefix + BaccaratTableBuilder.PaytableAction, true)]
-    public async Task BaccaratPaytableAsync()
-        => await RespondAsync(embed: BaccaratTableBuilder.BuildBaccaratPaytable(), ephemeral: true);
-
-    [ComponentInteraction(BaccaratTableBuilder.CustomIdPrefix + BaccaratTableBuilder.LeaveAction + ":*", true)]
-    public async Task BaccaratLeaveAsync(ulong ownerId)
-    {
-        await DeferAsync();
-
-        if (ownerId != Context.User.Id)
-        {
-            await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
-            return;
-        }
-
-        _sessions.Remove(Context.User.Id);
-
-        await Context.Interaction.ModifyOriginalResponseAsync(m =>
-        {
-            m.Components = new ComponentBuilder().Build();
-        });
-    }
-
-    private async Task SettleExpiredAsync(CasinoSession expired)
-    {
-        if (expired.Baccarat is { } baccarat && !baccarat.HasRevealed)
-        {
-            baccarat.Reveal();
             await _play.PayOutAsync(
-                Context.User.Id, baccarat.CalculateReturn(expired.Bet), Context.User.Username, "Baccarat expirado",
-                RelicGameType.Baccarat, expired.Bet);
+                Context.User.Id, expired.ReturnAmount, Context.User.Username,
+                "Baccarat expirado", RelicGameType.Baccarat, _bets.Get(Context.User.Id));
         }
-    }
 
-    private static string DescribeResult(BaccaratGame game, ulong returnAmount)
-    {
-        if (game.Outcome == BaccaratOutcome.Tie)
-            return $"🤝 **Empate!** Jogador e banco têm **{game.Player.Value}**. "
-                + $"Você recebeu **{EconomyFormat.Full(returnAmount)}** moedas.\n";
+        private async Task<bool> DeductOrLeaveAsync(ulong amount, string description, bool followup = false)
+        {
+            var (deducted, _) = await _play.DeductBetAsync(
+                Context.User.Id, amount, Context.User.Username, description);
 
-        var winner = game.Outcome == BaccaratOutcome.PlayerWin ? "Jogador" : "Banco";
+            if (deducted)
+                return true;
 
-        return game.IsWin
-            ? $"🎉 **{winner} venceu!** Você recebeu **{EconomyFormat.Full(returnAmount)}** moedas.\n"
-            : $"😢 **{winner} venceu.** Você apostou no outro lado e perdeu "
-                + $"**{EconomyFormat.Full(game.Bet)}** moedas.\n";
-    }
+            await CasinoApiFlow.LeaveAsync(_casino, GameKind.Baccarat, Context.User.Id);
 
-    private static BaccaratBetType ToBetType(BaccaratBetChoice choice) => (BaccaratBetType)choice;
+            var message = "❌ Você não tem moedas suficientes na carteira.";
+            if (followup)
+                await FollowupAsync(message, ephemeral: true);
+            else
+                await RespondAsync(message, ephemeral: true);
+
+            return false;
+        }
+
+        private static string DescribeResult(LuckyMonkey.Contracts.State.BaccaratState state, ulong bet, ulong returnAmount)
+        {
+            if (state.Outcome == BaccaratOutcome.Tie)
+                return $"🤝 **Empate!** Jogador e banco têm **{state.PlayerValue}**. "
+                    + $"Você recebeu **{EconomyFormat.Full(returnAmount)}** moedas.\n";
+
+            var winner = state.Outcome == BaccaratOutcome.PlayerWin ? "Jogador" : "Banco";
+
+            return returnAmount > 0
+                ? $"🎉 **{winner} venceu!** Você recebeu **{EconomyFormat.Full(returnAmount)}** moedas.\n"
+                : $"😢 **{winner} venceu.** Você apostou no outro lado e perdeu "
+                    + $"**{EconomyFormat.Full(bet)}** moedas.\n";
+        }
+
+        private static BaccaratBetType ToBetType(BaccaratBetChoice choice) => choice switch
+        {
+            BaccaratBetChoice.Jogador => BaccaratBetType.Player,
+            BaccaratBetChoice.Banco => BaccaratBetType.Banker,
+            BaccaratBetChoice.Empate => BaccaratBetType.Tie,
+            _ => BaccaratBetType.Player
+        };
     }
 }
 

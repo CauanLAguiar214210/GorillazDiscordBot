@@ -1,9 +1,11 @@
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.Common;
+using LuckyMonkey.Contracts.Enums;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -46,26 +48,26 @@ public static class CasinoTableBuilder
     }
 
     public static Embed BuildRouletteTable(
-        RouletteGame game, IUser player, ulong balance, string? resultSection = null)
+        RouletteState state, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine(game.HasSpun
-            ? $"🎰 Resultado: **{FormatWinningNumber(game.ResultNumber!.Value)}**"
+        sb.AppendLine(state.HasSpun
+            ? $"🎰 Resultado: **{FormatWinningNumber(state.ResultNumber!.Value)}**"
             : "🎰 Gire a roleta para revelar o resultado.");
 
         sb.AppendLine();
 
-        foreach (var bet in game.Bets)
+        foreach (var bet in state.Bets)
         {
             sb.AppendLine($"🎯 {FormatBet(bet)} — **{EconomyFormat.Full(bet.Amount)}** moedas");
         }
 
-        if (game.Bets.Count == 0)
+        if (state.Bets.Count == 0)
             sb.AppendLine("🎯 Nenhuma aposta feita ainda.");
 
         sb.AppendLine();
-        sb.AppendLine($"💰 Aposta total: **{EconomyFormat.Full(game.TotalBet)}** moedas");
+        sb.AppendLine($"💰 Aposta total: **{EconomyFormat.Full(state.TotalBet)}** moedas");
 
         if (resultSection != null)
         {
@@ -89,12 +91,12 @@ public static class CasinoTableBuilder
     }
 
     public static Embed BuildSlotTable(
-        SlotMachineGame game, ulong bet, IUser player, ulong balance, string? resultSection = null)
+        SlotsState state, ulong bet, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine(game.HasSpun
-            ? $"{FormatReels(game.Reels)}"
+        sb.AppendLine(state.HasSpun
+            ? $"{FormatReels(state.Reels)}"
             : "🍒 | 🍋 | 🔔   ← Role a máquina!");
 
         sb.AppendLine();
@@ -223,7 +225,7 @@ public static class CasinoTableBuilder
 
     private static string FormatWinningNumber(int number)
     {
-        var color = RouletteGame.ColorOf(number);
+        var color = RouletteRules.ColorOf(number);
         var colorEmoji = color switch
         {
             RouletteColor.Red => "🔴",
@@ -234,7 +236,7 @@ public static class CasinoTableBuilder
         return $"{colorEmoji} `{number}` ({color} · {parity})";
     }
 
-    private static string FormatBet(RouletteBet bet)
+    private static string FormatBet(RouletteBetState bet)
     {
         return bet.Type switch
         {

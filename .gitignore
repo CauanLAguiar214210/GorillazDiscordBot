@@ -190,6 +190,9 @@ PublishScripts/
 *.snupkg
 **/[Pp]ackages/*
 !**/[Pp]ackages/build/
+# Feed local interno com o contrato do microserviço (LuckyMonkey.Contracts)
+!packages/
+!packages/*.nupkg
 #!**/[Pp]ackages/repositories.config
 
 # NuGet v3's project.json files

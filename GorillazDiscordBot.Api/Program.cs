@@ -88,10 +88,30 @@ builder.Services.AddSingleton<IChatInteractionService, ChatInteractionService>()
 builder.Services.AddSingleton<IEconomyAccessor, EconomyAccessor>();
 builder.Services.AddSingleton<IUserAccountService, UserAccountService>();
 
-// Sessões de jogos (memória)
-builder.Services.AddSingleton<GameSessionManager>();
-builder.Services.AddSingleton<CasinoSessionManager>();
-builder.Services.AddSingleton<CasinoPlayService>();
+// Microserviço de cassino (sessões e jogos passam a viver no serviço)
+builder.Services.AddHttpClient<CasinoApiClient>(client =>
+{
+    client.BaseAddress = new Uri(Environment.GetEnvironmentVariable("LUCKY_MONKEY_URL")
+        ?? "http://localhost:8080");
+    client.Timeout = TimeSpan.FromSeconds(8);
+
+    var apiKey = Environment.GetEnvironmentVariable("LUCKY_MONKEY_API_KEY");
+    if (string.IsNullOrEmpty(apiKey))
+    {
+        Console.WriteLine("[AVISO] LUCKY_MONKEY_API_KEY não configurada — o serviço exigirá X-Api-Key.");
+    }
+    else
+    {
+        client.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
+    }
+
+    if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(CasinoJwtProvider.SigningKeyEnv)))
+    {
+        Console.WriteLine($"[AVISO] {CasinoJwtProvider.SigningKeyEnv} não configurada — o serviço de cassino exigirá JWT Bearer (token será emitido apenas quando a chave estiver presente).");
+    }
+});
+builder.Services.AddSingleton<PayoutService>();
+builder.Services.AddSingleton<CasinoBetTracker>();
 builder.Services.AddSingleton<ShopService>();
 
 // GIF URL Normalization

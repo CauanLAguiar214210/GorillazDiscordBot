@@ -1,9 +1,9 @@
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
-using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.Enums;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -18,16 +18,16 @@ public static class DiceTableBuilder
     private static readonly string[] DiceFaces = { "⚀", "⚁", "⚂", "⚃", "⚄", "⚅" };
 
     public static Embed BuildDiceTable(
-        DiceGame game, DiceBetType betType, IUser player, ulong balance, string? resultSection = null)
+        DiceState state, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine(game.HasRolled
-            ? $"🎲 **{DescribeDice(game)}** — total **{game.Total}**"
+        sb.AppendLine(state.HasRolled
+            ? $"🎲 **{DescribeDice(state)}** — total **{state.Total}**"
             : "🎲 | ? | ?   ← Role os dados!");
 
         sb.AppendLine();
-        sb.AppendLine($"🎯 Aposta: **{DescribeBetType(betType)}**");
+        sb.AppendLine($"🎯 Aposta: **{DescribeBetType(state.BetType)}**");
 
         if (resultSection != null)
         {
@@ -101,10 +101,9 @@ public static class DiceTableBuilder
         _ => "?"
     };
 
-    private static string DescribeDice(DiceGame game)
+    private static string DescribeDice(DiceState state)
     {
-        var (first, second) = game.Result!.Value;
-        var pairBadge = game.IsDoubles && first != 7 ? "  🎯 Dupla!" : "";
-        return $"{DiceFaces[first - 1]} {DiceFaces[second - 1]}{pairBadge}";
+        var pairBadge = state.Die1 == state.Die2 ? "  🎯 Dupla!" : "";
+        return $"{DiceFaces[state.Die1!.Value - 1]} {DiceFaces[state.Die2!.Value - 1]}{pairBadge}";
     }
 }
