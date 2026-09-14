@@ -143,9 +143,7 @@ RUN if [ -n "$NUGET_AUTH_TOKEN" ]; then \
 ## Resultado
 
 - Bot compila sem nenhuma referência ao repositório do microserviço (`0 avisos, 0 erros`).
-- Testes do bot: **206/209** — as 3 falhas restantes são pré-existentes em
-  `EconomyFormatTests` (`GorillazDiscordBot.Domain\Entity\Economy\EconomyFormat.cs`
-  alterado no working tree, fora do escopo deste trabalho).
+- Testes do bot: **209/209** aprovados.
 - Microserviço: **324/324** testes.
 - `LuckyMonkey.Contracts` **1.0.0** publicado no GitHub Packages
   (`nuget.pkg.github.com/CauanLAguiar214210`) e o bot consome pelo feed remoto —
@@ -171,5 +169,6 @@ RUN if [ -n "$NUGET_AUTH_TOKEN" ]; then \
 - (Resolvida) `docker build` do bot — validado com a máquina com Docker ativo.
 - (Resolvida) `LuckyMonkey.Contracts` publicado em feed remoto (GitHub Packages);
   o bot aponta para ele e o nupkg deixou de ficar versionado no repo.
-- Os 3 testes de `EconomyFormatTests` seguem como falha pré-existente, fora do
-  escopo deste trabalho.
+- (Resolvida) Os 3 testes de `EconomyFormatTests` — removido o ramo `K` do
+  `EconomyFormat.Compact` (valores abaixo de 1M voltam a exibir completos, ex.
+  `12.500`) e o teste do teto de `ulong` passou a aceitar `Qi`. Suite: **209/209**.
