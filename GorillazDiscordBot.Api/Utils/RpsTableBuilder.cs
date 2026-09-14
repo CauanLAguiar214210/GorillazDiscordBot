@@ -1,8 +1,9 @@
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.Enums;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -15,13 +16,13 @@ public static class RpsTableBuilder
     public const string LeaveAction = "leave";
 
     public static Embed BuildRpsTable(
-        RpsGame game, ulong bet, IUser player, ulong balance, string? resultSection = null)
+        RpsState state, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine($"🤚 Sua jogada: **{DescribeMove(game.PlayerMove)}** {Emoji(game.PlayerMove)}");
-        sb.AppendLine(game.HasPlayed
-            ? $"🤖 Oponente: **{DescribeMove(game.OpponentMove!.Value)}** {Emoji(game.OpponentMove.Value)}"
+        sb.AppendLine($"🤚 Sua jogada: **{DescribeMove(state.PlayerMove)}** {Emoji(state.PlayerMove)}");
+        sb.AppendLine(state.HasPlayed
+            ? $"🤖 Oponente: **{DescribeMove(state.OpponentMove!.Value)}** {Emoji(state.OpponentMove.Value)}"
             : "🤖 Oponente: aguardando…");
 
         if (resultSection != null)

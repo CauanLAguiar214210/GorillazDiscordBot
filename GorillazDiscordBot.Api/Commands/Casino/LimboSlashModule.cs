@@ -1,9 +1,12 @@
 using Discord;
 using Discord.Interactions;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.Bets;
+using LuckyMonkey.Contracts.Common;
+using LuckyMonkey.Contracts.Enums;
+using LuckyMonkey.Contracts.Sessions;
 
 namespace GorillazDiscordBot.Commands.Casino;
 
@@ -11,173 +14,170 @@ public partial class CasinoSlashModule
 {
     public class LimboSlashModule : InteractionModuleBase<SocketInteractionContext>
     {
-    private readonly CasinoPlayService _play;
-    private readonly CasinoSessionManager _sessions;
+        private readonly CasinoApiClient _casino;
+        private readonly PayoutService _play;
+        private readonly CasinoBetTracker _bets;
 
-    public LimboSlashModule(CasinoPlayService play, CasinoSessionManager sessions)
-    {
-        _play = play;
-        _sessions = sessions;
-    }
-
-    [SlashCommand("limbo", "El número sorteado que pasa del objetivo multiplica la apuesta")]
-    public async Task LimboAsync(
-        [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M, 1B")] string valor,
-        [Summary("alvo", "Multiplicador alvo que você quer alcançar")] LimboTargetChoice alvo = LimboTargetChoice.DuasVezes)
-    {
-        if (!EconomyAmountParser.TryParse(valor, out var amount, out var parseError))
+        public LimboSlashModule(CasinoApiClient casino, PayoutService play, CasinoBetTracker bets)
         {
-            await RespondAsync(parseError, ephemeral: true);
-            return;
+            _casino = casino;
+            _play = play;
+            _bets = bets;
         }
 
-        var expired = _sessions.TakeExpired(Context.User.Id);
-        if (expired != null)
-            await SettleExpiredAsync(expired);
-
-        if (_sessions.GetActive(Context.User.Id) != null)
+        [SlashCommand("limbo", "O número sorteado que passa do alvo multiplica a aposta")]
+        public async Task LimboAsync(
+            [Summary("valor", "Quantidade de moedas para apostar. Ex: 100, 1k, 1M")] string valor,
+            [Summary("alvo", "Multiplicador alvo que você quer alcançar")] LimboTargetChoice alvo = LimboTargetChoice.DuasVezes)
         {
-            await RespondAsync("🔮 Você já tem um limbo em andamento! Use os botões do jogo aberto.", ephemeral: true);
-            return;
+            if (!EconomyAmountParser.TryParse(valor, out var amount, out var parseError))
+            {
+                await RespondAsync(parseError, ephemeral: true);
+                return;
+            }
+
+            var opened = await CasinoApiFlow.OpenBetAsync(
+                this, _casino, _play, _bets, GameKind.Limbo, Context.User.Id, amount,
+                new BetOptions { LimboTarget = ((int)alvo) / 100d },
+                "🔮 Você já tem um limbo em andamento! Use os botões do jogo aberto.");
+            if (opened == null)
+                return;
+
+            if (opened.ExpiredSettle is { } expired)
+                await SettleExpiredAsync(expired);
+
+            if (!await DeductOrLeaveAsync(amount, "Aposta no limbo"))
+                return;
+
+            _bets.Set(Context.User.Id, amount);
+
+            var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
+            await RespondAsync(
+                embed: LimboTableBuilder.BuildLimboTable(opened.State.Limbo!, Context.User, balance),
+                components: LimboTableBuilder.BuildLimboComponents());
         }
 
-        var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, amount, Context.User.Username, "Aposta no limbo");
-
-        if (!deducted)
+        [ComponentInteraction(LimboTableBuilder.CustomIdPrefix + LimboTableBuilder.RevealAction, true)]
+        public async Task LimboRevealAsync()
         {
-            await RespondAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
-            return;
-        }
+            await DeferAsync();
 
-        var game = new LimboGame(toTarget(alvo));
-        _sessions.Add(Context.User.Id, CasinoSession.ForLimbo(amount, game));
+            var done = await CasinoApiFlow.RunActionAsync(
+                this, _casino, GameKind.Limbo, Context.User.Id, "roll", null,
+                "🔮 Este limbo não está mais ativo. Use `/cassino limbo` para começar outro.");
+            if (done == null)
+                return;
 
-        var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
+            var bet = _bets.Get(Context.User.Id);
+            var returnAmount = done.Outcome?.ReturnAmount ?? 0;
+            var payout = await _play.PayOutAsync(
+                Context.User.Id, returnAmount, Context.User.Username,
+                returnAmount > 0 ? "Ganhou no limbo" : "Perdeu no limbo",
+                RelicGameType.Limbo, bet);
+            _bets.Remove(Context.User.Id);
 
-        await RespondAsync(
-            embed: LimboTableBuilder.BuildLimboTable(game, Context.User, balance),
-            components: LimboTableBuilder.BuildLimboComponents());
-    }
-
-    [ComponentInteraction(LimboTableBuilder.CustomIdPrefix + LimboTableBuilder.RevealAction, true)]
-    public async Task LimboRevealAsync()
-    {
-        await DeferAsync();
-
-        var session = _sessions.GetActive(Context.User.Id);
-        if (session?.Limbo == null)
-        {
-            await FollowupAsync("🔮 Este limbo não está mais ativo. Use `/cassino limbo` para começar outro.", ephemeral: true);
-            return;
-        }
-
-        var game = session.Limbo;
-        game.Roll();
-        _sessions.Remove(Context.User.Id);
-
-        var returnAmount = game.CalculateReturn(session.Bet);
-
-        var payout = await _play.PayOutAsync(
-            Context.User.Id, returnAmount, Context.User.Username,
-            game.IsWin ? "Ganhou no limbo" : "Perdeu no limbo",
-            RelicGameType.Limbo, session.Bet);
-
-        var resultSection = game.IsWin
-            ? $"✅ O sorteado **{LimboTableBuilder.FormatMultiplier(game.Result!.Value)}** passou de "
-                + $"**{LimboTableBuilder.FormatMultiplier(game.Target)}** e você ganhou "
-                + $"**{EconomyFormat.Full(returnAmount)}** moedas!\n"
-                + CasinoTableBuilder.DescribeAppliedRelic(payout)
-            : $"❌ O sorteado **{LimboTableBuilder.FormatMultiplier(game.Result!.Value)}** ficou abaixo de "
-                + $"**{LimboTableBuilder.FormatMultiplier(game.Target)}**. Perdeu "
-                + $"**{EconomyFormat.Full(session.Bet)}** moedas.\n"
+            var state = done.State.Limbo!;
+            var isWin = returnAmount > 0;
+            var resultSection = (isWin
+                    ? $"✅ O sorteado **{LimboTableBuilder.FormatMultiplier(state.Result!.Value)}** passou de "
+                        + $"**{LimboTableBuilder.FormatMultiplier(state.Target)}** e você ganhou "
+                        + $"**{EconomyFormat.Full(returnAmount)}** moedas!\n"
+                    : $"❌ O sorteado **{LimboTableBuilder.FormatMultiplier(state.Result!.Value)}** ficou abaixo de "
+                        + $"**{LimboTableBuilder.FormatMultiplier(state.Target)}**. Perdeu "
+                        + $"**{EconomyFormat.Full(bet)}** moedas.\n")
                 + CasinoTableBuilder.DescribeAppliedRelic(payout);
 
-        await Context.Interaction.ModifyOriginalResponseAsync(m =>
-        {
-            m.Embed = LimboTableBuilder.BuildLimboTable(game, Context.User, payout.Balance, resultSection);
-            m.Components = LimboTableBuilder.BuildLimboResultComponents(
-                Context.User.Id, session.Bet, (int)(game.Target * 100));
-        });
-    }
-
-    [ComponentInteraction(LimboTableBuilder.CustomIdPrefix + LimboTableBuilder.ReplayAction + ":*:*:*", true)]
-    public async Task LimboReplayAsync(ulong ownerId, ulong bet, int targetCents)
-    {
-        await DeferAsync();
-
-        if (ownerId != Context.User.Id)
-        {
-            await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
-            return;
+            await Context.Interaction.ModifyOriginalResponseAsync(m =>
+            {
+                m.Embed = LimboTableBuilder.BuildLimboTable(state, Context.User, payout.Balance, resultSection);
+                m.Components = LimboTableBuilder.BuildLimboResultComponents(
+                    Context.User.Id, bet, (int)(state.Target * 100));
+            });
         }
 
-        var expired = _sessions.TakeExpired(Context.User.Id);
-        if (expired != null)
-            await SettleExpiredAsync(expired);
-
-        if (_sessions.GetActive(Context.User.Id) != null)
+        [ComponentInteraction(LimboTableBuilder.CustomIdPrefix + LimboTableBuilder.ReplayAction + ":*:*:*", true)]
+        public async Task LimboReplayAsync(ulong ownerId, ulong bet, int targetCents)
         {
-            await FollowupAsync("🔮 Você já tem um limbo em andamento! Use os botões do jogo aberto.", ephemeral: true);
-            return;
+            await DeferAsync();
+
+            if (ownerId != Context.User.Id)
+            {
+                await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
+                return;
+            }
+
+            var opened = await CasinoApiFlow.OpenBetAsync(
+                this, _casino, _play, _bets, GameKind.Limbo, Context.User.Id, bet,
+                new BetOptions { LimboTarget = targetCents / 100d },
+                "🔮 Você já tem um limbo em andamento! Use os botões do jogo aberto.", followup: true);
+            if (opened == null)
+                return;
+
+            if (opened.ExpiredSettle is { } expired)
+                await SettleExpiredAsync(expired);
+
+            if (!await DeductOrLeaveAsync(bet, "Novo limbo", followup: true))
+                return;
+
+            _bets.Set(Context.User.Id, bet);
+
+            var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
+            await Context.Interaction.ModifyOriginalResponseAsync(m =>
+            {
+                m.Embed = LimboTableBuilder.BuildLimboTable(opened.State.Limbo!, Context.User, balance);
+                m.Components = LimboTableBuilder.BuildLimboComponents();
+            });
         }
 
-        var (deducted, _) = await _play.DeductBetAsync(
-            Context.User.Id, bet, Context.User.Username, "Novo limbo");
+        [ComponentInteraction(LimboTableBuilder.CustomIdPrefix + LimboTableBuilder.PaytableAction, true)]
+        public async Task LimboPaytableAsync()
+            => await RespondAsync(embed: LimboTableBuilder.BuildLimboPaytable(), ephemeral: true);
 
-        if (!deducted)
+        [ComponentInteraction(LimboTableBuilder.CustomIdPrefix + LimboTableBuilder.LeaveAction + ":*", true)]
+        public async Task LimboLeaveAsync(ulong ownerId)
         {
-            await FollowupAsync("❌ Você não tem moedas suficientes na carteira.", ephemeral: true);
-            return;
+            await DeferAsync();
+
+            if (ownerId != Context.User.Id)
+            {
+                await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
+                return;
+            }
+
+            await CasinoApiFlow.LeaveAsync(_casino, GameKind.Limbo, Context.User.Id);
+            _bets.Remove(Context.User.Id);
+
+            await Context.Interaction.ModifyOriginalResponseAsync(m =>
+            {
+                m.Components = new ComponentBuilder().Build();
+            });
         }
 
-        var game = new LimboGame(targetCents / 100d);
-        _sessions.Add(Context.User.Id, CasinoSession.ForLimbo(bet, game));
-
-        var balance = await _play.GetBalanceAsync(Context.User.Id, Context.User.Username);
-
-        await Context.Interaction.ModifyOriginalResponseAsync(m =>
+        private async Task SettleExpiredAsync(Outcome expired)
         {
-            m.Embed = LimboTableBuilder.BuildLimboTable(game, Context.User, balance);
-            m.Components = LimboTableBuilder.BuildLimboComponents();
-        });
-    }
-
-    [ComponentInteraction(LimboTableBuilder.CustomIdPrefix + LimboTableBuilder.PaytableAction, true)]
-    public async Task LimboPaytableAsync()
-        => await RespondAsync(embed: LimboTableBuilder.BuildLimboPaytable(), ephemeral: true);
-
-    [ComponentInteraction(LimboTableBuilder.CustomIdPrefix + LimboTableBuilder.LeaveAction + ":*", true)]
-    public async Task LimboLeaveAsync(ulong ownerId)
-    {
-        await DeferAsync();
-
-        if (ownerId != Context.User.Id)
-        {
-            await FollowupAsync("🚪 Esta partida não é sua.", ephemeral: true);
-            return;
-        }
-
-        _sessions.Remove(Context.User.Id);
-
-        await Context.Interaction.ModifyOriginalResponseAsync(m =>
-        {
-            m.Components = new ComponentBuilder().Build();
-        });
-    }
-
-    private async Task SettleExpiredAsync(CasinoSession expired)
-    {
-        if (expired.Limbo is { } limbo && !limbo.HasRolled)
-        {
-            limbo.Roll();
             await _play.PayOutAsync(
-                Context.User.Id, limbo.CalculateReturn(expired.Bet), Context.User.Username, "Limbo expirado",
-                RelicGameType.Limbo, expired.Bet);
+                Context.User.Id, expired.ReturnAmount, Context.User.Username,
+                "Limbo expirado", RelicGameType.Limbo, _bets.Get(Context.User.Id));
         }
-    }
 
-    private static double toTarget(LimboTargetChoice choice) => ((int)choice) / 100d;
+        private async Task<bool> DeductOrLeaveAsync(ulong amount, string description, bool followup = false)
+        {
+            var (deducted, _) = await _play.DeductBetAsync(
+                Context.User.Id, amount, Context.User.Username, description);
+
+            if (deducted)
+                return true;
+
+            await CasinoApiFlow.LeaveAsync(_casino, GameKind.Limbo, Context.User.Id);
+
+            var message = "❌ Você não tem moedas suficientes na carteira.";
+            if (followup)
+                await FollowupAsync(message, ephemeral: true);
+            else
+                await RespondAsync(message, ephemeral: true);
+
+            return false;
+        }
     }
 }
 

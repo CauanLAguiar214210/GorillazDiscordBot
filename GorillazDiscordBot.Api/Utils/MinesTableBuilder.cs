@@ -1,8 +1,8 @@
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -16,14 +16,14 @@ public static class MinesTableBuilder
     public const string LeaveAction = "leave";
 
     public static Embed BuildMinesTable(
-        MinesGame game, IUser player, ulong balance, string? resultSection = null)
+        MinesState state, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine(FormatGrid(game));
+        sb.AppendLine(FormatGrid(state));
         sb.AppendLine();
-        sb.AppendLine($"💣 Minas: **{game.MinesCount}** · 🟩 Reveladas: **{game.RevealedCount}**");
-        sb.AppendLine($"🎯 Multiplicador atual: **{FormatMultiplier(game.CurrentMultiplier)}**");
+        sb.AppendLine($"💣 Minas: **{state.MinesCount}** · 🟩 Reveladas: **{state.RevealedCount}**");
+        sb.AppendLine($"🎯 Multiplicador atual: **{FormatMultiplier(state.CurrentMultiplier)}**");
 
         if (resultSection != null)
         {
@@ -46,11 +46,11 @@ public static class MinesTableBuilder
         return embed.Build();
     }
 
-    public static MessageComponent BuildMinesComponents(MinesGame game, ulong ownerId)
+    public static MessageComponent BuildMinesComponents(MinesState state, ulong ownerId)
     {
         var builder = new ComponentBuilder();
 
-        for (var cell = 0; cell < game.GridSize; cell++)
+        for (var cell = 0; cell < state.GridSize; cell++)
         {
             builder.WithButton(
                 new ButtonBuilder
@@ -58,7 +58,7 @@ public static class MinesTableBuilder
                     CustomId = $"{CustomIdPrefix}{RevealAction}:{cell}",
                     Emote = new Emoji("⬛"),
                     Style = ButtonStyle.Secondary,
-                    IsDisabled = game.Revealed.Contains(cell)
+                    IsDisabled = state.Revealed.Contains(cell)
                 },
                 row: cell / 4);
         }
@@ -104,17 +104,12 @@ public static class MinesTableBuilder
     public static string FormatMultiplier(double value)
         => $"{value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}x";
 
-    private static string FormatGrid(MinesGame game)
+    private static string FormatGrid(MinesState state)
     {
         var sb = new StringBuilder();
-        for (var cell = 0; cell < game.GridSize; cell++)
+        for (var cell = 0; cell < state.GridSize; cell++)
         {
-            if (game.Revealed.Contains(cell))
-                sb.Append(game.Mines.Contains(cell) ? "💥" : "🟩");
-            else if (game.HasBoom && game.Mines.Contains(cell))
-                sb.Append("💣");
-            else
-                sb.Append("⬛");
+            sb.Append(state.Revealed.Contains(cell) ? "🟩" : "⬛");
 
             if (cell % 4 == 3)
                 sb.AppendLine();

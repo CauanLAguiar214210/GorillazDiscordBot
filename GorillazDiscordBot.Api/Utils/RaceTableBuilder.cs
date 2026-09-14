@@ -1,8 +1,8 @@
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -20,11 +20,11 @@ public static class RaceTableBuilder
     };
 
     public static Embed BuildRaceTable(
-        RaceGame game, ulong bet, IUser player, ulong balance, string? resultSection = null)
+        RaceState state, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine(FormatLeaderboard(game));
+        sb.AppendLine(FormatLeaderboard(state));
 
         if (resultSection != null)
         {
@@ -71,7 +71,7 @@ public static class RaceTableBuilder
 
         sb.AppendLine("**Como funciona**");
         sb.AppendLine();
-        sb.AppendLine($"• **{CasinoRules.RaceRunners}** cavalos disputam a corrida");
+        sb.AppendLine($"• **6** cavalos disputam a corrida");
         sb.AppendLine("• Escolha um cavalo e torça para ele vencer");
         sb.AppendLine("• Pagamento fixo de **5x** para o vencedor da aposta");
 
@@ -84,13 +84,13 @@ public static class RaceTableBuilder
 
     public static string DescribePick(int index) => $"Cavalo #{index + 1}";
 
-    private static string FormatLeaderboard(RaceGame game)
+    private static string FormatLeaderboard(RaceState state)
     {
         var sb = new StringBuilder();
-        for (var i = 0; i < game.Runners; i++)
+        for (var i = 0; i < state.Runners; i++)
         {
-            var pickBadge = i == game.PlayerPick ? "👉" : "　";
-            var trophy = game.HasFinished && i == game.WinnerIndex ? " 🏆" : "";
+            var pickBadge = i == state.PlayerPick ? "👉" : "　";
+            var trophy = state.HasFinished && i == state.WinnerIndex ? " 🏆" : "";
             sb.AppendLine($"{pickBadge} {RunnerEmojis[i]} **{DescribePick(i)}**{trophy}");
         }
         return sb.ToString().TrimEnd();

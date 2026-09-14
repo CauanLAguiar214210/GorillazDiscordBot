@@ -189,7 +189,6 @@ PublishScripts/
 *.nupkg
 *.snupkg
 **/[Pp]ackages/*
-!**/[Pp]ackages/build/
 #!**/[Pp]ackages/repositories.config
 
 # NuGet v3's project.json files

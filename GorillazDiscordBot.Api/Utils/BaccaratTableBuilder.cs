@@ -2,8 +2,9 @@ using System.Globalization;
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.Enums;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -16,22 +17,22 @@ public static class BaccaratTableBuilder
     public const string LeaveAction = "leave";
 
     public static Embed BuildBaccaratTable(
-        BaccaratGame game, IUser player, ulong balance, string? resultSection = null)
+        BaccaratState state, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine($"🎴 Aposta: **{DescribeBet(game.BetType)}**");
+        sb.AppendLine($"🎴 Aposta: **{DescribeBet(state.BetType)}**");
 
         sb.AppendLine();
-        sb.AppendLine($"✋ **Jogador** — {DescribeValue(game.Player.Value)}");
-        sb.AppendLine(string.Join(" ", game.Player.Cards.Select(c => $"`{c.Symbol}`")));
-        if (!game.HasRevealed && game.Player.Cards.Count >= 3)
+        sb.AppendLine($"✋ **Jogador** — {DescribeValue(state.PlayerValue)}");
+        sb.AppendLine(CasinoCards.CardsText(state.Player));
+        if (!state.HasRevealed && state.Player.Count >= 3)
             sb.AppendLine("`🂠`");
 
         sb.AppendLine();
-        sb.AppendLine($"🏦 **Banco** — {DescribeValue(game.Banker.Value)}");
-        sb.AppendLine(string.Join(" ", game.Banker.Cards.Select(c => $"`{c.Symbol}`")));
-        if (!game.HasRevealed && game.Banker.Cards.Count >= 3)
+        sb.AppendLine($"🏦 **Banco** — {DescribeValue(state.BankerValue)}");
+        sb.AppendLine(CasinoCards.CardsText(state.Banker));
+        if (!state.HasRevealed && state.Banker.Count >= 3)
             sb.AppendLine("`🂠`");
 
         if (resultSection != null)

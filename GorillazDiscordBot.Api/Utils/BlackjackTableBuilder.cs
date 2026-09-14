@@ -1,8 +1,9 @@
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.Enums;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -20,19 +21,16 @@ public static class BlackjackTableBuilder
     public const string ReplayAction = "replay";
     public const string LeaveAction = "leave";
 
-    public static bool CanDouble(BlackjackGame game)
-        => game.Player.Cards.Count == 2 && !game.Doubled;
-
-    public static Embed BuildTable(BlackjackGame game, IUser player, string? resultSection = null)
+    public static Embed BuildTable(BlackjackState state, IUser player, string? resultSection = null)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"\U0001FA99 Aposta: **{EconomyFormat.Full(game.Bet)}** moedas");
+        sb.AppendLine($"\U0001FA99 Aposta: **{EconomyFormat.Full(state.Bet)}** moedas");
         sb.AppendLine();
         sb.AppendLine("🏦 **Dealer**");
-        sb.AppendLine(FormatDealerHand(game));
+        sb.AppendLine(FormatDealerHand(state));
         sb.AppendLine();
         sb.AppendLine($"🐒 **{player.GetDisplayName()}**");
-        sb.AppendLine(FormatFullHand(game.Player));
+        sb.AppendLine(FormatFullHand(state.PlayerCards, state.PlayerValue));
 
         if (resultSection != null)
         {
@@ -53,12 +51,12 @@ public static class BlackjackTableBuilder
         return embed.Build();
     }
 
-    public static MessageComponent BuildActionComponents(BlackjackGame game)
+    public static MessageComponent BuildActionComponents(BlackjackState state)
     {
         return new ComponentBuilder()
             .WithButton("Pedir", $"{CustomIdPrefix}{HitAction}", ButtonStyle.Primary, new Emoji("🃏"))
             .WithButton("Parar", $"{CustomIdPrefix}{StandAction}", ButtonStyle.Success, new Emoji("✋"))
-            .WithButton("Dobrar", $"{CustomIdPrefix}{DoubleAction}", ButtonStyle.Secondary, new Emoji("💰"), disabled: !CanDouble(game))
+            .WithButton("Dobrar", $"{CustomIdPrefix}{DoubleAction}", ButtonStyle.Secondary, new Emoji("💰"), disabled: !state.CanDouble)
             .WithButton("Pagamentos", $"{CustomIdPrefix}{PaytableAction}", ButtonStyle.Secondary, new Emoji("📊"))
             .Build();
     }
@@ -97,27 +95,27 @@ public static class BlackjackTableBuilder
             .Build();
     }
 
-    private static string FormatDealerHand(BlackjackGame game)
+    private static string FormatDealerHand(BlackjackState state)
     {
-        return game.DealerHoleHidden
-            ? $"`{game.Dealer.Cards[0].Symbol}` `{CardBackSymbol}`"
-            : FormatFullHand(game.Dealer);
+        return state.DealerHoleHidden && state.DealerCards.Count >= 2
+            ? $"`{CasinoCards.CardText(state.DealerCards[0])}` `{CardBackSymbol}`"
+            : FormatFullHand(state.DealerCards, state.DealerValue);
     }
 
-    private static string FormatFullHand(BlackjackHand hand)
+    private static string FormatFullHand(IReadOnlyList<CardDto> cards, int value)
     {
-        var cards = string.Join(" ", hand.Cards.Select(c => $"`{c.Symbol}`"));
-        var value = hand.IsBust ? $"**{hand.Value}** 💥" : $"**{hand.Value}**";
-        return $"{cards} — {value}";
+        var cardText = CasinoCards.CardsText(cards);
+        var valueText = value > 21 ? $"**{value}** 💥" : $"**{value}**";
+        return $"{cardText} — {valueText}";
     }
 
-    public static string DescribeResult(BlackjackGame game, ulong totalReturn) => game.Outcome switch
+    public static string DescribeResult(BlackjackState state, ulong totalReturn) => state.Outcome switch
     {
         BlackjackOutcome.PlayerBlackjack => $"\U0001F0CF **BLACKJACK!** Pagamento 3:2! Você recebeu **{EconomyFormat.Full(totalReturn)}** moedas.",
-        BlackjackOutcome.PlayerWin when game.Dealer.IsBust => $"💥 O dealer estourou! **Você venceu!** Recebeu **{EconomyFormat.Full(totalReturn)}** moedas.",
+        BlackjackOutcome.PlayerWin when state.DealerValue > 21 => $"💥 O dealer estourou! **Você venceu!** Recebeu **{EconomyFormat.Full(totalReturn)}** moedas.",
         BlackjackOutcome.PlayerWin => $"🎉 **Você venceu!** Recebeu **{EconomyFormat.Full(totalReturn)}** moedas.",
         BlackjackOutcome.Push => "🤝 **Empate!** Sua aposta foi devolvida.",
-        BlackjackOutcome.DealerWin when game.Player.IsBust => $"💥 Você estourou! Perdeu **{EconomyFormat.Full(game.Bet)}** moedas.",
-        _ => $"😢 **A casa venceu.** Perdeu **{EconomyFormat.Full(game.Bet)}** moedas."
+        BlackjackOutcome.DealerWin when state.PlayerValue > 21 => $"💥 Você estourou! Perdeu **{EconomyFormat.Full(state.Bet)}** moedas.",
+        _ => $"😢 **A casa venceu.** Perdeu **{EconomyFormat.Full(state.Bet)}** moedas."
     };
 }

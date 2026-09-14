@@ -2,8 +2,8 @@ using System.Globalization;
 using System.Text;
 using Discord;
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games.Casino;
 using GorillazDiscordBot.Utils;
+using LuckyMonkey.Contracts.State;
 
 namespace GorillazDiscordBot.Utils;
 
@@ -15,12 +15,14 @@ public static class WheelTableBuilder
     public const string PaytableAction = "paytable";
     public const string LeaveAction = "leave";
 
+    private static readonly double[] WheelSlots = { 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 5.0 };
+
     public static Embed BuildWheelTable(
-        WheelGame game, IUser player, ulong balance, string? resultSection = null)
+        WheelState state, IUser player, ulong balance, string? resultSection = null)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine(FormatWheel(game));
+        sb.AppendLine(FormatWheel(state));
 
         if (resultSection != null)
         {
@@ -85,11 +87,11 @@ public static class WheelTableBuilder
     public static string FormatMultiplier(double value)
         => $"{value.ToString("0.00", CultureInfo.InvariantCulture)}x";
 
-    private static string FormatWheel(WheelGame game)
+    private static string FormatWheel(WheelState state)
     {
         var sb = new StringBuilder();
 
-        if (!game.HasSpun)
+        if (!state.HasSpun)
         {
             sb.AppendLine("🎡 A roda ainda não foi girada…");
             sb.AppendLine();
@@ -99,11 +101,11 @@ public static class WheelTableBuilder
             return sb.ToString().TrimEnd();
         }
 
-        for (var i = 0; i < WheelGame.Slots.Length; i++)
+        for (var i = 0; i < WheelSlots.Length; i++)
         {
-            var value = WheelGame.Slots[i];
-            var marker = i == game.ResultIndex ? "**→**" : "　";
-            var highlight = i == game.ResultIndex ? "**" : "";
+            var value = WheelSlots[i];
+            var marker = i == state.ResultIndex ? "**→**" : "　";
+            var highlight = i == state.ResultIndex ? "**" : "";
             sb.AppendLine($"{marker} {highlight}{FormatMultiplier(value)}{highlight}");
         }
 

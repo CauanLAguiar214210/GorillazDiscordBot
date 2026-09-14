@@ -6,7 +6,7 @@ using NSubstitute;
 
 namespace GorillazDiscordBot.Tests;
 
-public class CasinoPlayServiceTests
+public class PayoutServiceTests
 {
     private readonly IEconomyRepository _economy = Substitute.For<IEconomyRepository>();
     private readonly IEconomyAccessor _accessor = Substitute.For<IEconomyAccessor>();
@@ -14,7 +14,7 @@ public class CasinoPlayServiceTests
 
     private readonly List<InventoryItem> _inventory = new();
 
-    public CasinoPlayServiceTests()
+    public PayoutServiceTests()
     {
         _accessor.ResolveMainIdAsync(2).Returns(1UL);
         _accessor.ResolveMainIdAsync(1).Returns(1UL);
@@ -379,6 +379,6 @@ public class CasinoPlayServiceTests
             RelicValue = value
         };
 
-    private CasinoPlayService CreateService()
+    private PayoutService CreateService()
         => new(_economy, _accessor, new ShopService(_shopRepo, _economy, _accessor));
 }

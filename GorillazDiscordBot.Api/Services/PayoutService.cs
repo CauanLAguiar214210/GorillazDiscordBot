@@ -1,16 +1,19 @@
 using GorillazDiscordBot.Domain.Entity.Economy;
-using GorillazDiscordBot.Domain.Entity.Games;
 using GorillazDiscordBot.Domain.Interfaces;
 
 namespace GorillazDiscordBot.Services;
 
-public class CasinoPlayService
+/// <summary>
+/// Dono do dinheiro do jogador: débito da aposta, crédito do retorno e aplicação de relíquias.
+/// O resultado do jogo em si vem do microserviço de cassino.
+/// </summary>
+public class PayoutService
 {
     private readonly IEconomyRepository _economy;
     private readonly IEconomyAccessor _accessor;
     private readonly ShopService _shop;
 
-    public CasinoPlayService(IEconomyRepository economy, IEconomyAccessor accessor, ShopService shop)
+    public PayoutService(IEconomyRepository economy, IEconomyAccessor accessor, ShopService shop)
     {
         _economy = economy;
         _accessor = accessor;
@@ -28,6 +31,13 @@ public class CasinoPlayService
         var (success, balance) = await _economy.TryDeductMoneyAsync(
             mainId, amount, EconomyTransactionType.Bet, description);
         return (success, balance);
+    }
+
+    public async Task<ulong> RefundAsync(ulong userId, ulong amount, string username, string description)
+    {
+        var mainId = await _accessor.ResolveMainIdAsync(userId);
+        await _economy.AddMoneyAsync(mainId, amount, EconomyTransactionType.Bet, description);
+        return (await _economy.GetOrCreateAsync(mainId, username)).Money;
     }
 
     public async Task<PayoutResult> PayOutAsync(

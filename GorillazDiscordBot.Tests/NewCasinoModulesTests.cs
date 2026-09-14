@@ -1,3 +1,4 @@
+using System.Net.Http;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -18,23 +19,18 @@ public class NewCasinoModulesTests
     {
         var economy = Substitute.For<IEconomyRepository>();
         var accessor = Substitute.For<IEconomyAccessor>();
+        var shop = Substitute.For<ShopService>(
+            Substitute.For<IShopRepository>(),
+            economy,
+            accessor);
 
         _services = new ServiceCollection()
             .AddSingleton<IEconomyRepository>(economy)
             .AddSingleton<IEconomyAccessor>(accessor)
-            .AddSingleton(Substitute.For<ShopService>(
-                Substitute.For<IShopRepository>(),
-                economy,
-                accessor))
-            .AddSingleton(Substitute.For<CasinoPlayService>(
-                economy,
-                accessor,
-                Substitute.For<ShopService>(
-                    Substitute.For<IShopRepository>(),
-                    economy,
-                    accessor)))
-            .AddSingleton(new CasinoSessionManager())
-            .AddSingleton(new GameSessionManager())
+            .AddSingleton(shop)
+            .AddSingleton(Substitute.For<PayoutService>(economy, accessor, shop))
+            .AddSingleton(new CasinoApiClient(new HttpClient()))
+            .AddSingleton(new CasinoBetTracker())
             .BuildServiceProvider();
     }
 
