@@ -75,10 +75,11 @@ o contrato como NuGet.
 
 ### No bot (`GorillazDiscordBot`)
 
-- `nuget.config` (raiz do repo): define o feed local `packages` (caminho relativo ao
-  próprio repo) + `nuget.org`.
-- `packages\LuckyMonkey.Contracts.1.0.0.nupkg`: pacote versionado dentro do repo,
-  exceção adicionada no `.gitignore` para o nupkg não ser ignorado.
+- `nuget.config` (raiz do repo): define o feed `github-luckymonkey`
+  (`https://nuget.pkg.github.com/CauanLAguiar214210/index.json`) + `nuget.org`.
+- As credenciais **não** ficam versionadas: cada dev registra o PAT uma vez no
+  config de usuário (ver "Setup do feed por dev" abaixo). No CI, o `GITHUB_TOKEN`
+  autentica o restore.
 - `GorillazDiscordBot.Api.csproj`: removida a `ProjectReference` para o
   `LuckyMonkey.Contracts` e adicionado:
 
@@ -89,28 +90,55 @@ o contrato como NuGet.
 - `GorillazDiscordBot.Tests` recebe o contrato **transitivamente** via `GorillazDiscordBot.Api`
   (não referencia o pacote diretamente).
 
-### Dockerfile
+### Setup do feed por dev (uma vez por máquina)
 
-Verificação: atualização **necessária** — o `dotnet restore` dos estágios `build`/`publish`
-precisa resolver o pacote `LuckyMonkey.Contracts`, e o feed/local estava fora do build context.
+O PAT usado para publicar também serve para restaurar. Registre o feed com a
+sua credencial no config de usuário (fora do repo):
 
-Alterado para copiar `nuget.config` e `packages/` **antes** do `RUN dotnet restore`:
-
-```dockerfile
-COPY nuget.config ./
-COPY packages ./packages
-
-RUN dotnet restore "GorillazDiscordBot.Api/GorillazDiscordBot.Api.csproj"
+```sh
+dotnet nuget add source "https://nuget.pkg.github.com/CauanLAguiar214210/index.json" \
+  --name github-luckymonkey \
+  --username CauanLAguiar214210 \
+  --password "<PAT>" \
+  --store-password-in-clear-text
 ```
 
-- `nuget.config` vai para `/src/nuget.config` (restore do csproj em
-  `/src/GorillazDiscordBot.Api/` o encontra subindo na árvore).
-- `packages` relativo resolve para `/src/packages`, onde o nupkg foi copiado.
-- O `COPY . .` posterior re-copia esses arquivos sem efeito colateral.
-- O pacote não entra na imagem final (só `/app/publish` é copiado para `base`).
+> O `<clear />` do `nuget.config` do repo descarta a *lista* de fontes definida do
+> config de usuário, mas as `packageSourceCredentials` de lá são lidas normalmente —
+> por isso o segredo fica só no config de usuário.
 
-**Pendente por ambiente local: rodar `docker build` de verdade (daemon Docker Desktop
-estava offline na validação).**
+### Dockerfile
+
+O `dotnet restore` dos estágios `build`/`publish` resolve o pacote
+`LuckyMonkey.Contracts` pelo feed do GitHub Packages. O build recebe o token via
+`ARG NUGET_AUTH_TOKEN` e registra o feed com a credencial antes do restore:
+
+```dockerfile
+ARG NUGET_AUTH_TOKEN
+RUN if [ -n "$NUGET_AUTH_TOKEN" ]; then \
+        dotnet nuget add source "https://nuget.pkg.github.com/CauanLAguiar214210/index.json" \
+            --name github-luckymonkey \
+            --username CauanLAguiar214210 \
+            --password "$NUGET_AUTH_TOKEN" \
+            --store-password-in-clear-text \
+            --configfile /root/.nuget/NuGet/NuGet.Config; \
+    fi \
+    && dotnet restore "GorillazDiscordBot.Api/GorillazDiscordBot.Api.csproj"
+```
+
+> O `--configfile` aponta para o config de usuário do container — não dá para usar o
+> `dotnet nuget add source` sem ele, pois o `github-luckymonkey` já existe no
+> `nuget.config` copiado do repo.
+
+- No CI (`aws.yml`), o `docker/build-push-action` passa
+  `build-args: NUGET_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}`.
+- Localmente, informe o token ao build:
+
+  ```sh
+  docker build --build-arg NUGET_AUTH_TOKEN="<PAT>" -t gorillaz-discord-bot .
+  ```
+
+- O pacote não entra na imagem final (só `/app/publish` é copiado para `base`).
 
 ## Resultado
 
@@ -119,20 +147,29 @@ estava offline na validação).**
   `EconomyFormatTests` (`GorillazDiscordBot.Domain\Entity\Economy\EconomyFormat.cs`
   alterado no working tree, fora do escopo deste trabalho).
 - Microserviço: **324/324** testes.
+- `LuckyMonkey.Contracts` **1.0.0** publicado no GitHub Packages
+  (`nuget.pkg.github.com/CauanLAguiar214210`) e o bot consome pelo feed remoto —
+  o nupkg não fica mais versionado dentro do repo.
 
 ## Workflow para nova versão do contrato
 
 1. Mudou algo em `LuckyMonkey.Contracts` → subir `Version` no csproj.
 2. `dotnet pack LuckyMonkey.Contracts.csproj -c Release`.
-3. Copiar o novo `.nupkg` para `packages\` do bot (remover a versão antiga).
+3. Publicar no GitHub Packages (requer PAT com `write:packages`):
+
+   ```sh
+   dotnet nuget push artifacts/packages/LuckyMonkey.Contracts.<NOVO>.nupkg \
+     --source https://nuget.pkg.github.com/CauanLAguiar214210/index.json \
+     --api-key "<PAT>"
+   ```
+
 4. Atualizar `Version` na `PackageReference` do `GorillazDiscordBot.Api.csproj`.
 5. Rebuild + testes no bot.
 
 ## Pendências
 
-- Rodar `docker build` do bot com a máquina com Docker ativo.
-- (Recomendado p/ CI/AWS) Publicar `LuckyMonkey.Contracts` em um feed remoto
-  (GitHub Packages / Artifactory / ECR seguro) e apontar o bot para ele — aí o nupkg
-  deixa de precisar ficar versionado dentro do repo.
-- Resolver (se desejado) as 3 falhas de `EconomyFormatTests`, que são pré-existentes
-  e não relacionadas a esta tarefa.
+- (Resolvida) `docker build` do bot — validado com a máquina com Docker ativo.
+- (Resolvida) `LuckyMonkey.Contracts` publicado em feed remoto (GitHub Packages);
+  o bot aponta para ele e o nupkg deixou de ficar versionado no repo.
+- Os 3 testes de `EconomyFormatTests` seguem como falha pré-existente, fora do
+  escopo deste trabalho.

@@ -5,15 +5,23 @@ WORKDIR /app
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
+ARG NUGET_AUTH_TOKEN
 WORKDIR /src
 
 COPY GorillazDiscordBot.Api/GorillazDiscordBot.Api.csproj GorillazDiscordBot.Api/
 COPY GorillazDiscordBot.Domain/GorillazDiscordBot.Domain.csproj GorillazDiscordBot.Domain/
 COPY GorillazDiscordBot.Infra/GorillazDiscordBot.Infra.csproj GorillazDiscordBot.Infra/
 COPY nuget.config ./
-COPY packages ./packages
 
-RUN dotnet restore "GorillazDiscordBot.Api/GorillazDiscordBot.Api.csproj"
+RUN if [ -n "$NUGET_AUTH_TOKEN" ]; then \
+        dotnet nuget add source "https://nuget.pkg.github.com/CauanLAguiar214210/index.json" \
+            --name github-luckymonkey \
+            --username CauanLAguiar214210 \
+            --password "$NUGET_AUTH_TOKEN" \
+            --store-password-in-clear-text \
+            --configfile /root/.nuget/NuGet/NuGet.Config; \
+    fi \
+    && dotnet restore "GorillazDiscordBot.Api/GorillazDiscordBot.Api.csproj"
 
 COPY . .
 
