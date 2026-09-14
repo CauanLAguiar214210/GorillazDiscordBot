@@ -47,7 +47,7 @@ public class EconomyFormatTests
     public void Compact_TetosDeUlong_NaoEstoura()
     {
         var result = EconomyFormat.Compact(ulong.MaxValue);
-        result.Should().EndWith("T").And.NotBeEmpty();
+        result.Should().EndWith("Qi").And.NotBeEmpty();
     }
 
     [Fact]
