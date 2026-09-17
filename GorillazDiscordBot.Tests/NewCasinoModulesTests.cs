@@ -22,7 +22,8 @@ public class NewCasinoModulesTests
         var shop = Substitute.For<ShopService>(
             Substitute.For<IShopRepository>(),
             economy,
-            accessor);
+            accessor,
+            Substitute.For<ICharacterProfileRepository>());
 
         _services = new ServiceCollection()
             .AddSingleton<IEconomyRepository>(economy)

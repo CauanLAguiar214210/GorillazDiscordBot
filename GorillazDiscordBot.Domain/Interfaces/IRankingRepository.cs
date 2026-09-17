@@ -7,5 +7,6 @@ public interface IRankingRepository
     Task<List<RankingTier>> GetTiersAsync();
     Task<RankingTier?> GetActiveTierForAsync(ulong netWorth);
     Task<List<HallOfFame>> GetHallOfFameAsync();
+    Task<HallOfFame?> GetHallOfFameForMembersAsync(IReadOnlyList<ulong> userIds);
     Task EnsureIndexesAsync(CancellationToken cancellationToken = default);
 }

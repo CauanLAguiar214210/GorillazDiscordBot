@@ -252,62 +252,11 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Alias("work")]
     public async Task TrabalharAsync(string? servico = null)
     {
-        if (string.IsNullOrWhiteSpace(servico))
-        {
-            var sb = new StringBuilder("💼 **Escolha um serviço:** `trabalhar <serviço>`\n\n");
-            foreach (var item in EconomyJobs.All)
-                sb.AppendLine($"{item.Emoji} **{item.Name}** (`{item.Key}`) — {item.Hours}h → +**{EconomyFormat.Full(item.TotalPay)}** moedas");
-            await ReplyAsync(sb.ToString());
-            return;
-        }
-
-        var job = EconomyJobs.Find(servico);
-        if (job == null)
-        {
-            await ReplyAsync("❌ Serviço não encontrado. Use `trabalhar` para ver a lista.");
-            return;
-        }
-
-        var now = DateTime.UtcNow;
-        var profile = await _economy.GetOrCreateAsync(
-            await _accessor.ResolveMainIdAsync(Context.User.Id), Context.User.Username);
-
-        if (EconomyRules.GetRemainingCooldown(profile.LastWorkTime, now, TimeSpan.FromHours(job.Hours)) is { } remaining)
-        {
-            await ReplyAsync($"⏳ Você ainda está trabalhando! Espere {FormatRemaining(remaining)} para trabalhar como **{job.Name}**.");
-            return;
-        }
-
-        var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
-        var pay = job.TotalPay;
-        var workPetBonus = await _shop.GetUpgradePercentAsync(mainId, UpgradeEffect.Work);
-        if (workPetBonus > 0)
-            pay += pay * (ulong)workPetBonus / 100;
-
-        var boost = profile.WorkBoostPending;
-        if (boost && profile.WorkBoostExpiresAt is { } wExp && wExp <= DateTime.UtcNow)
-        {
-            await _economy.SetWorkBoostAsync(mainId, false);
-            boost = false;
-        }
-        if (boost)
-            pay *= 2;
-
-        if (!await _economy.TryClaimWorkAsync(mainId, now, TimeSpan.FromHours(job.Hours)))
-        {
-            await ReplyAsync("⏳ Você já está trabalhando neste momento. Aguarde o término para começar outro serviço.");
-            return;
-        }
-
-        await _economy.AddMoneyAsync(
-            mainId, pay, EconomyTransactionType.Work,
-            $"Trabalhou como {job.Name} ({job.Hours}h)");
-
-        if (boost)
-            await _economy.SetWorkBoostAsync(mainId, false);
-
-        var boostSuffix = boost ? " ⚡ **(com bônus x2!)**" : string.Empty;
-        await ReplyAsync($"💪 Você trabalhou como **{job.Emoji} {job.Name}** por {job.Hours}h e ganhou **{EconomyFormat.Full(pay)} moedas**!{boostSuffix}");
+        await ReplyAsync(
+            "💼 O trabalho agora é feito pelos slash commands!\n" +
+            "• Use `/trabalho listar` para ver as profissões disponíveis.\n" +
+            "• Use `/trabalho trabalhar <profissão>` para trabalhar.\n" +
+            "• Use `/trabalho prova <profissão>` para tirar diplomas.");
     }
 
     [Command("roubar")]

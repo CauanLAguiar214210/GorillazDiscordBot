@@ -44,9 +44,7 @@ public static class BlackjackTableBuilder
             .WithDescription(sb.ToString())
             .WithAuthor($"{player.GetDisplayName()} na mesa", player.GetAvatarUrl());
 
-        embed.WithStandardFooter(resultSection == null
-            ? "Use os botões abaixo ou `macaco hit` / `macaco stand` / `macaco double`"
-            : "Nova mão: `/cassino blackjack` ou `macaco blackjack <valor>`");
+        embed.WithStandardFooter("O objetivo é chegar o mais perto possível de 21 sem ultrapassá-lo, vencendo o dealer com uma pontuação maior.");
 
         return embed.Build();
     }

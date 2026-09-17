@@ -1,5 +1,6 @@
 using FluentAssertions;
 using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Entity.Profile;
 
 namespace GorillazDiscordBot.Tests;
 
@@ -92,5 +93,38 @@ public class EconomyRulesTests
         EconomyJobs.Find("programador").Should().NotBeNull();
         EconomyJobs.Find("Programador").Should().NotBeNull();
         EconomyJobs.Find("inexistente").Should().BeNull();
+    }
+
+    [Fact]
+    public void EconomyJobs_EncontraTrabalhosDeVeiculos()
+    {
+        EconomyJobs.Find("manobrista").Should().NotBeNull();
+        EconomyJobs.Find("Manobrista").Should().NotBeNull();
+        EconomyJobs.Find("motorista-app").Should().NotBeNull();
+        EconomyJobs.Find("piloto-aviao").Should().NotBeNull();
+        EconomyJobs.Find("piloto-comercial").Should().NotBeNull();
+        EconomyJobs.Find("piloto-linha-aerea").Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Veiculos_SaoTrabalhosLicenciadosSemDiploma()
+    {
+        foreach (var job in EconomyJobs.Veiculos)
+        {
+            job.Category.Should().Be(JobCategory.Veiculo);
+            job.RequiresDiploma.Should().BeFalse();
+            job.MinSchooling.Should().Be(SchoolingLevel.Nenhuma);
+            job.RequiredLicense.Should().NotBeNull();
+        }
+    }
+
+    [Fact]
+    public void Pilotos_TemBonusParticularPorTipo()
+    {
+        EconomyJobs.FindByKey("piloto-aviao")!.TypeBonusPercent.Should().Be(5);
+        EconomyJobs.FindByKey("piloto-comercial")!.TypeBonusPercent.Should().Be(5);
+        EconomyJobs.FindByKey("piloto-linha-aerea")!.TypeBonusPercent.Should().Be(10);
+        foreach (var job in EconomyJobs.Veiculos.Where(j => j.PayMode == JobPayMode.Inflation))
+            job.CategoryBonusPercent.Should().BeGreaterThan(0);
     }
 }

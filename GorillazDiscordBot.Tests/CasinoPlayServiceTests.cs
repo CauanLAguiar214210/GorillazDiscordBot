@@ -380,5 +380,5 @@ public class PayoutServiceTests
         };
 
     private PayoutService CreateService()
-        => new(_economy, _accessor, new ShopService(_shopRepo, _economy, _accessor));
+        => new(_economy, _accessor, new ShopService(_shopRepo, _economy, _accessor, Substitute.For<ICharacterProfileRepository>()));
 }

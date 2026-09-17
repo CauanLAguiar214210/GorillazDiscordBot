@@ -30,12 +30,19 @@ public static class CommandCatalog
             new CommandEntry("banco", "Consulta seu banco", CommandKind.Prefix),
             new CommandEntry("poupar <valor>", "Deposita na poupança com juros diários", CommandKind.Prefix),
             new CommandEntry("resgatar <valor>", "Saca moedas da poupança", CommandKind.Prefix),
-            new CommandEntry("trabalhar [serviço]", "Trabalha em um serviço e ganha moedas", CommandKind.Prefix),
+            new CommandEntry("trabalhar", "Redireciona para o novo sistema de trabalho (/trabalho)", CommandKind.Prefix),
             new CommandEntry("roubar <usuário>", "Tenta roubar moedas de outro usuário", CommandKind.Prefix),
             new CommandEntry("historico [n]", "Mostra o histórico de transações", CommandKind.Prefix),
-            new CommandEntry("ranking", "Ranking de riqueza com classes e Hall da Fama", CommandKind.Prefix),
+            new CommandEntry("ranking", "Ranking de riqueza (patrimônio) com classes e Hall da Fama", CommandKind.Prefix),
             new CommandEntry("raldafama", "As lendas do servidor com títulos e frases", CommandKind.Prefix),
-            new CommandEntry("tiers", "Lista as classificações do ranking", CommandKind.Prefix),
+            new CommandEntry("tiers", "Lista as classes econômicas (de 🕳️ Miserável a 👑 Magnata)", CommandKind.Prefix),
+        }),
+        new("trabalho", "💼", "Trabalho", new[]
+        {
+            new CommandEntry("/trabalho listar", "Lista os subempregos e empregos disponíveis", CommandKind.Slash),
+            new CommandEntry("/trabalho trabalhar <profissão>", "Trabalha em uma profissão e recebe o pagamento", CommandKind.Slash),
+            new CommandEntry("/trabalho prova <profissão>", "Faz a prova de licença de um emprego (2 de 3 acertos)", CommandKind.Slash),
+            new CommandEntry("/trabalho diplomas", "Mostra os diplomas que você já conquistou", CommandKind.Slash),
         }),
         new("cassino", "🎰", "Cassino", new[]
         {
@@ -62,6 +69,24 @@ public static class CommandCatalog
             new CommandEntry("/vender <id>", "Revende um item por reembolso parcial", CommandKind.Slash),
             new CommandEntry("/equipar <id>", "Equipa um relógio (bônus no cassino)", CommandKind.Slash),
             new CommandEntry("/desequipar <id>", "Desequipa o relógio ativo", CommandKind.Slash),
+        }),
+        new("perfil", "🪪", "Perfil", new[]
+        {
+            new CommandEntry("/perfil ver", "Mostra as informações do seu personagem no jogo (escolaridade, habilitação, diplomas, veículo, saldo, patrimônio e classe)", CommandKind.Slash),
+        }),
+        new("ensino", "🎓", "Ensino", new[]
+        {
+            new CommandEntry("/ensino ver", "Mostra seu nível escolar e a próxima prova", CommandKind.Slash),
+            new CommandEntry("/ensino prova", "Faz a prova de matemática do próximo nível (2 de 3 acertos)", CommandKind.Slash),
+        }),
+        new("veiculos", "🚗", "Veículos e Habilitação", new[]
+        {
+            new CommandEntry("/veiculo licenca ver", "Mostra as licenças agrupadas (terrestre, marítima e aérea) com o custo de cada prova", CommandKind.Slash),
+            new CommandEntry("/veiculo licenca prova <grupo>", "Faz a prova de uma licença do grupo escolhido (2 de 3 acertos, por tentativa)", CommandKind.Slash),
+            new CommandEntry("/veiculo dirigir <id>", "Equipa um veículo que você possui (exige a licença)", CommandKind.Slash),
+            new CommandEntry("/veiculo estacionar", "Guarda o veículo atual na garagem", CommandKind.Slash),
+            new CommandEntry("/veiculo atual", "Mostra o veículo que você está dirigindo", CommandKind.Slash),
+            new CommandEntry("/garagem", "Mostra seus veículos e permite dirigir", CommandKind.Slash),
         }),
         new("utilidade", "🛠️", "Utilidades", new[]
         {

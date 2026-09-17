@@ -16,7 +16,7 @@ public static class RaceTableBuilder
 
     private static readonly string[] RunnerEmojis =
     {
-        "🐎", "🐴", "🦄", "🐎", "🐴", "🦄"
+        "🐎", "🐴", "🦄", "🦓", "🫏", "🫎"
     };
 
     public static Embed BuildRaceTable(

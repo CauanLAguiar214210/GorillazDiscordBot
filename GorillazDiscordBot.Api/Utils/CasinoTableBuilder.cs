@@ -85,7 +85,7 @@ public static class CasinoTableBuilder
             .WithDescription(sb.ToString())
             .WithAuthor($"{player.GetDisplayName()} no cassino", player.GetAvatarUrl());
 
-        embed.WithStandardFooter("Use os botões para apostar e girar, ou `macaco roleta` na próxima vez.");
+        embed.WithStandardFooter("Use os botões para apostar e girar na próxima vez.");
 
         return embed.Build();
     }
@@ -118,7 +118,7 @@ public static class CasinoTableBuilder
             .WithDescription(sb.ToString())
             .WithAuthor($"{player.GetDisplayName()} no cassino", player.GetAvatarUrl());
 
-        embed.WithStandardFooter("Use o botão para girar, ou `macaco cacaniquel` na próxima vez.");
+        embed.WithStandardFooter("Use o botão para girar na próxima vez.");
 
         return embed.Build();
     }

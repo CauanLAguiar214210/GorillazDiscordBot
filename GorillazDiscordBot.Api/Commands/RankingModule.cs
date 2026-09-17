@@ -12,23 +12,24 @@ namespace GorillazDiscordBot.Commands;
 public class RankingModule : ModuleBase<SocketCommandContext>
 {
     private readonly IEconomyRepository _economy;
-    private readonly IRankingRepository _ranking;
     private readonly IEconomyAccessor _accessor;
+    private readonly IRankingRepository _ranking;
+    private readonly IPatrimonioService _patrimonio;
 
-    public RankingModule(IEconomyRepository economy, IRankingRepository ranking, IEconomyAccessor accessor)
+    public RankingModule(IEconomyRepository economy, IEconomyAccessor accessor, IRankingRepository ranking, IPatrimonioService patrimonio)
     {
         _economy = economy;
-        _ranking = ranking;
         _accessor = accessor;
+        _ranking = ranking;
+        _patrimonio = patrimonio;
     }
 
     [Command("ranking")]
     [Alias("rank")]
     public async Task RankingAsync()
     {
-        var tiers = await _ranking.GetTiersAsync();
         var fame = await _ranking.GetHallOfFameAsync();
-        var top = await _economy.GetTopUsersAsync(10);
+        var top = await _patrimonio.GetTopSnapshotsAsync(10);
 
         var embed = new EmbedBuilder()
             .WithTitle("\U0001F3C6 Ranking de Riqueza")
@@ -40,7 +41,7 @@ public class RankingModule : ModuleBase<SocketCommandContext>
         {
             var sb = new StringBuilder();
             int pos = 1;
-            foreach (var u in top)
+            foreach (var entry in top)
             {
                 var medal = pos switch
                 {
@@ -49,9 +50,10 @@ public class RankingModule : ModuleBase<SocketCommandContext>
                     3 => "🥉",
                     _ => $"{pos}º"
                 };
-                var tier = FindTier(tiers, u.NetWorth);
-                var tierTag = tier != null ? $"{tier.Emoji} **{tier.Title}** " : string.Empty;
-                sb.AppendLine($"{medal} {tierTag}**{await ResolveGlobalNameAsync(u.UserId, u.Username)}** — {EconomyFormat.Compact(u.NetWorth)}");
+                var classe = ClasseEconomica.Find(entry.Snapshot.Total);
+                var titulo = (classe.Title != "Miserável") ? "" : $"**{ classe.Title}**";
+
+                sb.AppendLine($"{medal} {classe.Emoji} {titulo} **{await ResolveGlobalNameAsync(entry.UserId, entry.Username)}** — {EconomyFormat.Compact(entry.Snapshot.Total)}");
                 pos++;
             }
             embed.AddField("🏅 Top Riqueza", sb.ToString());
@@ -69,7 +71,8 @@ public class RankingModule : ModuleBase<SocketCommandContext>
                 var mainId = await _accessor.ResolveMainIdAsync(f.UserId);
                 var profile = await _economy.GetOrCreateAsync(mainId, string.Empty);
                 var name = await ResolveGlobalNameAsync(f.UserId, profile.Username);
-                sb.AppendLine($"👑 **{f.Title}** — **{name}** — {EconomyFormat.Compact(profile.NetWorth)}");
+                var snapshot = await _patrimonio.GetSnapshotAsync(f.UserId);
+                sb.AppendLine($"👑 **{f.Title}** — **{name}** — {EconomyFormat.Compact(snapshot.Total)}");
                 if (!string.IsNullOrWhiteSpace(f.Phrase))
                     sb.AppendLine($"   *“{f.Phrase}”*");
             }
@@ -114,38 +117,17 @@ public class RankingModule : ModuleBase<SocketCommandContext>
     [Alias("classificacao")]
     public async Task TiersAsync()
     {
-        var tiers = await _ranking.GetTiersAsync();
-
-        if (tiers.Count == 0)
-        {
-            await ReplyAsync("📋 Nenhuma classificação configurada ainda.");
-            return;
-        }
-
         var sb = new StringBuilder();
-        foreach (var t in tiers)
-            sb.AppendLine($"{t.Emoji} **{t.Title}** — a partir de {EconomyFormat.Full(t.MinNetWorth)} moedas");
+        foreach (var c in ClasseEconomica.All)
+            sb.AppendLine($"{c.Emoji} **{c.Title}** — a partir de {EconomyFormat.Full(c.MinPatrimonio)} moedas");
 
         var embed = new EmbedBuilder()
-            .WithTitle("⛰️ Classificações do Ranking")
+            .WithTitle("⛰️ Classes Econômicas")
             .WithGoldTheme()
             .WithDescription(sb.ToString())
-            .WithStandardFooter("Atinga o patrimônio para subir de tier");
+            .WithStandardFooter("Vá de Miserável até Magnata acumulando patrimônio");
 
         await ReplyAsync(embed: embed.Build());
-    }
-
-    private static RankingTier? FindTier(IReadOnlyList<RankingTier> tiers, ulong netWorth)
-    {
-        RankingTier? best = null;
-        foreach (var tier in tiers)
-        {
-            if (netWorth >= tier.MinNetWorth)
-                best = tier;
-            else
-                break;
-        }
-        return best;
     }
 
     private async Task<string> ResolveGlobalNameAsync(ulong userId, string fallback)

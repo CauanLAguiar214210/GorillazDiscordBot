@@ -62,7 +62,7 @@ public class ShopPetTests
     private ShopService CreateService()
     {
         _shopRepo.GetAllAsync().Returns(_ => _catalog);
-        var shop = new ShopService(_shopRepo, _economy, _accessor);
+        var shop = new ShopService(_shopRepo, _economy, _accessor, Substitute.For<ICharacterProfileRepository>());
         shop.ForceReload();
         return shop;
     }
