@@ -5,6 +5,7 @@ using MongoDB.Bson.Serialization.Serializers;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Entity.Profile;
 using GorillazDiscordBot.Domain.Entity.Ranking;
 
 namespace GorillazDiscordBot.Infra.Configuration;
@@ -65,6 +66,24 @@ public static class MongoMappings
             map.MapMember(c => c.Amount).SetElementName("Amount");
             map.MapMember(c => c.Description).SetElementName("Description");
             map.MapMember(c => c.CreatedAt).SetElementName("CreatedAt");
+        });
+
+        BsonClassMap.RegisterClassMap<CharacterProfile>(map =>
+        {
+            map.SetIgnoreExtraElements(true);
+            map.MapIdMember(c => c.Id)
+               .SetSerializer(new StringSerializer(BsonType.ObjectId))
+               .SetIdGenerator(StringObjectIdGenerator.Instance);
+            map.MapMember(c => c.UserId).SetElementName("UserId");
+            map.MapMember(c => c.Username).SetElementName("Username");
+            map.MapMember(c => c.Escolaridade).SetElementName("Escolaridade");
+            map.MapMember(c => c.Licencas).SetElementName("Licencas");
+            map.MapMember(c => c.Diplomas).SetElementName("Diplomas");
+            map.MapMember(c => c.CasaAtualKey).SetElementName("CasaAtualKey");
+            map.MapMember(c => c.VeiculoAtualKey).SetElementName("VeiculoAtualKey");
+            map.MapMember(c => c.RoupaAtualKey).SetElementName("RoupaAtualKey");
+            map.MapMember(c => c.CreatedAt).SetElementName("CreatedAt");
+            map.MapMember(c => c.UpdatedAt).SetElementName("UpdatedAt");
         });
 
         BsonClassMap.RegisterClassMap<Gif>(map =>

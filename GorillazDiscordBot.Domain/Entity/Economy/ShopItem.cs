@@ -6,7 +6,8 @@ public enum ItemCategory
     Boost,
     Asset,
     Relic,
-    Pet
+    Pet,
+    Vehicle
 }
 
 public enum BoostEffect

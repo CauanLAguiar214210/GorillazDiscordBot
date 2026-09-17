@@ -49,6 +49,16 @@ public class RankingRepository : MongoRepository<RankingTier>, IRankingRepositor
             .SortBy(h => h.SortOrder)
             .ToListAsync();
 
+    public async Task<HallOfFame?> GetHallOfFameForMembersAsync(IReadOnlyList<ulong> userIds)
+    {
+        if (userIds.Count == 0) return null;
+
+        var filter = Builders<HallOfFame>.Filter.In(h => h.UserId, userIds);
+        return await _hallOfFame.Find(filter)
+            .SortBy(h => h.SortOrder)
+            .FirstOrDefaultAsync();
+    }
+
     public async Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
     {
         try

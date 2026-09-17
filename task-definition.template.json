@@ -4,8 +4,8 @@
   "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/gorillaz-discord-bot-ecs-execution-role",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
-  "cpu": "256",
-  "memory": "512",
+  "cpu": "512",
+  "memory": "1024",
   "containerDefinitions": [
     {
       "name": "bot",
@@ -15,17 +15,49 @@
         { "name": "DOTNET_ENVIRONMENT", "value": "Production" },
         { "name": "MONGODB_DATABASE_NAME", "value": "gorillazbot" },
         { "name": "COMMAND_PREFIX", "value": "macaco " },
+        { "name": "LUCKY_MONKEY_URL", "value": "http://localhost:8080" },
+        { "name": "LUCKY_MONKEY_JWT_ISSUER", "value": "LuckyMonkey" },
+        { "name": "LUCKY_MONKEY_JWT_AUDIENCE", "value": "LuckyMonkey.Clients" },
         { "name": "TZ", "value": "America/Sao_Paulo" }
       ],
       "secrets": [
         { "name": "DISCORD_TOKEN", "valueFrom": "${DISCORD_TOKEN_ARN}" },
         { "name": "OWM_API_KEY", "valueFrom": "${OWM_API_KEY_ARN}" },
-        { "name": "MONGODB_CONNECTION_STRING", "valueFrom": "${MONGODB_CONN_ARN}" }
+        { "name": "MONGODB_CONNECTION_STRING", "valueFrom": "${MONGODB_CONN_ARN}" },
+        { "name": "LUCKY_MONKEY_API_KEY", "valueFrom": "${LUCKY_MONKEY_API_KEY_ARN}" },
+        { "name": "LUCKY_MONKEY_JWT_SIGNING_KEY", "valueFrom": "${LUCKY_MONKEY_JWT_SIGNING_KEY_ARN}" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/gorillaz-discord-bot",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    },
+    {
+      "name": "luckymonkey",
+      "image": "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/luckymonkey.api:latest",
+      "essential": true,
+      "environment": [
+        { "name": "DOTNET_ENVIRONMENT", "value": "Production" },
+        { "name": "ASPNETCORE_URLS", "value": "http://+:8080" },
+        { "name": "LUCKY_MONKEY_JWT_ISSUER", "value": "LuckyMonkey" },
+        { "name": "LUCKY_MONKEY_JWT_AUDIENCE", "value": "LuckyMonkey.Clients" },
+        { "name": "TZ", "value": "America/Sao_Paulo" }
+      ],
+      "secrets": [
+        { "name": "LUCKY_MONKEY_API_KEY", "valueFrom": "${LUCKY_MONKEY_API_KEY_ARN}" },
+        { "name": "LUCKY_MONKEY_JWT_SIGNING_KEY", "valueFrom": "${LUCKY_MONKEY_JWT_SIGNING_KEY_ARN}" }
+      ],
+      "portMappings": [
+        { "containerPort": 8080, "protocol": "tcp" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/gorillaz-discord-bot/luckymonkey",
           "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs"
         }

@@ -19,7 +19,8 @@ public class ShopSlashModuleTests
             .AddSingleton(Substitute.For<ShopService>(
                 Substitute.For<IShopRepository>(),
                 Substitute.For<IEconomyRepository>(),
-                Substitute.For<IEconomyAccessor>()))
+                Substitute.For<IEconomyAccessor>(),
+                Substitute.For<ICharacterProfileRepository>()))
             .BuildServiceProvider();
 
         var interactions = new InteractionService(new DiscordSocketClient());
@@ -52,7 +53,8 @@ public class ShopSlashModuleTests
             .AddSingleton(Substitute.For<ShopService>(
                 Substitute.For<IShopRepository>(),
                 Substitute.For<IEconomyRepository>(),
-                Substitute.For<IEconomyAccessor>()))
+                Substitute.For<IEconomyAccessor>(),
+                Substitute.For<ICharacterProfileRepository>()))
             .BuildServiceProvider();
 
         var interactions = new InteractionService(new DiscordSocketClient());
@@ -94,3 +96,4 @@ public class ShopSlashModuleTests
         return segments.ToArray();
     }
 }
+

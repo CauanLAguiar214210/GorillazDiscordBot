@@ -3,6 +3,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Entity.Profile;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
@@ -42,6 +43,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
                 ShopCategoryChoice.Ativos => ItemCategory.Asset,
                 ShopCategoryChoice.Relogios => ItemCategory.Relic,
                 ShopCategoryChoice.Pets => ItemCategory.Pet,
+                ShopCategoryChoice.Veiculos => ItemCategory.Vehicle,
                 _ => (ItemCategory?)null
             };
 
@@ -599,6 +601,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
                 sb.AppendLine($"   └ Efeito: {DescribeRelic(item)}");
             if (item.Category == ItemCategory.Pet)
                 sb.AppendLine($"   └ Efeito: {DescribePet(item)}");
+            if (item.Category == ItemCategory.Vehicle && VehicleRules.RequiredLicense(item.Key) is { } lic)
+                sb.AppendLine($"   └ 🪪 Exige: {VehicleRules.FormatRequirement(lic)} — use `/veiculo dirigir`");
             sb.AppendLine($"   └ id: `{item.Key}`");
             sb.AppendLine();
         }
@@ -618,6 +622,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Asset => ("📈", "Ativos de Renda"),
         ItemCategory.Relic => ("⌚", "Relógios Equipáveis"),
         ItemCategory.Pet => ("🐾", "Pets"),
+        ItemCategory.Vehicle => ("🚗", "Veículos"),
         _ => ("📋", "Itens")
     };
 
@@ -628,6 +633,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Asset => "asset",
         ItemCategory.Relic => "relic",
         ItemCategory.Pet => "pet",
+        ItemCategory.Vehicle => "veiculo",
         _ => "other"
     };
 
@@ -638,6 +644,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         "asset" => ItemCategory.Asset,
         "relic" => ItemCategory.Relic,
         "pet" => ItemCategory.Pet,
+        "veiculo" => ItemCategory.Vehicle,
         _ => null
     };
 
@@ -648,6 +655,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Asset,
         ItemCategory.Relic,
         ItemCategory.Pet,
+        ItemCategory.Vehicle,
     };
 
     private static Embed BuildShopOverviewEmbed(IUser user, List<ShopItem> real, List<ShopItem> placeholders)
@@ -738,6 +746,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             sb.AppendLine($"⚙️ Efeito: {DescribeRelic(item)}");
         if (item.Category == ItemCategory.Pet)
             sb.AppendLine($"🐾 Efeito: {DescribePet(item)}");
+        if (item.Category == ItemCategory.Vehicle && VehicleRules.RequiredLicense(item.Key) is { } lic)
+            sb.AppendLine($"🪪 Exige: {VehicleRules.FormatRequirement(lic)} — equipe com `/veiculo dirigir`");
         if (owned != null)
             sb.AppendLine($"🎒 Você possui: **{owned.Quantity}**");
 
@@ -778,6 +788,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Asset => "Ativos de Renda",
         ItemCategory.Relic => "Relógios Equipáveis",
         ItemCategory.Pet => "Pets",
+        ItemCategory.Vehicle => "Veículos",
         _ => "Itens"
     };
 
@@ -909,6 +920,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             sb.AppendLine($"⚙️ Efeito: {DescribeRelic(shopItem)}");
         if (shopItem is { Category: ItemCategory.Pet, UpgradeEffect: not UpgradeEffect.None })
             sb.AppendLine($"🐾 Nível **{invItem.Quantity}** · {DescribePet(shopItem)}");
+        if (shopItem?.Category == ItemCategory.Vehicle)
+            sb.AppendLine($"🚗 Dirija com `/veiculo dirigir {shopItem.Key}`");
 
         sb.AppendLine($"\n{description}");
 
@@ -978,5 +991,7 @@ public enum ShopCategoryChoice
     [ChoiceDisplay("⌚ Relógios Equipáveis")]
     Relogios,
     [ChoiceDisplay("🐾 Pets")]
-    Pets
+    Pets,
+    [ChoiceDisplay("🚗 Veículos")]
+    Veiculos
 }

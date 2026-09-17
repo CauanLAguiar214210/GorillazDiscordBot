@@ -11,6 +11,7 @@ public class ShopServiceTests
     private readonly IShopRepository _shop = Substitute.For<IShopRepository>();
     private readonly IEconomyRepository _economy = Substitute.For<IEconomyRepository>();
     private readonly IEconomyAccessor _accessor = Substitute.For<IEconomyAccessor>();
+    private readonly ICharacterProfileRepository _profiles = Substitute.For<ICharacterProfileRepository>();
 
     public ShopServiceTests()
     {
@@ -467,6 +468,40 @@ public class ShopServiceTests
         await _economy.Received(1).SetDailyBoostAsync(1, true);
     }
 
+    [Fact]
+    public async Task GetInventoryValueAsync_SomaPrecoPorQuantidade()
+    {
+        var camisa = MakeItem("camisa", "Camisa 2D", 7500, ItemCategory.Cosmetic, BoostEffect.None);
+        _shop.GetAllAsync().Returns(new List<ShopItem> { camisa });
+        _shop.GetInventoryAsync(1).Returns(new List<InventoryItem>
+        {
+            new() { UserId = 1, ItemKey = "camisa", Quantity = 2 }
+        });
+        var service = CreateService();
+
+        var value = await service.GetInventoryValueAsync(2);
+
+        value.Should().Be(15000);
+    }
+
+    [Fact]
+    public async Task GetInventoryValueAsync_IgnoraPlaceholderEValorZero()
+    {
+        var trofeu = MakeItem("trofeu", "Troféu Prime", 5000, ItemCategory.Cosmetic, BoostEffect.None);
+        var segredo = MakePlaceholder("segredo", "Segredo Gorillaz");
+        _shop.GetAllAsync().Returns(new List<ShopItem> { trofeu, segredo });
+        _shop.GetInventoryAsync(1).Returns(new List<InventoryItem>
+        {
+            new() { UserId = 1, ItemKey = "trofeu", Quantity = 3 },
+            new() { UserId = 1, ItemKey = "segredo", Quantity = 9 }
+        });
+        var service = CreateService();
+
+        var value = await service.GetInventoryValueAsync(2);
+
+        value.Should().Be(15000);
+    }
+
     private static ShopItem MakeRelic(string key, RelicEffect effect, RelicGameType game, int value)
         => new()
         {
@@ -528,5 +563,5 @@ public class ShopServiceTests
         };
 
     private ShopService CreateService()
-        => new(_shop, _economy, _accessor);
+        => new(_shop, _economy, _accessor, _profiles);
 }

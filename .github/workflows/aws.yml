@@ -75,11 +75,15 @@ jobs:
         DISCORD_TOKEN_ARN: ${{ vars.DISCORD_TOKEN_ARN }}
         OWM_API_KEY_ARN: ${{ vars.OWM_API_KEY_ARN }}
         MONGODB_CONN_ARN: ${{ vars.MONGODB_CONN_ARN }}
+        LUCKY_MONKEY_API_KEY_ARN: ${{ vars.LUCKY_MONKEY_API_KEY_ARN }}
+        LUCKY_MONKEY_JWT_SIGNING_KEY_ARN: ${{ vars.LUCKY_MONKEY_JWT_SIGNING_KEY_ARN }}
       run: |
         : "${AWS_ACCOUNT_ID:?AWS_ACCOUNT_ID variable nao configurado}"
         : "${DISCORD_TOKEN_ARN:?DISCORD_TOKEN_ARN variable nao configurado}"
         : "${OWM_API_KEY_ARN:?OWM_API_KEY_ARN variable nao configurado}"
         : "${MONGODB_CONN_ARN:?MONGODB_CONN_ARN variable nao configurado}"
+        : "${LUCKY_MONKEY_API_KEY_ARN:?LUCKY_MONKEY_API_KEY_ARN variable nao configurado}"
+        : "${LUCKY_MONKEY_JWT_SIGNING_KEY_ARN:?LUCKY_MONKEY_JWT_SIGNING_KEY_ARN variable nao configurado}"
         envsubst < task-definition.template.json > task-definition.json
 
     - name: Render Amazon ECS task definition

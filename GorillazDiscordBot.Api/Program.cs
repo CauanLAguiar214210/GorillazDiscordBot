@@ -75,6 +75,7 @@ builder.Services.AddSingleton<IShopRepository, ShopRepository>();
 builder.Services.AddSingleton<IGifRepository, GifRepository>();
 builder.Services.AddSingleton<IGuildMemberRepository, GuildMemberRepository>();
 builder.Services.AddSingleton<IRankingRepository, RankingRepository>();
+builder.Services.AddSingleton<ICharacterProfileRepository, CharacterProfileRepository>();
 
 // Guild settings (cache + MongoDB, um documento por servidor)
 builder.Services.AddSingleton(typeof(ISettingsRepository<>), typeof(SettingsRepository<>));
@@ -113,6 +114,10 @@ builder.Services.AddHttpClient<CasinoApiClient>(client =>
 builder.Services.AddSingleton<PayoutService>();
 builder.Services.AddSingleton<CasinoBetTracker>();
 builder.Services.AddSingleton<ShopService>();
+builder.Services.AddSingleton<IPatrimonioService, PatrimonioService>();
+builder.Services.AddSingleton<QuizSessionService>();
+builder.Services.AddSingleton<JobExamSessionService>();
+builder.Services.AddSingleton<LicencaExamSessionService>();
 
 // GIF URL Normalization
 builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>
@@ -144,10 +149,11 @@ try
     await host.Services.GetRequiredService<IUserRepository>().EnsureIndexesAsync();
     await host.Services.GetRequiredService<IShopRepository>().EnsureIndexesAsync();
     await host.Services.GetRequiredService<IRankingRepository>().EnsureIndexesAsync();
+    await host.Services.GetRequiredService<ICharacterProfileRepository>().EnsureIndexesAsync();
 }
 catch (Exception ex)
 {
-    logger.LogWarning(ex, "Falha ao garantir índices das collections (GuildMember/DiscordUserProfile/Shop/Ranking)");
+    logger.LogWarning(ex, "Falha ao garantir índices das collections (GuildMember/DiscordUserProfile/Shop/Ranking/CharacterProfile)");
 }
 
 await host.RunAsync();

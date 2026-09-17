@@ -1,25 +1,51 @@
+using GorillazDiscordBot.Domain.Entity.Profile;
+
 namespace GorillazDiscordBot.Domain.Entity.Economy;
 
-public sealed record Job(string Key, string Name, string Emoji, int Hours, int HourlyPay)
+public enum JobCategory
+{
+    SubEmprego,
+    Emprego
+}
+
+public sealed record Job(
+    string Key,
+    string Name,
+    string Emoji,
+    int Hours,
+    int HourlyPay,
+    JobCategory Category,
+    SchoolingLevel MinSchooling,
+    bool RequiresDiploma)
 {
     public ulong TotalPay => (ulong)(Hours * HourlyPay);
+    public bool IsEmprego => Category == JobCategory.Emprego;
 }
 
 public static class EconomyJobs
 {
     public static readonly IReadOnlyList<Job> All = new[]
     {
-        new Job("entregador", "Entregador", "🛵", 2, 50),
-        new Job("faxineiro", "Faxineiro", "🧹", 3, 60),
-        new Job("porteiro", "Porteiro", "🚪", 4, 70),
-        new Job("cozinheiro", "Cozinheiro", "👨‍🍳", 5, 80),
-        new Job("programador", "Programador", "💻", 6, 100),
-        new Job("engenheiro", "Engenheiro", "🛠️", 8, 90),
+        new Job("entregador", "Entregador", "🛵", 2, 50, JobCategory.SubEmprego, SchoolingLevel.Nenhuma, false),
+        new Job("faxineiro", "Faxineiro", "🧹", 3, 60, JobCategory.SubEmprego, SchoolingLevel.Nenhuma, false),
+        new Job("porteiro", "Porteiro", "🚪", 4, 70, JobCategory.SubEmprego, SchoolingLevel.Nenhuma, false),
+        new Job("cozinheiro", "Cozinheiro", "👨‍🍳", 5, 80, JobCategory.SubEmprego, SchoolingLevel.Nenhuma, false),
+        new Job("programador", "Programador", "💻", 6, 100, JobCategory.Emprego, SchoolingLevel.EnsinoMedio, true),
+        new Job("engenheiro", "Engenheiro", "🛠️", 8, 90, JobCategory.Emprego, SchoolingLevel.EnsinoSuperior, true),
     };
+
+    public static IReadOnlyList<Job> SubEmpregos { get; } =
+        All.Where(j => j.Category == JobCategory.SubEmprego).ToList();
+
+    public static IReadOnlyList<Job> Empregos { get; } =
+        All.Where(j => j.Category == JobCategory.Emprego).ToList();
 
     public static Job? Find(string alias)
         => All.FirstOrDefault(j => j.Key.Equals(alias, StringComparison.OrdinalIgnoreCase)
                                    || j.Name.Equals(alias, StringComparison.OrdinalIgnoreCase));
+
+    public static Job? FindByKey(string key)
+        => All.FirstOrDefault(j => j.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
 }
 
 public static class EconomyRules
