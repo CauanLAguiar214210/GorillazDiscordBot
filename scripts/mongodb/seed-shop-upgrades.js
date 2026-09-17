@@ -17,7 +17,7 @@
 // Idempotente: insertMany com filtro de Keys já existentes.
 // ============================================================================
 
-const defaultDbName = "gorillazbot";
+//const defaultDbName = "gorillazbot";
 
 const extractDatabaseName = (uri) => {
     const rest = String(uri).replace(/^mongodb(\+srv)?:\/\//i, "");
@@ -28,15 +28,15 @@ const extractDatabaseName = (uri) => {
     return (q === -1 ? path : path.substring(0, q)).trim() || defaultDbName;
 };
 
-const connectionString =
-    process.env.MONGODB_CONNECTION_STRING ||
-    process.argv.find((arg) => /^mongodb(\+srv)?:\/\//i.test(arg)) ||
-    null;
+// const connectionString =
+    // process.env.MONGODB_CONNECTION_STRING ||
+    // process.argv.find((arg) => /^mongodb(\+srv)?:\/\//i.test(arg)) ||
+    // null;
 
-if (connectionString) {
-    db = connect(connectionString).getDB(extractDatabaseName(connectionString));
-    print(`Conectado (db: ${extractDatabaseName(connectionString)})`);
-}
+// if (connectionString) {
+    // db = connect(connectionString).getDB(extractDatabaseName(connectionString));
+    // print(`Conectado (db: ${extractDatabaseName(connectionString)})`);
+// }
 
 // ---- Enums (int) — espelham ShopItem.cs ---------------------------------------
 const CATEGORY = 6;                 // ItemCategory.Upgrade
@@ -111,4 +111,4 @@ print("== RESULTADO ============================================================
 print(`melhorias: ${shop.countDocuments({ Category: CATEGORY })}`);
 print(EJSON.stringify(shop.findOne({ Key: "upgrade_base_2" }), null, 2));
 
-quit(0);
+//quit(0);

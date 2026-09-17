@@ -21,7 +21,7 @@
 // Idempotente: upsert por Key (reexecutar re-aplica os mesmos valores).
 // ============================================================================
 
-const defaultDbName = "gorillazbot";
+//const defaultDbName = "gorillazbot";
 
 const extractDatabaseName = (uri) => {
     const rest = String(uri).replace(/^mongodb(\+srv)?:\/\//i, "");
@@ -32,15 +32,15 @@ const extractDatabaseName = (uri) => {
     return (q === -1 ? path : path.substring(0, q)).trim() || defaultDbName;
 };
 
-const connectionString =
-    process.env.MONGODB_CONNECTION_STRING ||
-    process.argv.find((arg) => /^mongodb(\+srv)?:\/\//i.test(arg)) ||
-    null;
+// const connectionString =
+    // process.env.MONGODB_CONNECTION_STRING ||
+    // process.argv.find((arg) => /^mongodb(\+srv)?:\/\//i.test(arg)) ||
+    // null;
 
-if (connectionString) {
-    db = connect(connectionString).getDB(extractDatabaseName(connectionString));
-    print(`Conectado (db: ${extractDatabaseName(connectionString)})`);
-}
+// if (connectionString) {
+    // db = connect(connectionString).getDB(extractDatabaseName(connectionString));
+    // print(`Conectado (db: ${extractDatabaseName(connectionString)})`);
+// }
 
 // ---- Enums (int) — espelham ShopItem.cs / CharacterProfile.cs -----------------
 const CATEGORY_VEHICLE = 5;                 // ItemCategory.Vehicle
@@ -218,4 +218,4 @@ print("");
 print("Para conferir tudo:");
 print("  db.ShopItem.find({ Category: 5 }).sort({ SortOrder: 1 }).forEach(d => print(d.Key, '|', d.VehicleType, '|', d.RequiredLicense))");
 
-quit(0);
+//quit(0);
