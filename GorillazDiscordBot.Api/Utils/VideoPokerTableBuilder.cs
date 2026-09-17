@@ -50,9 +50,7 @@ public static class VideoPokerTableBuilder
             .WithDescription(sb.ToString())
             .WithAuthor($"{player.GetDisplayName()} no cassino", player.GetAvatarUrl());
 
-        embed.WithStandardFooter(resultSection == null
-            ? "Segure as cartas boas e troque o resto! 🃏"
-            : "Nova mão: `/cassino poker`");
+        embed.WithStandardFooter("Segure as cartas boas e troque o resto! 🃏");
 
         return embed.Build();
     }

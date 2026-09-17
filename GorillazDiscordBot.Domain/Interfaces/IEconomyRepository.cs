@@ -28,6 +28,7 @@ public interface IEconomyRepository
     Task<EconomyProfile> SetRobShieldAsync(ulong userId, DateTime? until);
 
     Task<List<EconomyProfile>> GetTopUsersAsync(int limit);
+    Task<ulong> GetTotalMoneySupplyAsync();
     Task<int> ApplyDailyMaintenanceAsync();
     Task<List<EconomyTransaction>> GetHistoryAsync(ulong userId, int limit);
     Task LogTransactionAsync(ulong userId, EconomyTransactionType type, long amount, string description);

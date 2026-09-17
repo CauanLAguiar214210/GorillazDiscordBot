@@ -118,6 +118,8 @@ builder.Services.AddSingleton<IPatrimonioService, PatrimonioService>();
 builder.Services.AddSingleton<QuizSessionService>();
 builder.Services.AddSingleton<JobExamSessionService>();
 builder.Services.AddSingleton<LicencaExamSessionService>();
+builder.Services.AddSingleton<InflationService>();
+builder.Services.AddSingleton<ManobristaSessionService>();
 
 // GIF URL Normalization
 builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>

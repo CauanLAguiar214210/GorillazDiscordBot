@@ -148,7 +148,7 @@ public class GaragemSlashModule : InteractionModuleBase<SocketInteractionContext
             sb.AppendLine();
             foreach (var (_, item) in vehicles)
             {
-                var required = VehicleRules.RequiredLicense(item.Key);
+                var required = VehicleRules.RequiredLicense(item);
                 var licenseStatus = required is { } lic
                     ? (profile.Licencas.Contains(lic)
                         ? "🟢 liberado"

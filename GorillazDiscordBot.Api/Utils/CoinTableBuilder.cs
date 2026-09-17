@@ -43,7 +43,7 @@ public static class CoinTableBuilder
             .WithDescription(sb.ToString())
             .WithAuthor($"{player.GetDisplayName()} no cassino", player.GetAvatarUrl());
 
-        embed.WithStandardFooter("Use o botão para lançar, ou `macaco flip` na próxima vez.");
+        embed.WithStandardFooter("Use o botão para lançar na próxima vez.");
 
         return embed.Build();
     }

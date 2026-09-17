@@ -1,3 +1,5 @@
+using GorillazDiscordBot.Domain.Entity.Profile;
+
 namespace GorillazDiscordBot.Domain.Entity.Economy;
 
 public enum ItemCategory
@@ -7,7 +9,8 @@ public enum ItemCategory
     Asset,
     Relic,
     Pet,
-    Vehicle
+    Vehicle,
+    Upgrade
 }
 
 public enum BoostEffect
@@ -25,7 +28,9 @@ public enum UpgradeEffect
     Work,
     Rob,
     AssetIncome,
-    Savings
+    Savings,
+    ManobristaBase,
+    ManobristaVagas
 }
 
 public enum RelicEffect
@@ -78,4 +83,7 @@ public class ShopItem
 
     public UpgradeEffect UpgradeEffect { get; set; }
     public int UpgradeValue { get; set; }
+
+    public VehicleType VehicleType { get; set; }
+    public LicenseLevel? RequiredLicense { get; set; }
 }

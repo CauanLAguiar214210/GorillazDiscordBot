@@ -5,7 +5,15 @@ namespace GorillazDiscordBot.Domain.Entity.Economy;
 public enum JobCategory
 {
     SubEmprego,
-    Emprego
+    Emprego,
+    Veiculo
+}
+
+public enum JobPayMode
+{
+    Legacy,
+    Inflation,
+    Clicker
 }
 
 public sealed record Job(
@@ -15,11 +23,17 @@ public sealed record Job(
     int Hours,
     int HourlyPay,
     JobCategory Category,
-    SchoolingLevel MinSchooling,
-    bool RequiresDiploma)
+    SchoolingLevel MinSchooling = SchoolingLevel.Nenhuma,
+    bool RequiresDiploma = false,
+    LicenseLevel? RequiredLicense = null,
+    VehicleType? RequiredVehicleType = null,
+    JobPayMode PayMode = JobPayMode.Legacy,
+    int CategoryBonusPercent = 0,
+    int TypeBonusPercent = 0)
 {
     public ulong TotalPay => (ulong)(Hours * HourlyPay);
     public bool IsEmprego => Category == JobCategory.Emprego;
+    public bool IsVeiculo => Category == JobCategory.Veiculo;
 }
 
 public static class EconomyJobs
@@ -32,6 +46,22 @@ public static class EconomyJobs
         new Job("cozinheiro", "Cozinheiro", "👨‍🍳", 5, 80, JobCategory.SubEmprego, SchoolingLevel.Nenhuma, false),
         new Job("programador", "Programador", "💻", 6, 100, JobCategory.Emprego, SchoolingLevel.EnsinoMedio, true),
         new Job("engenheiro", "Engenheiro", "🛠️", 8, 90, JobCategory.Emprego, SchoolingLevel.EnsinoSuperior, true),
+
+        new Job("piloto-aviao", "Piloto de Avião", "✈️", 5, 210, JobCategory.Veiculo,
+            RequiredLicense: LicenseLevel.PilotoPrivado, RequiredVehicleType: VehicleType.Aviao,
+            PayMode: JobPayMode.Inflation, CategoryBonusPercent: 20, TypeBonusPercent: 5),
+        new Job("piloto-comercial", "Piloto Comercial", "🛫", 6, 260, JobCategory.Veiculo,
+            RequiredLicense: LicenseLevel.PilotoComercial, RequiredVehicleType: VehicleType.Aviao,
+            PayMode: JobPayMode.Inflation, CategoryBonusPercent: 20, TypeBonusPercent: 5),
+        new Job("piloto-linha-aerea", "Piloto de Linha Aérea", "🛩️", 7, 320, JobCategory.Veiculo,
+            RequiredLicense: LicenseLevel.PilotoLinhaAerea, RequiredVehicleType: VehicleType.Jato,
+            PayMode: JobPayMode.Inflation, CategoryBonusPercent: 20, TypeBonusPercent: 10),
+        new Job("motorista-app", "Motorista de App", "🚕", 3, 90, JobCategory.Veiculo,
+            RequiredLicense: LicenseLevel.B, RequiredVehicleType: VehicleType.Carro,
+            PayMode: JobPayMode.Inflation, CategoryBonusPercent: 20, TypeBonusPercent: 0),
+        new Job("manobrista", "Manobrista", "🚗", 2, 10, JobCategory.Veiculo,
+            RequiredLicense: LicenseLevel.B,
+            PayMode: JobPayMode.Clicker, CategoryBonusPercent: 0, TypeBonusPercent: 0),
     };
 
     public static IReadOnlyList<Job> SubEmpregos { get; } =
@@ -39,6 +69,9 @@ public static class EconomyJobs
 
     public static IReadOnlyList<Job> Empregos { get; } =
         All.Where(j => j.Category == JobCategory.Emprego).ToList();
+
+    public static IReadOnlyList<Job> Veiculos { get; } =
+        All.Where(j => j.Category == JobCategory.Veiculo).ToList();
 
     public static Job? Find(string alias)
         => All.FirstOrDefault(j => j.Key.Equals(alias, StringComparison.OrdinalIgnoreCase)

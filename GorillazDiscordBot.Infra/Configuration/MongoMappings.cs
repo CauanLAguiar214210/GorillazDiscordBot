@@ -166,6 +166,8 @@ public static class MongoMappings
             map.MapMember(c => c.RelicValue).SetElementName("RelicValue");
             map.MapMember(c => c.UpgradeEffect).SetElementName("UpgradeEffect");
             map.MapMember(c => c.UpgradeValue).SetElementName("UpgradeValue");
+            map.MapMember(c => c.VehicleType).SetElementName("VehicleType");
+            map.MapMember(c => c.RequiredLicense).SetElementName("RequiredLicense");
         });
 
         BsonClassMap.RegisterClassMap<RankingTier>(map =>

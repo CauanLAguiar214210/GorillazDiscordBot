@@ -75,6 +75,7 @@ public class ShopSlashModuleTests
             "shop:buy:*:*",
             "shop:cat:*",
             "shop:item:*:*",
+            "shop:vtype:*",
         };
 
         names.Should().BeEquivalentTo(expected);

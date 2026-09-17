@@ -45,7 +45,7 @@ public static class DiceTableBuilder
             .WithDescription(sb.ToString())
             .WithAuthor($"{player.GetDisplayName()} no cassino", player.GetAvatarUrl());
 
-        embed.WithStandardFooter("Use o botão para rolar, ou `macaco dado` na próxima vez.");
+        embed.WithStandardFooter("Use o botão para rolar na próxima vez.");
 
         return embed.Build();
     }

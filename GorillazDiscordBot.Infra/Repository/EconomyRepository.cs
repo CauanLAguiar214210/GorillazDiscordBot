@@ -293,6 +293,31 @@ public class EconomyRepository : IEconomyRepository
             new BsonDocument("$toDecimal", "$Savings")
         }));
 
+    public async Task<ulong> GetTotalMoneySupplyAsync()
+    {
+        var pipeline = new[]
+        {
+            new BsonDocument("$project", new BsonDocument
+            {
+                { "Total", new BsonDocument("$add", new BsonArray
+                    {
+                        new BsonDocument("$toDecimal", "$Money"),
+                        new BsonDocument("$toDecimal", "$Bank"),
+                        new BsonDocument("$toDecimal", "$Savings")
+                    }) }
+            }),
+            new BsonDocument("$group", new BsonDocument
+            {
+                { "_id", BsonNull.Value },
+                { "Total", new BsonDocument("$sum", "$Total") }
+            })
+        };
+
+        var result = await _collection.Aggregate<BsonDocument>(pipeline).FirstOrDefaultAsync();
+        if (result == null || !result.TryGetValue("Total", out var total)) return 0;
+        return (ulong)Math.Max(0, total.AsDecimal);
+    }
+
     public async Task<int> ApplyDailyMaintenanceAsync()
     {
         var today = DateTime.UtcNow.Date;

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Entity.Profile;
 
 namespace GorillazDiscordBot.Tests;
 
@@ -57,5 +58,29 @@ public class JobLicensingTests
             job.RequiresDiploma.Should().BeFalse();
             job.MinSchooling.Should().Be(Domain.Entity.Profile.SchoolingLevel.Nenhuma);
         }
+    }
+
+    [Fact]
+    public void Veiculos_ExigemLicencaENaoDiploma()
+    {
+        EconomyJobs.Veiculos.Should().NotBeEmpty();
+
+        foreach (var job in EconomyJobs.Veiculos)
+        {
+            job.RequiresDiploma.Should().BeFalse();
+            job.RequiredLicense.Should().NotBeNull();
+            job.PayMode.Should().NotBe(JobPayMode.Legacy);
+            JobLicensing.HasExam(job.Key).Should().BeFalse();
+        }
+    }
+
+    [Fact]
+    public void Veiculos_LicencasEspecificas()
+    {
+        EconomyJobs.FindByKey("manobrista")!.RequiredLicense.Should().Be(LicenseLevel.B);
+        EconomyJobs.FindByKey("motorista-app")!.RequiredLicense.Should().Be(LicenseLevel.B);
+        EconomyJobs.FindByKey("piloto-aviao")!.RequiredLicense.Should().Be(LicenseLevel.PilotoPrivado);
+        EconomyJobs.FindByKey("piloto-comercial")!.RequiredLicense.Should().Be(LicenseLevel.PilotoComercial);
+        EconomyJobs.FindByKey("piloto-linha-aerea")!.RequiredLicense.Should().Be(LicenseLevel.PilotoLinhaAerea);
     }
 }

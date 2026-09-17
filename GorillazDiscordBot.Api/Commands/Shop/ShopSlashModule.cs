@@ -44,6 +44,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
                 ShopCategoryChoice.Relogios => ItemCategory.Relic,
                 ShopCategoryChoice.Pets => ItemCategory.Pet,
                 ShopCategoryChoice.Veiculos => ItemCategory.Vehicle,
+                ShopCategoryChoice.Melhorias => ItemCategory.Upgrade,
                 _ => (ItemCategory?)null
             };
 
@@ -65,8 +66,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
                 }
             }
 
-            var embed = BuildCategorySectionEmbed(itemCategory.Value, section);
-            var components = BuildShopCategoryComponents(Context.User.Id, itemCategory.Value, section);
+            var (embed, components) = BuildCategoryView(Context.User.Id, itemCategory.Value, section);
             await RespondAsync(embed: embed, components: components);
             return;
         }
@@ -429,16 +429,19 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         if (string.IsNullOrEmpty(itemKey))
             return;
 
-        if (itemKey == "back")
-        {
-            await ShowShopOverviewAsync(component, owner);
-            return;
-        }
-
         var category = ParseCategoryId(catId);
         if (category is null)
         {
             await FollowupAsync("❌ Categoria inválida.", ephemeral: true);
+            return;
+        }
+
+        if (itemKey == "back")
+        {
+            if (category == ItemCategory.Vehicle)
+                await ShowShopCategoryAsync(component, owner, ItemCategory.Vehicle);
+            else
+                await ShowShopOverviewAsync(component, owner);
             return;
         }
 
@@ -508,6 +511,38 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         await ShowShopCategoryAsync(component, owner, category.Value);
     }
 
+    [ComponentInteraction("shop:vtype:*", true)]
+    public async Task ShopVehicleTypeSelectAsync(string invokerId)
+    {
+        if (!ulong.TryParse(invokerId, out var owner) || owner != Context.User.Id)
+        {
+            await RespondAsync("🛒 Use `/loja` para abrir sua própria loja.", ephemeral: true);
+            return;
+        }
+
+        await DeferAsync();
+
+        var component = (SocketMessageComponent)Context.Interaction;
+        var value = component.Data.Values.FirstOrDefault();
+
+        if (string.IsNullOrEmpty(value))
+            return;
+
+        if (value == "back")
+        {
+            await ShowShopOverviewAsync(component, owner);
+            return;
+        }
+
+        if (ParseVehicleType(value) is not { } type)
+        {
+            await FollowupAsync("❌ Tipo de veículo inválido.", ephemeral: true);
+            return;
+        }
+
+        await ShowVehicleTypeAsync(component, owner, type);
+    }
+
     [SlashCommand("equipar", "Equip um relógio da loja")]
     public async Task EquiparAsync(
         [Summary("item", "ID ou nome do relógio")] string item)
@@ -552,8 +587,26 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             .OrderByDescending(i => i.Price)
             .ToList();
 
-        var embed = BuildCategorySectionEmbed(category, section);
-        var components = BuildShopCategoryComponents(ownerId, category, section);
+        var (embed, components) = BuildCategoryView(ownerId, category, section);
+
+        await component.ModifyOriginalResponseAsync(m =>
+        {
+            m.Embed = embed;
+            m.Components = components;
+        });
+    }
+
+    private async Task ShowVehicleTypeAsync(SocketMessageComponent component, ulong ownerId, VehicleType type)
+    {
+        var catalog = await _shop.GetCatalogAsync();
+        var items = catalog
+            .Where(i => i.IsActive && !i.IsPlaceholder
+                && i.Category == ItemCategory.Vehicle && i.VehicleType == type)
+            .OrderBy(i => i.Price)
+            .ToList();
+
+        var embed = BuildVehicleModelsEmbed(type, items);
+        var components = BuildVehicleModelsComponents(ownerId, type, items);
 
         await component.ModifyOriginalResponseAsync(m =>
         {
@@ -591,21 +644,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             sb.AppendLine("🔒 Em breve.");
 
         foreach (var item in items)
-        {
-            var extra = item.DurationHours > 0 ? $" *(dur. {item.DurationHours}h)*" : "";
-            sb.AppendLine($"{item.Emoji} **{item.Name}** — **{EconomyFormat.Full(item.Price)}** moedas");
-            sb.AppendLine($"   └ {item.Description}{extra}");
-            if (item.Category == ItemCategory.Asset && item.DailyIncome > 0)
-                sb.AppendLine($"   └ Renda: **+{EconomyFormat.Full(item.DailyIncome)}/dia** no daily · limite: 1 por usuário");
-            if (item.Category == ItemCategory.Relic)
-                sb.AppendLine($"   └ Efeito: {DescribeRelic(item)}");
-            if (item.Category == ItemCategory.Pet)
-                sb.AppendLine($"   └ Efeito: {DescribePet(item)}");
-            if (item.Category == ItemCategory.Vehicle && VehicleRules.RequiredLicense(item.Key) is { } lic)
-                sb.AppendLine($"   └ 🪪 Exige: {VehicleRules.FormatRequirement(lic)} — use `/veiculo dirigir`");
-            sb.AppendLine($"   └ id: `{item.Key}`");
-            sb.AppendLine();
-        }
+            AppendShopItemLine(sb, item);
 
         return new EmbedBuilder()
             .WithBlurpleTheme()
@@ -613,6 +652,25 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             .WithTitle($"{icon} {title}")
             .WithDescription(sb.ToString())
             .Build();
+    }
+
+    private static void AppendShopItemLine(StringBuilder sb, ShopItem item)
+    {
+        var extra = item.DurationHours > 0 ? $" *(dur. {item.DurationHours}h)*" : "";
+        sb.AppendLine($"{item.Emoji} **{item.Name}** — **{EconomyFormat.Full(item.Price)}** moedas");
+        sb.AppendLine($"   └ {item.Description}{extra}");
+        if (item.Category == ItemCategory.Asset && item.DailyIncome > 0)
+            sb.AppendLine($"   └ Renda: **+{EconomyFormat.Full(item.DailyIncome)}/dia** no daily · limite: 1 por usuário");
+        if (item.Category == ItemCategory.Relic)
+            sb.AppendLine($"   └ Efeito: {DescribeRelic(item)}");
+        if (item.Category == ItemCategory.Pet)
+            sb.AppendLine($"   └ Efeito: {DescribePet(item)}");
+        if (item.Category == ItemCategory.Upgrade)
+            sb.AppendLine($"   └ Efeito: {DescribeUpgrade(item)}");
+        if (item.Category == ItemCategory.Vehicle && VehicleRules.RequiredLicense(item) is { } lic)
+            sb.AppendLine($"   └ 🪪 Exige: {VehicleRules.FormatRequirement(lic)} — use `/veiculo dirigir`");
+        sb.AppendLine($"   └ id: `{item.Key}`");
+        sb.AppendLine();
     }
 
     private static (string Icon, string Title) GetCategoryMeta(ItemCategory category) => category switch
@@ -623,6 +681,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Relic => ("⌚", "Relógios Equipáveis"),
         ItemCategory.Pet => ("🐾", "Pets"),
         ItemCategory.Vehicle => ("🚗", "Veículos"),
+        ItemCategory.Upgrade => ("🅿️", "Melhorias"),
         _ => ("📋", "Itens")
     };
 
@@ -634,6 +693,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Relic => "relic",
         ItemCategory.Pet => "pet",
         ItemCategory.Vehicle => "veiculo",
+        ItemCategory.Upgrade => "melhoria",
         _ => "other"
     };
 
@@ -645,6 +705,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         "relic" => ItemCategory.Relic,
         "pet" => ItemCategory.Pet,
         "veiculo" => ItemCategory.Vehicle,
+        "melhoria" => ItemCategory.Upgrade,
         _ => null
     };
 
@@ -656,6 +717,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Relic,
         ItemCategory.Pet,
         ItemCategory.Vehicle,
+        ItemCategory.Upgrade,
     };
 
     private static Embed BuildShopOverviewEmbed(IUser user, List<ShopItem> real, List<ShopItem> placeholders)
@@ -729,6 +791,132 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             .Build();
     }
 
+    private static (Embed Embed, MessageComponent Components) BuildCategoryView(
+        ulong userId, ItemCategory category, List<ShopItem> items)
+        => category == ItemCategory.Vehicle
+            ? (BuildVehicleTypeEmbed(items), BuildVehicleTypeComponents(userId, items))
+            : (BuildCategorySectionEmbed(category, items), BuildShopCategoryComponents(userId, category, items));
+
+    private static Embed BuildVehicleTypeEmbed(List<ShopItem> items)
+    {
+        var sb = new StringBuilder();
+
+        if (items.Count == 0)
+            sb.AppendLine("🔒 Em breve.");
+        else
+        {
+            foreach (var group in items
+                .Where(i => i.VehicleType != VehicleType.None)
+                .GroupBy(i => i.VehicleType)
+                .OrderBy(g => g.Min(i => i.SortOrder)))
+            {
+                var (icon, title) = GetVehicleTypeMeta(group.Key);
+                var cheapest = group.MinBy(i => i.Price)!;
+                var licenseText = VehicleRules.RequiredLicense(cheapest) is { } lic
+                    ? $" · 🪪 {VehicleRules.FormatRequirement(lic)}"
+                    : "";
+                sb.AppendLine($"{icon} **{title}** — {group.Count()} modelo(s){licenseText}");
+                sb.AppendLine($"   └ {cheapest.Emoji} **{cheapest.Name}** a partir de **{EconomyFormat.Full(cheapest.Price)}** moedas");
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("Selecione um tipo abaixo para ver os modelos.");
+        }
+
+        return new EmbedBuilder()
+            .WithBlurpleTheme()
+            .WithAuthor("Loja do Gorillaz")
+            .WithTitle("🚗 Veículos")
+            .WithDescription(sb.ToString())
+            .WithStandardFooter("🛒 Escolha um tipo de veículo")
+            .Build();
+    }
+
+    private static MessageComponent BuildVehicleTypeComponents(ulong userId, List<ShopItem> items)
+    {
+        var options = items
+            .Where(i => i.VehicleType != VehicleType.None)
+            .GroupBy(i => i.VehicleType)
+            .OrderBy(g => g.Min(i => i.SortOrder))
+            .Select(g =>
+            {
+                var (icon, title) = GetVehicleTypeMeta(g.Key);
+                return new SelectMenuOptionBuilder($"{icon} {title} ({g.Count()})", ToVehicleTypeSlug(g.Key));
+            })
+            .ToList();
+
+        options.Add(new SelectMenuOptionBuilder("📋 Voltar às categorias", "back"));
+
+        return new ComponentBuilder()
+            .WithSelectMenu(new SelectMenuBuilder()
+                .WithCustomId($"{ShopPrefix}:vtype:{userId}")
+                .WithPlaceholder("Escolha um tipo de veículo…")
+                .WithOptions(options))
+            .Build();
+    }
+
+    private static Embed BuildVehicleModelsEmbed(VehicleType type, List<ShopItem> items)
+    {
+        var (icon, title) = GetVehicleTypeMeta(type);
+        var sb = new StringBuilder();
+
+        if (items.Count == 0)
+            sb.AppendLine("🔒 Em breve.");
+
+        foreach (var item in items)
+            AppendShopItemLine(sb, item);
+
+        return new EmbedBuilder()
+            .WithBlurpleTheme()
+            .WithAuthor("Loja do Gorillaz")
+            .WithTitle($"{icon} Veículos — {title}")
+            .WithDescription(sb.ToString())
+            .WithStandardFooter("🛒 Escolha um modelo")
+            .Build();
+    }
+
+    private static MessageComponent BuildVehicleModelsComponents(
+        ulong userId, VehicleType type, List<ShopItem> items)
+    {
+        var options = new List<SelectMenuOptionBuilder>
+        {
+            new("📋 Voltar aos tipos", "back")
+        };
+        options.AddRange(items.Select(i => new SelectMenuOptionBuilder(
+            $"{i.Emoji} {i.Name} — {EconomyFormat.Compact(i.Price)}", i.Key)));
+
+        return new ComponentBuilder()
+            .WithSelectMenu(new SelectMenuBuilder()
+                .WithCustomId($"{ShopPrefix}:item:{userId}:{GetCategoryId(ItemCategory.Vehicle)}")
+                .WithPlaceholder("Selecione um modelo…")
+                .WithOptions(options))
+            .Build();
+    }
+
+    private static (string Icon, string Title) GetVehicleTypeMeta(VehicleType type) => type switch
+    {
+        VehicleType.Moto => ("🏍️", "Motos"),
+        VehicleType.Carro => ("🚗", "Carros Populares"),
+        VehicleType.Caminhonete => ("🚙", "Caminhonetes"),
+        VehicleType.Esportivo => ("🏎️", "Esportivos"),
+        VehicleType.Caminhao => ("🚛", "Caminhões"),
+        VehicleType.Onibus => ("🚌", "Ônibus"),
+        VehicleType.Carreta => ("🚚", "Carretas"),
+        VehicleType.Lancha => ("🚤", "Lanchas"),
+        VehicleType.Iate => ("🛥️", "Iates"),
+        VehicleType.Navio => ("🚢", "Navios"),
+        VehicleType.Aviao => ("✈️", "Aviões"),
+        VehicleType.Jato => ("🛩️", "Jatos"),
+        _ => ("🚗", "Veículos")
+    };
+
+    private static string ToVehicleTypeSlug(VehicleType type) => type.ToString().ToLowerInvariant();
+
+    private static VehicleType? ParseVehicleType(string slug)
+        => Enum.TryParse<VehicleType>(slug, ignoreCase: true, out var type) && type != VehicleType.None
+            ? type
+            : null;
+
     private static Embed BuildShopItemDetailEmbed(
         IUser user, ShopItem item, ulong balance, InventoryItem? owned, string? actionMessage = null)
     {
@@ -746,7 +934,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             sb.AppendLine($"⚙️ Efeito: {DescribeRelic(item)}");
         if (item.Category == ItemCategory.Pet)
             sb.AppendLine($"🐾 Efeito: {DescribePet(item)}");
-        if (item.Category == ItemCategory.Vehicle && VehicleRules.RequiredLicense(item.Key) is { } lic)
+        if (item.Category == ItemCategory.Vehicle && VehicleRules.RequiredLicense(item) is { } lic)
             sb.AppendLine($"🪪 Exige: {VehicleRules.FormatRequirement(lic)} — equipe com `/veiculo dirigir`");
         if (owned != null)
             sb.AppendLine($"🎒 Você possui: **{owned.Quantity}**");
@@ -789,6 +977,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Relic => "Relógios Equipáveis",
         ItemCategory.Pet => "Pets",
         ItemCategory.Vehicle => "Veículos",
+        ItemCategory.Upgrade => "Melhorias",
         _ => "Itens"
     };
 
@@ -833,6 +1022,17 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         return $"🐾 **+{item.UpgradeValue}%** {target} por nível{max}";
     }
 
+    private static string DescribeUpgrade(ShopItem item)
+    {
+        var max = item.MaxQuantity > 0 ? $" · máx. {item.MaxQuantity} un." : "";
+        return item.UpgradeEffect switch
+        {
+            UpgradeEffect.ManobristaBase => $"🅿️ **+{item.UpgradeValue}%** no valor por carro do manobrista por unidade{max}",
+            UpgradeEffect.ManobristaVagas => $"🅿️ **+{item.UpgradeValue}** vagas no estacionamento particular por unidade{max}",
+            _ => "Melhoria permanente."
+        };
+    }
+
     private static Embed BuildInventoryOverviewEmbed(
         IUser user, List<InventoryItem> ownership, List<ShopItem> catalog)
     {
@@ -862,6 +1062,9 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
 
             if (shopItem is { Category: ItemCategory.Pet, UpgradeEffect: not UpgradeEffect.None })
                 linha += $" · 🐾 nível **{qty}** · {DescribePet(shopItem)}";
+
+            if (shopItem is { Category: ItemCategory.Upgrade, UpgradeEffect: not UpgradeEffect.None })
+                linha += $" · 🅿️ {DescribeUpgrade(shopItem)}";
 
             sb.AppendLine(linha);
         }
@@ -920,6 +1123,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             sb.AppendLine($"⚙️ Efeito: {DescribeRelic(shopItem)}");
         if (shopItem is { Category: ItemCategory.Pet, UpgradeEffect: not UpgradeEffect.None })
             sb.AppendLine($"🐾 Nível **{invItem.Quantity}** · {DescribePet(shopItem)}");
+        if (shopItem is { Category: ItemCategory.Upgrade, UpgradeEffect: not UpgradeEffect.None })
+            sb.AppendLine($"🅿️ {DescribeUpgrade(shopItem)}");
         if (shopItem?.Category == ItemCategory.Vehicle)
             sb.AppendLine($"🚗 Dirija com `/veiculo dirigir {shopItem.Key}`");
 
@@ -993,5 +1198,7 @@ public enum ShopCategoryChoice
     [ChoiceDisplay("🐾 Pets")]
     Pets,
     [ChoiceDisplay("🚗 Veículos")]
-    Veiculos
+    Veiculos,
+    [ChoiceDisplay("🅿️ Melhorias")]
+    Melhorias
 }

@@ -25,7 +25,8 @@ public class ShopServiceVehicleTests
         Emoji = "🚗",
         Price = 40000,
         Category = ItemCategory.Vehicle,
-        MaxQuantity = 1
+        MaxQuantity = 1,
+        VehicleType = VehicleType.Carro
     };
 
     private static readonly ShopItem Jato = new()
@@ -35,7 +36,8 @@ public class ShopServiceVehicleTests
         Emoji = "🛩️",
         Price = 5000000,
         Category = ItemCategory.Vehicle,
-        MaxQuantity = 1
+        MaxQuantity = 1,
+        VehicleType = VehicleType.Jato
     };
 
     private static readonly ShopItem Relogio = new()

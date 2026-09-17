@@ -60,13 +60,15 @@ var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
         }
 
         sb.AppendLine($"🎓 **Escolaridade:** {FormatSchooling(profile.Escolaridade)}");
-        sb.AppendLine($"🚗 **Habilitação:** {(profile.Licencas.Count > 0 ? string.Join(" · ", profile.Licencas.Select(FormatLicenca)) : "Nenhuma")}");
         sb.AppendLine($"📜 **Diplomas:** {(profile.Diplomas.Count > 0 ? string.Join(" · ", profile.Diplomas.Select(d => $"`{d}`")) : "Nenhum")}");
-        sb.AppendLine($"🚙 **Veículo atual:** {(vehicle != null ? $"{vehicle.Emoji} **{vehicle.Name}**" : "Nenhum (a pé)")}");
         sb.AppendLine();
 
+        sb.AppendLine($"🚙 **Veículo atual:** {(vehicle != null ? $"{vehicle.Emoji} **{vehicle.Name}**" : "Nenhum (a pé)")}");
+        sb.AppendLine($"🚗 **Habilitação:** \n {(profile.Licencas.Count > 0 ? string.Join("\n ", profile.Licencas.Order().Select(FormatLicenca)) : "Nenhuma")}");
+        sb.AppendLine();
+
+        sb.AppendLine($"⛰️ **Classe:** {classe.Emoji} **{classe.Title}**");
         sb.AppendLine($"💎 **Patrimônio:** {EconomyFormat.Compact(snapshot.Total)} moedas (Inventario: {EconomyFormat.Compact(snapshot.ItemsValue)})");
-        sb.AppendLine($"⛰️ **Classe:** {classe.Emoji} **{classe.Title}**");       
 
         return new EmbedBuilder()
             .WithGoldTheme()

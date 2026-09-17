@@ -327,6 +327,8 @@ public class ShopService
                 ? "🐾 Este é um pet passivo: cada cópia aumenta o nível e o bônus permanentemente."
                 : item.Category == ItemCategory.Vehicle
                 ? "🚗 Este é um veículo: use `/veiculo dirigir <id>` para equipá-lo."
+                : item.Category == ItemCategory.Upgrade
+                ? "🅿️ Esta é uma melhoria permanente: o bônus já vale automaticamente no manobrista."
                 : "🎨 Este item é cosmético e não pode ser usado.", 0);
 
         var mainId = await _accessor.ResolveMainIdAsync(userId);
@@ -374,6 +376,23 @@ public class ShopService
 
     public async Task<List<InventoryItem>> GetInventoryAsync(ulong userId)
         => await _shop.GetInventoryAsync(await _accessor.ResolveMainIdAsync(userId));
+
+    public async Task<IReadOnlySet<VehicleType>> GetOwnedVehicleTypesAsync(ulong userId)
+        => await GetOwnedVehicleTypesCoreAsync(await _accessor.ResolveMainIdAsync(userId));
+
+    private async Task<IReadOnlySet<VehicleType>> GetOwnedVehicleTypesCoreAsync(ulong mainId)
+    {
+        var catalog = await GetCatalogAsync();
+        var inventory = await _shop.GetInventoryAsync(mainId);
+        var catalogByKey = catalog.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+
+        return inventory
+            .Where(e => e.Quantity > 0)
+            .Select(e => catalogByKey.TryGetValue(e.ItemKey, out var item) ? item : null)
+            .Where(i => i is { Category: ItemCategory.Vehicle } && i.VehicleType != VehicleType.None)
+            .Select(i => i!.VehicleType)
+            .ToHashSet();
+    }
 
     public async Task<(bool success, string? message)> EquipAsync(ulong userId, string username, string keyOrName)
     {
@@ -423,7 +442,7 @@ public class ShopService
 
         var profile = await _profiles.GetOrCreateAsync(mainId, username);
 
-        var required = VehicleRules.RequiredLicense(item.Key);
+        var required = VehicleRules.RequiredLicense(item);
         if (required is not { } license)
             return (false, "❌ Este veículo não exige licença e não pode ser dirigido.");
 
@@ -480,6 +499,9 @@ public class ShopService
     public async Task<int> GetUpgradePercentAsync(ulong userId, UpgradeEffect effect)
         => await GetUpgradePercentCoreAsync(await _accessor.ResolveMainIdAsync(userId), effect);
 
+    public async Task<int> GetUpgradeFlatAsync(ulong userId, UpgradeEffect effect)
+        => await GetUpgradeFlatCoreAsync(await _accessor.ResolveMainIdAsync(userId), effect);
+
     public async Task<ulong> GetInventoryValueAsync(ulong userId)
         => await GetInventoryValueCoreAsync(await _accessor.ResolveMainIdAsync(userId));
 
@@ -529,6 +551,29 @@ public class ShopService
         return total;
     }
 
+    private async Task<int> GetUpgradeFlatCoreAsync(ulong mainId, UpgradeEffect effect)
+    {
+        if (effect == UpgradeEffect.None) return 0;
+
+        var catalog = await GetCatalogAsync();
+        var inventory = await _shop.GetInventoryAsync(mainId);
+        var catalogByKey = catalog.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+        var now = DateTime.UtcNow;
+
+        var total = 0;
+        foreach (var entry in inventory)
+        {
+            if (entry.Quantity <= 0) continue;
+            if (entry.ExpiresAt is { } exp && exp <= now) continue;
+            if (!catalogByKey.TryGetValue(entry.ItemKey, out var item)) continue;
+            if (item is not { Category: ItemCategory.Upgrade } || item.UpgradeEffect != effect) continue;
+
+            total += item.UpgradeValue * entry.Quantity;
+        }
+
+        return total;
+    }
+
     private static IEnumerable<ShopItem> DefaultCatalog()
     {
         var seed = new List<ShopItem>
@@ -571,18 +616,23 @@ public class ShopService
             NewPet("pet_macaco", "Macaco-Caçador", "🐒", "+2% no daily por nível. Máximo de 2 tipos de pets.", 15000, UpgradeEffect.Daily, 2, 10, 32),
             NewPet("pet_gorila", "Gorila-Guarda-Costas", "🦍", "+3% no trabalho por nível. Máximo de 2 tipos de pets.", 40000, UpgradeEffect.Work, 3, 10, 33),
 
-            NewVehicle("moto", "Moto Street", "🏍️", "Ágil nas vias da Ilha. Exige licença A.", 15000, 34),
-            NewVehicle("carro_popular", "Carro Popular", "🚗", "O veículo do macaco assalariado. Exige licença B.", 40000, 35),
-            NewVehicle("caminhonete", "Caminhonete 4x4", "🚙", "Toda-terreno para o trabalho pesado. Exige licença B.", 80000, 36),
-            NewVehicle("carro_esportivo", "Carro Esportivo", "🏎️", "Rápido e chamativo. Exige licença B.", 150000, 37),
-            NewVehicle("caminhao", "Caminhão Basculante", "🚛", "Carrega bananas em escala industrial. Exige licença C.", 200000, 38),
-            NewVehicle("onibus", "Ônibus Urbano", "🚌", "Transporte público da Ilha. Exige licença D.", 250000, 39),
-            NewVehicle("carreta", "Carreta de Carga", "🚚", "Para comboios de longa distância. Exige licença E.", 350000, 40),
-            NewVehicle("lancha", "Lancha Gorillaz", "🚤", "Para pescar no litoral. Exige licença Arrais-Amador.", 200000, 41),
-            NewVehicle("iate", "Iate do Murdoc", "🛥️", "Luxo nas águas da Ilha. Exige licença Mestre-Amador.", 600000, 42),
-            NewVehicle("navio", "Navio Pirata", "🚢", "Domine os mares. Exige licença Capitão-Amador.", 2000000, 43),
-            NewVehicle("aviao", "Avião Particular", "✈️", "Cruze os céus com estilo. Exige licença Piloto Privado.", 800000, 44),
-            NewVehicle("jato", "Jato Executivo", "🛩️", "O ápice da aviação. Exige licença Piloto de Linha Aérea.", 5000000, 45),
+            NewVehicle("moto", "Moto Street", "🏍️", "Ágil nas vias da Ilha. Exige licença A.", 15000, 34, VehicleType.Moto),
+            NewVehicle("carro_popular", "Carro Popular", "🚗", "O veículo do macaco assalariado. Exige licença B.", 40000, 35, VehicleType.Carro),
+            NewVehicle("caminhonete", "Caminhonete 4x4", "🚙", "Toda-terreno para o trabalho pesado. Exige licença B.", 80000, 36, VehicleType.Caminhonete),
+            NewVehicle("carro_esportivo", "Carro Esportivo", "🏎️", "Rápido e chamativo. Exige licença B.", 150000, 37, VehicleType.Esportivo),
+            NewVehicle("caminhao", "Caminhão Basculante", "🚛", "Carrega bananas em escala industrial. Exige licença C.", 200000, 38, VehicleType.Caminhao),
+            NewVehicle("onibus", "Ônibus Urbano", "🚌", "Transporte público da Ilha. Exige licença D.", 250000, 39, VehicleType.Onibus),
+            NewVehicle("carreta", "Carreta de Carga", "🚚", "Para comboios de longa distância. Exige licença E.", 350000, 40, VehicleType.Carreta),
+            NewVehicle("lancha", "Lancha Gorillaz", "🚤", "Para pescar no litoral. Exige licença Arrais-Amador.", 200000, 41, VehicleType.Lancha),
+            NewVehicle("iate", "Iate do Murdoc", "🛥️", "Luxo nas águas da Ilha. Exige licença Mestre-Amador.", 600000, 42, VehicleType.Iate),
+            NewVehicle("navio", "Navio Pirata", "🚢", "Domine os mares. Exige licença Capitão-Amador.", 2000000, 43, VehicleType.Navio),
+            NewVehicle("aviao", "Avião Particular", "✈️", "Cruze os céus com estilo. Exige licença Piloto Privado.", 800000, 44, VehicleType.Aviao),
+            NewVehicle("jato", "Jato Executivo", "🛩️", "O ápice da aviação. Exige licença Piloto de Linha Aérea.", 5000000, 45, VehicleType.Jato),
+
+            NewUpgrade("upgrade_vagas_1", "Ampliação Simples", "🅿️", "+2 vagas no estacionamento particular por unidade.", 12000, UpgradeEffect.ManobristaVagas, 2, 3, 46),
+            NewUpgrade("upgrade_vagas_2", "Ampliação Premium", "🅿️", "+5 vagas no estacionamento particular por unidade.", 40000, UpgradeEffect.ManobristaVagas, 5, 2, 47),
+            NewUpgrade("upgrade_base_1", "Manutenção Leve", "🔧", "+10% no valor por carro estacionado por unidade.", 15000, UpgradeEffect.ManobristaBase, 10, 3, 48),
+            NewUpgrade("upgrade_base_2", "Centro de Logística", "🔧", "+20% no valor por carro estacionado por unidade.", 45000, UpgradeEffect.ManobristaBase, 20, 2, 49),
         };
         return seed;
     }
@@ -648,7 +698,8 @@ public class ShopService
         };
 
     private static ShopItem NewVehicle(
-        string key, string name, string emoji, string description, ulong price, int sortOrder)
+        string key, string name, string emoji, string description, ulong price, int sortOrder,
+        VehicleType type)
         => new()
         {
             Key = key,
@@ -662,7 +713,30 @@ public class ShopService
             DailyIncome = 0,
             MaxQuantity = 1,
             IsActive = true,
-            SortOrder = sortOrder
+            SortOrder = sortOrder,
+            VehicleType = type,
+            RequiredLicense = VehicleRules.LicenseForType(type)
+        };
+
+    private static ShopItem NewUpgrade(
+        string key, string name, string emoji, string description, ulong price,
+        UpgradeEffect effect, int value, int maxQuantity, int sortOrder)
+        => new()
+        {
+            Key = key,
+            Name = name,
+            Emoji = emoji,
+            Description = description,
+            Price = price,
+            Category = ItemCategory.Upgrade,
+            Effect = BoostEffect.None,
+            DurationHours = 0,
+            DailyIncome = 0,
+            MaxQuantity = maxQuantity,
+            IsActive = true,
+            SortOrder = sortOrder,
+            UpgradeEffect = effect,
+            UpgradeValue = value
         };
 
     private static ShopItem NewPlaceholder(string key, string name, string emoji, string description, int sortOrder)

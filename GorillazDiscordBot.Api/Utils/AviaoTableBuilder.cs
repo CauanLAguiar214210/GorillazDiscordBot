@@ -42,9 +42,7 @@ public static class AviaoTableBuilder
             .WithDescription(sb.ToString())
             .WithAuthor($"{player.GetDisplayName()} no cassino", player.GetAvatarUrl());
 
-        embed.WithStandardFooter(resultSection == null
-            ? "Pule antes que o aviãozinho exploda! ✈️"
-            : "Novo voo: `/cassino aviaozinho`");
+        embed.WithStandardFooter("Pule antes que o aviãozinho exploda! ✈️");
 
         return embed.Build();
     }
