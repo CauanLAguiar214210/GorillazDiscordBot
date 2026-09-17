@@ -7,7 +7,6 @@ public sealed class ManobristaSession
 {
     public ulong UserId { get; init; }
     public int CarrosEstacionados { get; set; }
-    public ulong MoneySupply { get; init; }
     public DateTime StartedAt { get; init; }
     public bool Finished { get; set; }
 
@@ -31,10 +30,10 @@ public sealed class ManobristaSessionService
     public ManobristaSessionService(Func<double>? roll = null)
         => _roll = roll ?? (() => Random.Shared.NextDouble());
 
-    public bool TryStart(ulong userId, ulong moneySupply, out ManobristaSession session)
-        => TryStart(userId, moneySupply, ManobristaRules.Vagas, ManobristaRules.BasePerCar, out session);
+    public bool TryStart(ulong userId, out ManobristaSession session)
+        => TryStart(userId, ManobristaRules.Vagas, ManobristaRules.BasePerCar, out session);
 
-    public bool TryStart(ulong userId, ulong moneySupply, int vagas, double baseValue, out ManobristaSession session)
+    public bool TryStart(ulong userId, int vagas, double baseValue, out ManobristaSession session)
     {
         bool IsActive(ManobristaSession s)
             => !s.Finished && DateTime.UtcNow - s.StartedAt < ManobristaRules.SessionTimeout;
@@ -48,7 +47,6 @@ public sealed class ManobristaSessionService
         var created = new ManobristaSession
         {
             UserId = userId,
-            MoneySupply = moneySupply,
             StartedAt = DateTime.UtcNow,
             Vagas = Math.Max(1, vagas),
             BaseValue = Math.Max((double)ManobristaRules.BasePerCar, baseValue)

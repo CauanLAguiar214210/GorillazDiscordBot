@@ -34,13 +34,8 @@ public class ShopSlashModuleTests
 
         var expected = new[]
         {
-            "comprar",
-            "desequipar",
-            "equipar",
             "inventario",
             "loja",
-            "usar",
-            "vender",
         };
 
         paths.Should().BeEquivalentTo(expected);

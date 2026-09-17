@@ -12,7 +12,6 @@ public enum JobCategory
 public enum JobPayMode
 {
     Legacy,
-    Inflation,
     Clicker
 }
 
@@ -29,7 +28,8 @@ public sealed record Job(
     VehicleType? RequiredVehicleType = null,
     JobPayMode PayMode = JobPayMode.Legacy,
     int CategoryBonusPercent = 0,
-    int TypeBonusPercent = 0)
+    int TypeBonusPercent = 0,
+    LicenseDomain? VehicleDomain = null)
 {
     public ulong TotalPay => (ulong)(Hours * HourlyPay);
     public bool IsEmprego => Category == JobCategory.Emprego;
@@ -49,19 +49,24 @@ public static class EconomyJobs
 
         new Job("piloto-aviao", "Piloto de Avião", "✈️", 5, 210, JobCategory.Veiculo,
             RequiredLicense: LicenseLevel.PilotoPrivado, RequiredVehicleType: VehicleType.Aviao,
-            PayMode: JobPayMode.Inflation, CategoryBonusPercent: 20, TypeBonusPercent: 5),
+            PayMode: JobPayMode.Legacy, CategoryBonusPercent: 20, TypeBonusPercent: 5,
+            VehicleDomain: LicenseDomain.Aerea),
         new Job("piloto-comercial", "Piloto Comercial", "🛫", 6, 260, JobCategory.Veiculo,
             RequiredLicense: LicenseLevel.PilotoComercial, RequiredVehicleType: VehicleType.Aviao,
-            PayMode: JobPayMode.Inflation, CategoryBonusPercent: 20, TypeBonusPercent: 5),
+            PayMode: JobPayMode.Legacy, CategoryBonusPercent: 20, TypeBonusPercent: 5,
+            VehicleDomain: LicenseDomain.Aerea),
         new Job("piloto-linha-aerea", "Piloto de Linha Aérea", "🛩️", 7, 320, JobCategory.Veiculo,
             RequiredLicense: LicenseLevel.PilotoLinhaAerea, RequiredVehicleType: VehicleType.Jato,
-            PayMode: JobPayMode.Inflation, CategoryBonusPercent: 20, TypeBonusPercent: 10),
+            PayMode: JobPayMode.Legacy, CategoryBonusPercent: 20, TypeBonusPercent: 10,
+            VehicleDomain: LicenseDomain.Aerea),
         new Job("motorista-app", "Motorista de App", "🚕", 3, 90, JobCategory.Veiculo,
             RequiredLicense: LicenseLevel.B, RequiredVehicleType: VehicleType.Carro,
-            PayMode: JobPayMode.Inflation, CategoryBonusPercent: 20, TypeBonusPercent: 0),
+            PayMode: JobPayMode.Legacy, CategoryBonusPercent: 20, TypeBonusPercent: 0,
+            VehicleDomain: LicenseDomain.Terrestre),
         new Job("manobrista", "Manobrista", "🚗", 2, 10, JobCategory.Veiculo,
             RequiredLicense: LicenseLevel.B,
-            PayMode: JobPayMode.Clicker, CategoryBonusPercent: 0, TypeBonusPercent: 0),
+            PayMode: JobPayMode.Clicker, CategoryBonusPercent: 0, TypeBonusPercent: 0,
+            VehicleDomain: LicenseDomain.Terrestre),
     };
 
     public static IReadOnlyList<Job> SubEmpregos { get; } =
@@ -72,6 +77,16 @@ public static class EconomyJobs
 
     public static IReadOnlyList<Job> Veiculos { get; } =
         All.Where(j => j.Category == JobCategory.Veiculo).ToList();
+
+    public static IReadOnlyList<Job> VeiculosByDomain(LicenseDomain domain)
+        => All.Where(j => j.Category == JobCategory.Veiculo && j.VehicleDomain == domain).ToList();
+
+    public static IReadOnlyList<LicenseDomain> VehicleDomains { get; } =
+        All.Where(j => j.Category == JobCategory.Veiculo && j.VehicleDomain is not null)
+           .Select(j => j.VehicleDomain!.Value)
+           .Distinct()
+           .OrderBy(d => d)
+           .ToList();
 
     public static Job? Find(string alias)
         => All.FirstOrDefault(j => j.Key.Equals(alias, StringComparison.OrdinalIgnoreCase)

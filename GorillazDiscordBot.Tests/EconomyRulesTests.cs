@@ -124,7 +124,7 @@ public class EconomyRulesTests
         EconomyJobs.FindByKey("piloto-aviao")!.TypeBonusPercent.Should().Be(5);
         EconomyJobs.FindByKey("piloto-comercial")!.TypeBonusPercent.Should().Be(5);
         EconomyJobs.FindByKey("piloto-linha-aerea")!.TypeBonusPercent.Should().Be(10);
-        foreach (var job in EconomyJobs.Veiculos.Where(j => j.PayMode == JobPayMode.Inflation))
+        foreach (var job in EconomyJobs.Veiculos.Where(j => j.RequiredVehicleType is not null))
             job.CategoryBonusPercent.Should().BeGreaterThan(0);
     }
 }

@@ -24,7 +24,6 @@ public class TrabalhoSlashModuleTests
                 Substitute.For<IEconomyAccessor>(),
                 Substitute.For<ICharacterProfileRepository>()))
             .AddSingleton(Substitute.For<IEconomyAccessor>())
-            .AddSingleton(new InflationService(Substitute.For<IEconomyRepository>()))
             .AddSingleton(new ManobristaSessionService())
             .BuildServiceProvider();
 

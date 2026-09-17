@@ -57,7 +57,9 @@ public class PatrimonioService : IPatrimonioService
         foreach (var profile in buffer)
         {
             var snapshot = await ComputeSnapshotAsync(profile.UserId, profile);
-            ranked.Add((snapshot.Total, new WealthRankingEntry(profile.UserId, profile.Username, snapshot)));
+
+            if(snapshot.Total < 1000000000000000)
+                ranked.Add((snapshot.Total, new WealthRankingEntry(profile.UserId, profile.Username, snapshot)));
         }
 
         return ranked

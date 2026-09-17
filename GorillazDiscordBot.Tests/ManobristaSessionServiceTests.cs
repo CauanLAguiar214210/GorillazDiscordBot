@@ -12,12 +12,11 @@ public class ManobristaSessionServiceTests
         => new(roll ?? (() => 1.0));
 
     [Fact]
-    public void TryStart_CriaSessaoComSnapshot()
+    public void TryStart_CriaSessao()
     {
         var service = NewService();
-        service.TryStart(User, 250_000, out var session).Should().BeTrue();
+        service.TryStart(User, out var session).Should().BeTrue();
         session.Should().NotBeNull();
-        session.MoneySupply.Should().Be(250_000);
         session.Vagas.Should().Be(ManobristaRules.Vagas);
         session.BaseValue.Should().Be(ManobristaRules.BasePerCar);
         service.Get(User).Should().BeSameAs(session);
@@ -27,15 +26,15 @@ public class ManobristaSessionServiceTests
     public void TryStart_Duplicado_Recusado()
     {
         var service = NewService();
-        service.TryStart(User, 0, out _);
-        service.TryStart(User, 0, out _).Should().BeFalse();
+        service.TryStart(User, out _);
+        service.TryStart(User, out _).Should().BeFalse();
     }
 
     [Fact]
     public void TryStart_ComVagasEBasePersonalizados()
     {
         var service = NewService();
-        service.TryStart(User, 0, 32, 14, out var session).Should().BeTrue();
+        service.TryStart(User, 32, 14, out var session).Should().BeTrue();
         session.Vagas.Should().Be(32);
         session.BaseValue.Should().Be(14);
     }
@@ -44,7 +43,7 @@ public class ManobristaSessionServiceTests
     public void TryPark_ContaAteVagasEEncerra()
     {
         var service = NewService();
-        service.TryStart(User, 0, out _);
+        service.TryStart(User, out _);
 
         for (var i = 0; i < ManobristaRules.Vagas; i++)
             service.TryPark(User).Should().BeTrue();
@@ -61,7 +60,7 @@ public class ManobristaSessionServiceTests
     {
         var service = NewService();
         const int vagas = 26;
-        service.TryStart(User, 0, vagas, 10, out _);
+        service.TryStart(User, vagas, 10, out _);
 
         for (var i = 0; i < vagas; i++)
             service.TryPark(User).Should().BeTrue();
@@ -79,7 +78,7 @@ public class ManobristaSessionServiceTests
     public void Finish_EncerraSessao()
     {
         var service = NewService();
-        service.TryStart(User, 0, out _);
+        service.TryStart(User, out _);
         service.TryPark(User);
         service.Finish(User);
 
@@ -92,20 +91,20 @@ public class ManobristaSessionServiceTests
     public void TryStart_SessaoExpirada_Substitui()
     {
         var service = NewService();
-        service.TryStart(User, 0, out _);
+        service.TryStart(User, out _);
         var old = service.Get(User)!;
         typeof(ManobristaSession).GetProperty(nameof(ManobristaSession.StartedAt))!
             .SetValue(old, DateTime.UtcNow.AddHours(-1));
 
-        service.TryStart(User, 500_000, out var novo).Should().BeTrue();
-        novo.MoneySupply.Should().Be(500_000);
+        service.TryStart(User, out var novo).Should().BeTrue();
+        novo.Should().NotBeSameAs(old);
     }
 
     [Fact]
     public void TryPark_ComboAcumulaDentroDaJanela()
     {
         var service = NewService();
-        service.TryStart(User, 0, out _);
+        service.TryStart(User, out _);
 
         service.TryPark(User);
         service.TryPark(User);
@@ -120,7 +119,7 @@ public class ManobristaSessionServiceTests
     public void TryPark_ComboZeraQuandoJanelaPassa()
     {
         var service = NewService();
-        service.TryStart(User, 0, out _);
+        service.TryStart(User, out _);
 
         service.TryPark(User);
         service.TryPark(User);
@@ -139,7 +138,7 @@ public class ManobristaSessionServiceTests
     public void TryPark_EventoGorjeta_AdicionaRecompensa()
     {
         var service = NewService(() => 0.0);
-        service.TryStart(User, 0, out _);
+        service.TryStart(User, out _);
 
         service.TryPark(User);
 
@@ -152,7 +151,7 @@ public class ManobristaSessionServiceTests
     public void TryPark_EventoVip_BonusMultiplicado()
     {
         var service = NewService(() => 0.20);
-        service.TryStart(User, 0, out _);
+        service.TryStart(User, out _);
 
         service.TryPark(User);
 
@@ -165,7 +164,7 @@ public class ManobristaSessionServiceTests
     public void TryPark_EventoRiscado_RemoveCarro()
     {
         var service = NewService(() => 0.24);
-        service.TryStart(User, 0, out _);
+        service.TryStart(User, out _);
 
         service.TryPark(User);
         service.TryPark(User);
@@ -180,7 +179,7 @@ public class ManobristaSessionServiceTests
     public void TryPark_SemEvento_CarroFica()
     {
         var service = NewService();
-        service.TryStart(User, 0, out _);
+        service.TryStart(User, out _);
 
         service.TryPark(User);
         service.TryPark(User);

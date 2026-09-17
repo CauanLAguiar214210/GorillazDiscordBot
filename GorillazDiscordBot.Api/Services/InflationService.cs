@@ -1,32 +1,17 @@
-using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Interfaces;
 
 namespace GorillazDiscordBot.Services;
 
+/// <summary>
+/// Sistema de inflação desativado. Retorna supply fixo 0 sem consultar o banco.
+/// </summary>
 public class InflationService
 {
-    public static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
+#pragma warning disable IDE0060
+    public InflationService(IEconomyRepository economy) { }
+#pragma warning restore IDE0060
 
-    private readonly IEconomyRepository _economy;
-    private ulong? _cachedSupply;
-    private DateTime _cacheExpiresAt;
+    public Task<ulong> GetSupplyAsync() => Task.FromResult(0UL);
 
-    public InflationService(IEconomyRepository economy)
-    {
-        _economy = economy;
-    }
-
-    public async Task<ulong> GetSupplyAsync()
-    {
-        if (_cachedSupply is { } supply && DateTime.UtcNow < _cacheExpiresAt)
-            return supply;
-
-        var fresh = await _economy.GetTotalMoneySupplyAsync();
-        _cachedSupply = fresh;
-        _cacheExpiresAt = DateTime.UtcNow.Add(CacheDuration);
-        return fresh;
-    }
-
-    public async Task<double> GetIndexAsync()
-        => InflationRules.Index(await GetSupplyAsync());
+    public Task<double> GetIndexAsync() => Task.FromResult(1.0);
 }
