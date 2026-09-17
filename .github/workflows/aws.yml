@@ -15,6 +15,7 @@ on:
       - 'Dockerfile'
       - 'nuget.config'
       - 'task-definition.template.json'
+      - '.github/workflows/aws.yml'
       
 permissions:
   contents: read
