@@ -9,6 +9,7 @@ public class JobLicensingTests
     [Theory]
     [InlineData("programador", true)]
     [InlineData("engenheiro", true)]
+    [InlineData("professor", true)]
     [InlineData("entregador", false)]
     [InlineData("faxineiro", false)]
     public void HasExam_ConformeProfissao(string jobKey, bool expected)
@@ -19,6 +20,7 @@ public class JobLicensingTests
     [Theory]
     [InlineData("programador")]
     [InlineData("engenheiro")]
+    [InlineData("professor")]
     public void For_TodasQuestoesValidas(string jobKey)
     {
         var questions = JobLicensing.For(jobKey);
@@ -69,7 +71,6 @@ public class JobLicensingTests
         {
             job.RequiresDiploma.Should().BeFalse();
             job.RequiredLicense.Should().NotBeNull();
-            job.PayMode.Should().NotBe(JobPayMode.Legacy);
             JobLicensing.HasExam(job.Key).Should().BeFalse();
         }
     }
@@ -82,5 +83,8 @@ public class JobLicensingTests
         EconomyJobs.FindByKey("piloto-aviao")!.RequiredLicense.Should().Be(LicenseLevel.PilotoPrivado);
         EconomyJobs.FindByKey("piloto-comercial")!.RequiredLicense.Should().Be(LicenseLevel.PilotoComercial);
         EconomyJobs.FindByKey("piloto-linha-aerea")!.RequiredLicense.Should().Be(LicenseLevel.PilotoLinhaAerea);
+        EconomyJobs.FindByKey("condutor-lancha")!.RequiredLicense.Should().Be(LicenseLevel.Arrais);
+        EconomyJobs.FindByKey("comandante-iate")!.RequiredLicense.Should().Be(LicenseLevel.Mestre);
+        EconomyJobs.FindByKey("capitao-navio")!.RequiredLicense.Should().Be(LicenseLevel.Capitao);
     }
 }

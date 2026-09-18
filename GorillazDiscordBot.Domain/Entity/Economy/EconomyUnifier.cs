@@ -15,6 +15,8 @@ public static class EconomyUnifier
         target.LastRobTime = Later(target.LastRobTime, source.LastRobTime);
         target.RobCaughtUntil = Later(target.RobCaughtUntil, source.RobCaughtUntil);
         target.SavingsLastInterestDate = Later(target.SavingsLastInterestDate, source.SavingsLastInterestDate);
+        target.SavingsLastDepositDate = Later(target.SavingsLastDepositDate, source.SavingsLastDepositDate);
+        target.BankLastInterestDate = Later(target.BankLastInterestDate, source.BankLastInterestDate);
 
         target.DailyBoostPending = target.DailyBoostPending || source.DailyBoostPending;
         target.WorkBoostPending = target.WorkBoostPending || source.WorkBoostPending;

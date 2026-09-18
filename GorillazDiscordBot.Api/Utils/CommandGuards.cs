@@ -48,4 +48,63 @@ public static class CommandGuards
         }
         return true;
     }
+
+    public static bool HasPermission(SocketCommandContext context, GuildPermission permission)
+        => context.Guild != null && context.User is IGuildUser user && user.GuildPermissions.Has(permission);
+
+    public static bool HasPermission(SocketInteractionContext context, GuildPermission permission)
+        => context.Guild != null && context.User is IGuildUser user && user.GuildPermissions.Has(permission);
+
+    public static bool BotHasPermission(SocketCommandContext context, GuildPermission permission)
+        => context.Guild != null && context.Guild.CurrentUser.GuildPermissions.Has(permission);
+
+    public static bool BotHasPermission(SocketInteractionContext context, GuildPermission permission)
+        => context.Guild != null && context.Guild.CurrentUser.GuildPermissions.Has(permission);
+
+    public static async Task<bool> GuardPermissionAsync(SocketCommandContext context, GuildPermission permission)
+    {
+        if (HasPermission(context, permission))
+            return true;
+
+        await context.Channel.SendMessageAsync($"❌ Você precisa da permissão **{PermissionName(permission)}** para usar este comando.");
+        return false;
+    }
+
+    public static async Task<bool> GuardBotPermissionAsync(SocketCommandContext context, GuildPermission permission)
+    {
+        if (BotHasPermission(context, permission))
+            return true;
+
+        await context.Channel.SendMessageAsync($"⚠️ O bot precisa da permissão **{PermissionName(permission)}** para executar esta ação.");
+        return false;
+    }
+
+    public static async Task<bool> GuardPermissionAsync(SocketInteractionContext context, GuildPermission permission)
+    {
+        if (HasPermission(context, permission))
+            return true;
+
+        await context.Interaction.RespondAsync($"❌ Você precisa da permissão **{PermissionName(permission)}** para usar este comando.", ephemeral: true);
+        return false;
+    }
+
+    public static async Task<bool> GuardBotPermissionAsync(SocketInteractionContext context, GuildPermission permission)
+    {
+        if (BotHasPermission(context, permission))
+            return true;
+
+        await context.Interaction.RespondAsync($"⚠️ O bot precisa da permissão **{PermissionName(permission)}** para executar esta ação.", ephemeral: true);
+        return false;
+    }
+
+    public static string PermissionName(GuildPermission permission)
+        => permission switch
+        {
+            GuildPermission.ManageMessages => "Gerenciar Mensagens",
+            GuildPermission.ManageChannels => "Gerenciar Canais",
+            GuildPermission.KickMembers => "Expulsar Membros",
+            GuildPermission.BanMembers => "Banir Membros",
+            GuildPermission.ModerateMembers => "Moderar Membros",
+            _ => permission.ToString()
+        };
 }

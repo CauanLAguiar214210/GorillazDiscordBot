@@ -42,6 +42,8 @@ public class CharacterProfile
     public string? CasaAtualKey { get; set; }
     public string? VeiculoAtualKey { get; set; }
     public string? RoupaAtualKey { get; set; }
+    public string? ProfissaoKey { get; set; }
+    public string? ExtraKey { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

@@ -86,166 +86,49 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Alias("carteira")]
     public async Task SaldoAsync()
     {
-        var user = await _economy.GetOrCreateAsync(
-            await _accessor.ResolveMainIdAsync(Context.User.Id), Context.User.Username);
-        await ReplyAsync($"💰 **{Context.User.GetDisplayName()}**, seu saldo é **{EconomyFormat.Full(user.Money)} moedas** na carteira.");
+        await ReplyAsync("💳 A carteira agora é por slash command: use `/carteira ver`.\nPara transferências: `/carteira pagar <membro> <valor|tudo>`.");
     }
 
     [Command("pagar")]
     [Alias("pay")]
     public async Task PagarAsync(IUser receiver, [Remainder] string input)
     {
-        if (!EconomyHelper.TryParsePositiveAmount(input, out ulong quantia, out var error))
-        {
-            await ReplyAsync(error!);
-            return;
-        }
-
-        if (receiver.IsBot)
-        {
-            await ReplyAsync("🤖 Não posso aceitar moedas, mas obrigado!");
-            return;
-        }
-
-        if (receiver.Id == Context.User.Id)
-        {
-            await ReplyAsync("😂 Não dá pra pagar você mesmo.");
-            return;
-        }
-
-        var senderMain = await _accessor.ResolveMainIdAsync(Context.User.Id);
-        var receiverMain = await _accessor.ResolveMainIdAsync(receiver.Id);
-
-        if (senderMain == receiverMain)
-        {
-            await ReplyAsync("🔗 A conta de destino faz parte do seu próprio grupo vinculado.");
-            return;
-        }
-
-        var (deducted, _) = await _economy.TryDeductMoneyAsync(
-            senderMain, quantia, EconomyTransactionType.Payment,
-            $"Pagamento para {receiver.GetDisplayName()}");
-
-        if (!deducted)
-        {
-            await ReplyAsync("❌ Você não tem moedas suficientes na carteira.");
-            return;
-        }
-
-        await _economy.GetOrCreateAsync(receiverMain, receiver.Username);
-        await _economy.AddMoneyAsync(receiverMain, quantia, EconomyTransactionType.Payment,
-            $"Pagamento de {Context.User.GetDisplayName()}");
-
-        await ReplyAsync($"💸 **{Context.User.GetDisplayName()}** pagou **{EconomyFormat.Full(quantia)} moedas** para **{receiver.GetDisplayName()}**!");
+        await ReplyAsync("💳 Transferências agora são por slash command: use `/carteira pagar <membro> <valor|tudo>`.");
     }
 
     [Command("depositar")]
     [Alias("dep", "deposit")]
     public async Task DepositarAsync(string valor)
     {
-        if (!EconomyHelper.TryParsePositiveAmount(valor, out ulong quantia, out var error))
-        {
-            await ReplyAsync(error!);
-            return;
-        }
-
-        var (success, wallet, bank) = await _economy.DepositAsync(
-            await _accessor.ResolveMainIdAsync(Context.User.Id), quantia);
-
-        if (!success)
-        {
-            await ReplyAsync("❌ Você não tem moedas suficientes na carteira para depositar.");
-            return;
-        }
-
-        await ReplyAsync($"🏦 **{Context.User.GetDisplayName()}** depositou **{EconomyFormat.Full(quantia)} moedas** no banco!\nCarteira: **{EconomyFormat.Full(wallet)}** | Banco: **{EconomyFormat.Full(bank)}**");
+        await ReplyAsync("🏦 Depósitos agora são por slash command: use `/banco depositar <valor|tudo>`.");
     }
 
     [Command("sacar")]
     [Alias("withdraw", "wd")]
     public async Task SacarAsync(string valor)
     {
-        if (!EconomyHelper.TryParsePositiveAmount(valor, out ulong quantia, out var error))
-        {
-            await ReplyAsync(error!);
-            return;
-        }
-
-        var (success, wallet, bank) = await _economy.WithdrawAsync(
-            await _accessor.ResolveMainIdAsync(Context.User.Id), quantia);
-
-        if (!success)
-        {
-            await ReplyAsync("❌ Você não tem moedas suficientes no banco para sacar.");
-            return;
-        }
-
-        await ReplyAsync($"🏧 **{Context.User.GetDisplayName()}** sacou **{EconomyFormat.Full(quantia)} moedas** do banco!\nCarteira: **{EconomyFormat.Full(wallet)}** | Banco: **{EconomyFormat.Full(bank)}**");
+        await ReplyAsync("🏧 Saques agora são por slash command: use `/banco sacar <valor|tudo>`.");
     }
 
     [Command("banco")]
     [Alias("savings", "bank", "banksaldo")]
     public async Task PoupancaAsync()
     {
-        var user = await _economy.GetOrCreateAsync(
-            await _accessor.ResolveMainIdAsync(Context.User.Id), Context.User.Username);
-
-        var min = EconomyRules.DailyInterestMin + Math.Min(user.SavingsStreak, EconomyRules.InterestStreakMaxBonus) * EconomyRules.InterestStreakBonus;
-        var max = EconomyRules.DailyInterestMax + Math.Min(user.SavingsStreak, EconomyRules.InterestStreakMaxBonus) * EconomyRules.InterestStreakBonus;
-
-        await ReplyAsync(
-            $"🏦 **{Context.User.GetDisplayName()}**\n" +
-            $"Carteira: **{EconomyFormat.Full(user.Money)}**\nBanco: **{EconomyFormat.Full(user.Bank)}**\n" +
-            $"Poupança: **{EconomyFormat.Full(user.Savings)}** (streak: **{user.SavingsStreak}**)\n" +
-            $"Juros diários: **{min:P1}–{max:P1}**");
+        await ReplyAsync("🏦 O banco e a poupança agora são por slash command: use `/banco ver`.\nDeposite, saque, poupe e consulte sua renda fixa por lá.");
     }
 
     [Command("poupar")]
     [Alias("savingsdeposit")]
     public async Task PouparAsync(string valor)
     {
-        if (!EconomyHelper.TryParsePositiveAmount(valor, out ulong quantia, out var error))
-        {
-            await ReplyAsync(error!);
-            return;
-        }
-
-        var (success, wallet, savings, streak) = await _economy.DepositSavingsAsync(
-            await _accessor.ResolveMainIdAsync(Context.User.Id), quantia);
-
-        if (!success)
-        {
-            await ReplyAsync("❌ Você não tem moedas suficientes na carteira para poupar.");
-            return;
-        }
-
-        await ReplyAsync(
-            $"🏦 **{Context.User.GetDisplayName()}** depositou **{EconomyFormat.Full(quantia)} moedas** na poupança!\n" +
-            $"Carteira: **{EconomyFormat.Full(wallet)}** | Poupança: **{EconomyFormat.Full(savings)}** | Streak: **{streak}**");
+        await ReplyAsync("💰 Poupança agora é por slash command: use `/banco poupar <valor|tudo>`.");
     }
 
     [Command("resgatar")]
     [Alias("savingswithdraw")]
     public async Task ResgatarAsync(string valor)
     {
-        if (!EconomyHelper.TryParsePositiveAmount(valor, out ulong quantia, out var error))
-        {
-            await ReplyAsync(error!);
-            return;
-        }
-
-        var (success, wallet, savings, streak) = await _economy.WithdrawSavingsAsync(
-            await _accessor.ResolveMainIdAsync(Context.User.Id), quantia);
-
-        if (!success)
-        {
-            await ReplyAsync("❌ Você não tem moedas suficientes na poupança para resgatar.");
-            return;
-        }
-
-        await ReplyAsync(
-            $"🏧 **{Context.User.GetDisplayName()}** resgatou **{EconomyFormat.Full(quantia)} moedas** da poupança!\n" +
-            $"Carteira: **{EconomyFormat.Full(wallet)}** | Poupança: **{EconomyFormat.Full(savings)}**");
+        await ReplyAsync("🏧 Resgates agora são por slash command: use `/banco resgatar <valor|tudo>`.");
     }
 
     [Command("trabalhar")]
@@ -353,23 +236,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
     [Alias("extrato")]
     public async Task HistoricoAsync(int limite = 10)
     {
-        var txns = await _economy.GetHistoryAsync(
-            await _accessor.ResolveMainIdAsync(Context.User.Id), Math.Clamp(limite, 1, 30));
-
-        if (txns.Count == 0)
-        {
-            await ReplyAsync("🧾 Você ainda não tem transações registradas.");
-            return;
-        }
-
-        var sb = new StringBuilder("🧾 **Histórico de transações**\n\n");
-        foreach (var t in txns)
-        {
-            var sinal = t.Amount >= 0 ? "+" : "";
-            sb.AppendLine($"`{t.CreatedAt:dd/MM HH:mm}` **{t.Type}** {sinal}{EconomyFormat.Full((ulong)Math.Abs(t.Amount))} — {t.Description}");
-        }
-
-        await ReplyAsync(sb.ToString());
+        await ReplyAsync("🧾 O extrato agora é por slash command: use `/banco extrato <quantidade>`.");
     }
 
     private static string FormatRemaining(TimeSpan remaining)

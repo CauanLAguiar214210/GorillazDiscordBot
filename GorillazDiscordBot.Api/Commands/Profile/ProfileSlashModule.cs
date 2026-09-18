@@ -30,17 +30,18 @@ private readonly ICharacterProfileRepository _profiles;
         _shop = shop;
     }
 
-    [SlashCommand("ver", "Mostra as informações do seu personagem no jogo")]
-    public async Task VerAsync()
+    [SlashCommand("ver", "Mostra as informações de um personagem (sem argumento, mostra o seu)")]
+    public async Task VerAsync(Discord.IUser? usuario = null)
     {
-var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
-        var profile = await _profiles.GetOrCreateAsync(mainId, Context.User.Username);
-        var snapshot = await _patrimonio.GetSnapshotAsync(mainId, Context.User.Username);
+        var target = usuario ?? Context.User;
+        var mainId = await _accessor.ResolveMainIdAsync(target.Id);
+        var profile = await _profiles.GetOrCreateAsync(mainId, target.Username);
+        var snapshot = await _patrimonio.GetSnapshotAsync(mainId, target.Username);
         var classe = ClasseEconomica.Find(snapshot.Total);
-        var fame = await _patrimonio.GetHallOfFameAsync(Context.User.Id);
-        var (vehicle, _) = await _shop.GetCurrentVehicleAsync(Context.User.Id);
+        var fame = await _patrimonio.GetHallOfFameAsync(target.Id);
+        var (vehicle, _) = await _shop.GetCurrentVehicleAsync(target.Id);
 
-        var embed = BuildProfileEmbed(Context.User, profile, snapshot, classe, fame, vehicle);
+        var embed = BuildProfileEmbed(target, profile, snapshot, classe, fame, vehicle);
         await RespondAsync(embed: embed);
     }
 
@@ -60,11 +61,19 @@ var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
         }
 
         sb.AppendLine($"🎓 **Escolaridade:** {FormatSchooling(profile.Escolaridade)}");
-        sb.AppendLine($"📜 **Diplomas:** {(profile.Diplomas.Count > 0 ? string.Join(" · ", profile.Diplomas.Select(d => $"`{d}`")) : "Nenhum")}");
+        sb.AppendLine();
+        sb.AppendLine($"📜 **Diplomas:** \n {(profile.Diplomas.Count > 0 ? string.Join(" · ", profile.Diplomas.Select(d => $"`{d}`")) : "Nenhum")}");
         sb.AppendLine();
 
-        sb.AppendLine($"🚙 **Veículo atual:** {(vehicle != null ? $"{vehicle.Emoji} **{vehicle.Name}**" : "Nenhum (a pé)")}");
+        var profissao = EconomyJobs.FindByKey(profile.ProfissaoKey ?? string.Empty);
+        sb.AppendLine($"💼 **Profissão:** {(profissao != null ? $"{profissao.Emoji} **{profissao.Name}**" : "Nenhuma")}");
+
+        if (profile.ExtraKey is { } extraKey && EconomyJobs.FindByKey(extraKey) is { } extra)
+            sb.AppendLine($"🧩 **Extra:** {extra.Emoji} **{extra.Name}**");
+        sb.AppendLine();
+
         sb.AppendLine($"🚗 **Habilitação:** \n {(profile.Licencas.Count > 0 ? string.Join("\n ", profile.Licencas.Order().Select(FormatLicenca)) : "Nenhuma")}");
+        sb.AppendLine($"🚙 **Veículo atual:** {(vehicle != null ? $"**{vehicle.Name}**" : "Nenhum (a pé)")}");
         sb.AppendLine();
 
         sb.AppendLine($"⛰️ **Classe:** {classe.Emoji} **{classe.Title}**");
@@ -81,17 +90,17 @@ var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
 
 private static string FormatSchooling(SchoolingLevel level) => level switch
     {
-        SchoolingLevel.EnsinoFundamental1 => "Ensino Fundamental I 📚",
-        SchoolingLevel.EnsinoFundamental2 => "Ensino Fundamental II 📕",
-        SchoolingLevel.EnsinoMedio => "Ensino Médio 📖",
-        SchoolingLevel.EnsinoSuperior => "Ensino Superior 🎓",
+        SchoolingLevel.EnsinoFundamental1 => "Ensino Fundamental I",
+        SchoolingLevel.EnsinoFundamental2 => "Ensino Fundamental II",
+        SchoolingLevel.EnsinoMedio => "Ensino Médio",
+        SchoolingLevel.EnsinoSuperior => "Ensino Superior",
         _ => "Nenhuma"
     };
 
     private static string FormatLicenca(LicenseLevel level)
     {
         var info = LicenseProgression.Info(level);
-        return $"{info.Emoji} {info.Name}";
+        return $"{info.Name}";
     }
 
     private static string FormatFame(HallOfFame fame)

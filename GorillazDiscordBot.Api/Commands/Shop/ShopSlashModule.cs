@@ -76,82 +76,6 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         await RespondAsync(embed: overviewEmbed, components: categoryComponents);
     }
 
-    [SlashCommand("comprar", "Compra um item da loja")]
-    public async Task ComprarAsync(
-        [Summary("item", "ID ou nome do item")] string item)
-    {
-        var shopItem = await _shop.FindItemAsync(item);
-        if (shopItem == null || !shopItem.IsActive)
-        {
-            await RespondAsync("❌ Item não encontrado. Use `/loja` para ver os ids disponíveis.", ephemeral: true);
-            return;
-        }
-
-        var (success, message, _) = await _shop.BuyAsync(
-            Context.User.Id, Context.User.Username, shopItem);
-
-        if (!success)
-        {
-            await RespondAsync(message!, ephemeral: true);
-            return;
-        }
-
-        await RespondAsync($"✅ **{Context.User.GetDisplayName()}** comprou **{shopItem.Emoji} {shopItem.Name}** por **{EconomyFormat.Full(shopItem.Price)}** moedas!");
-    }
-
-    [SlashCommand("vender", "Revende um item por reembolso parcial (50%)")]
-    public async Task VenderAsync(
-        [Summary("item", "ID ou nome do item")] string item)
-    {
-        var shopItem = await _shop.FindItemAsync(item);
-        if (shopItem == null)
-        {
-            await RespondAsync("❌ Item não encontrado. Use `/loja` para ver os ids.", ephemeral: true);
-            return;
-        }
-
-        var (success, message, _) = await _shop.SellAsync(
-            Context.User.Id, Context.User.Username, shopItem);
-
-        if (!success)
-        {
-            await RespondAsync(message!, ephemeral: true);
-            return;
-        }
-
-        var refund = (ulong)Math.Floor(shopItem.Price * ShopService.SellRefundRate);
-        await RespondAsync($"💸 **{Context.User.GetDisplayName()}** vendeu **{shopItem.Emoji} {shopItem.Name}** e recebeu **{EconomyFormat.Full(refund)}** moedas de volta!");
-    }
-
-    [SlashCommand("usar", "Ativa um boost comprado")]
-    public async Task UsarAsync(
-        [Summary("item", "ID ou nome do item")] string item)
-    {
-        var shopItem = await _shop.FindItemAsync(item);
-        if (shopItem == null)
-        {
-            await RespondAsync("❌ Item não encontrado. Use `/loja` para ver os ids.", ephemeral: true);
-            return;
-        }
-
-        var (success, message, _) = await _shop.UseAsync(
-            Context.User.Id, Context.User.Username, shopItem);
-
-        if (!success)
-        {
-            await RespondAsync(message!, ephemeral: true);
-            return;
-        }
-
-        await RespondAsync(shopItem.Effect switch
-        {
-            BoostEffect.DailyX2 => $"⚡ **{Context.User.GetDisplayName()}** ativou **{shopItem.Name}**! Seu **próximo daily** renderá o DOBRO!",
-            BoostEffect.WorkX2 => $"💼 **{Context.User.GetDisplayName()}** ativou **{shopItem.Name}**! Seu **próximo trabalho** renderá o DOBRO!",
-            BoostEffect.RobShield => $"🛡️ **{Context.User.GetDisplayName()}** ativou o **{shopItem.Name}** por **{shopItem.DurationHours}h**!",
-            _ => $"✅ Item usado!"
-        });
-    }
-
     private const string InvPrefix = "inv";
     private const string ShopPrefix = "shop";
 
@@ -160,6 +84,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
     {
         var ownership = await _shop.GetInventoryAsync(Context.User.Id);
         var catalog = await _shop.GetCatalogAsync();
+        ownership = FilterInventory(ownership, catalog);
 
         if (ownership.Count == 0)
         {
@@ -192,6 +117,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
 
         var ownership = await _shop.GetInventoryAsync(Context.User.Id);
         var catalog = await _shop.GetCatalogAsync();
+        ownership = FilterInventory(ownership, catalog);
 
         if (itemKey == "back")
         {
@@ -543,25 +469,6 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         await ShowVehicleTypeAsync(component, owner, type);
     }
 
-    [SlashCommand("equipar", "Equip um relógio da loja")]
-    public async Task EquiparAsync(
-        [Summary("item", "ID ou nome do relógio")] string item)
-    {
-        var (success, message) = await _shop.EquipAsync(
-            Context.User.Id, Context.User.Username, item);
-
-        await RespondAsync(success ? $"✅ {message}" : message!, ephemeral: !success);
-    }
-
-    [SlashCommand("desequipar", "Desequipa o relógio ativo")]
-    public async Task DesequiparAsync(
-        [Summary("item", "ID ou nome do relógio")] string item)
-    {
-        var (success, message) = await _shop.UnequipAsync(Context.User.Id, item);
-
-        await RespondAsync(success ? $"✅ {message}" : message!, ephemeral: !success);
-    }
-
     private async Task ShowShopOverviewAsync(SocketMessageComponent component, ulong ownerId)
     {
         var catalog = await _shop.GetCatalogAsync();
@@ -660,7 +567,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         sb.AppendLine($"{item.Emoji} **{item.Name}** — **{EconomyFormat.Full(item.Price)}** moedas");
         sb.AppendLine($"   └ {item.Description}{extra}");
         if (item.Category == ItemCategory.Asset && item.DailyIncome > 0)
-            sb.AppendLine($"   └ Renda: **+{EconomyFormat.Full(item.DailyIncome)}/dia** no daily · limite: 1 por usuário");
+            sb.AppendLine($"   └ Renda: **+{EconomyFormat.Full(item.DailyIncome)}/dia** no daily · cotas: até 100 · preço varia todo dia");
         if (item.Category == ItemCategory.Relic)
             sb.AppendLine($"   └ Efeito: {DescribeRelic(item)}");
         if (item.Category == ItemCategory.Pet)
@@ -929,7 +836,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         if (item.DurationHours > 0)
             sb.AppendLine($"⏰ Duração: **{item.DurationHours}h**");
         if (item.Category == ItemCategory.Asset && item.DailyIncome > 0)
-            sb.AppendLine($"📈 Renda: **+{EconomyFormat.Full(item.DailyIncome)}/dia** no daily · limite: 1 por usuário");
+            sb.AppendLine($"📈 Renda: **+{EconomyFormat.Full(item.DailyIncome)}/dia** no daily · cotas: até 100 · preço varia todo dia");
         if (item.Category == ItemCategory.Relic)
             sb.AppendLine($"⚙️ Efeito: {DescribeRelic(item)}");
         if (item.Category == ItemCategory.Pet)
@@ -1032,6 +939,16 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             _ => "Melhoria permanente."
         };
     }
+
+    /// <summary>Remove veículos do inventário — eles são gerenciados pela /garagem.</summary>
+    private static List<InventoryItem> FilterInventory(List<InventoryItem> ownership, List<ShopItem> catalog)
+        => ownership
+            .Where(inv =>
+            {
+                var item = catalog.FirstOrDefault(c => c.Key == inv.ItemKey);
+                return item == null || item.Category != ItemCategory.Vehicle;
+            })
+            .ToList();
 
     private static Embed BuildInventoryOverviewEmbed(
         IUser user, List<InventoryItem> ownership, List<ShopItem> catalog)

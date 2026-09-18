@@ -27,6 +27,19 @@ public static class JobLicensing
                 Q("Se 3x = 27, quanto vale x?", 3, "6", "7", "12", "9"),
                 Q("Qual é a área de um quadrado de lado 6?", 2, "12", "30", "36", "24"),
                 Q("Quanto é 45 ÷ 9?", 0, "5", "6", "9", "4")
+            },
+            ["professor"] = new[]
+            {
+                Q("Qual documento organiza os conteúdos e objetivos de uma disciplina?", 1, "Diário", "Plano de aula/currículo", "Boletim", "Crachá"),
+                Q("Quantos minutos tem uma hora/aula de 50 minutos em uma turma com 4 aulas?", 2, "150", "180", "200", "250"),
+                Q("Na média de notas 7, 8, 6 e 7, qual é o resultado?", 1, "6,5", "7,0", "7,5", "8,0"),
+                Q("Qual é 30% de 60 alunos?", 3, "15", "21", "30", "18"),
+                Q("Se 2x + 4 = 20, quanto vale x?", 2, "6", "7", "8", "9"),
+                Q("Qual recurso é usado para avaliar a compreensão da turma?", 0, "Avaliação/prova", "Recreio", "Merenda", "Matrícula"),
+                Q("Quanto é 3 × (4 + 5)?", 1, "12", "27", "20", "24"),
+                Q("Qual é a fração equivalente a 0,25?", 2, "1/2", "1/3", "1/4", "1/5"),
+                Q("Quantos lados tem um triângulo mais um quadrado juntos?", 3, "3", "4", "6", "7"),
+                Q("Se um bimestre tem 4 notas e o aluno tirou 6, 8, 7 e 9, a média é:", 1, "7,0", "7,5", "8,0", "6,5")
             }
         };
 

@@ -87,14 +87,16 @@ public class ShopRepository : IShopRepository
         await _inventory.UpdateOneAsync(filter, update, options);
     }
 
-    public async Task DecrementOrRemoveInventoryAsync(ulong userId, string itemKey)
+    public async Task DecrementOrRemoveInventoryAsync(ulong userId, string itemKey, int amount = 1)
     {
+        if (amount <= 0) return;
+
         var filter = Builders<InventoryItem>.Filter.Eq(i => i.UserId, userId)
             & Builders<InventoryItem>.Filter.Eq(i => i.ItemKey, itemKey);
 
         var decremented = await _inventory.UpdateOneAsync(
-            filter & Builders<InventoryItem>.Filter.Gt(i => i.Quantity, 1),
-            Builders<InventoryItem>.Update.Inc(i => i.Quantity, -1));
+            filter & Builders<InventoryItem>.Filter.Gt(i => i.Quantity, amount),
+            Builders<InventoryItem>.Update.Inc(i => i.Quantity, -amount));
 
         if (decremented.ModifiedCount == 0)
             await _inventory.DeleteOneAsync(filter);
@@ -106,6 +108,15 @@ public class ShopRepository : IShopRepository
             & Builders<InventoryItem>.Filter.Eq(i => i.ItemKey, itemKey);
 
         var update = Builders<InventoryItem>.Update.Set(i => i.LastCollectedAt, collectedAt);
+        await _inventory.UpdateOneAsync(filter, update);
+    }
+
+    public async Task SetQuantityAsync(ulong userId, string itemKey, int quantity)
+    {
+        var filter = Builders<InventoryItem>.Filter.Eq(i => i.UserId, userId)
+            & Builders<InventoryItem>.Filter.Eq(i => i.ItemKey, itemKey);
+
+        var update = Builders<InventoryItem>.Update.Set(i => i.Quantity, quantity);
         await _inventory.UpdateOneAsync(filter, update);
     }
 

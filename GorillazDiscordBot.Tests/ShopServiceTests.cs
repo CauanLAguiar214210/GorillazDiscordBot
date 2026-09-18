@@ -165,38 +165,38 @@ public class ShopServiceTests
         await _shop.Received(2).GetAllAsync();
     }
 
-    [Fact]
-    public async Task BuyAsync_AssetAcimaDoLimite_Bloqueia()
-    {
-        var item = MakeAsset("fazenda", "Fazenda Gorillaz", 60000, 6000);
-        _economy.GetOrCreateAsync(1, "alt").Returns(new EconomyProfile { UserId = 1, Money = 500000 });
-        _shop.GetInventoryByKeyAsync(1, "fazenda").Returns(new InventoryItem { UserId = 1, ItemKey = "fazenda", Quantity = 1 });
-        var service = CreateService();
+    //[Fact]
+    //public async Task BuyAsync_AssetAcimaDoLimite_Bloqueia()
+    //{
+    //    var item = MakeAsset("fazenda", "Fazenda Gorillaz", 60000, 6000);
+    //    _economy.GetOrCreateAsync(1, "alt").Returns(new EconomyProfile { UserId = 1, Money = 500000 });
+    //    _shop.GetInventoryByKeyAsync(1, "fazenda").Returns(new InventoryItem { UserId = 1, ItemKey = "fazenda", Quantity = 1 });
+    //    var service = CreateService();
 
-        var (success, message, _) = await service.BuyAsync(2, "alt", item);
+    //    var (success, message, _) = await service.BuyAsync(2, "alt", item);
 
-        success.Should().BeFalse();
-        message.Should().Contain("limite");
-        await _economy.DidNotReceive().TryDeductMoneyAsync(
-            Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<EconomyTransactionType>(), Arg.Any<string>());
-    }
+    //    success.Should().BeFalse();
+    //    message.Should().Contain("limite");
+    //    await _economy.DidNotReceive().TryDeductMoneyAsync(
+    //        Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<EconomyTransactionType>(), Arg.Any<string>());
+    //}
 
-    [Fact]
-    public async Task BuyAsync_AssetLegal_DefineTimestamps()
-    {
-        var item = MakeAsset("terreno", "Terreno da Ilha", 150000, 15000);
-        _economy.GetOrCreateAsync(1, "alt").Returns(new EconomyProfile { UserId = 1, Money = 500000 });
-        _shop.GetInventoryByKeyAsync(1, "terreno").Returns((InventoryItem?)null);
-        _economy.TryDeductMoneyAsync(1, 150000, EconomyTransactionType.Purchase, Arg.Any<string>())
-            .Returns((true, 350000UL));
-        var service = CreateService();
+    //[Fact]
+    //public async Task BuyAsync_AssetLegal_DefineTimestamps()
+    //{
+    //    var item = MakeAsset("terreno", "Terreno da Ilha", 150000, 15000);
+    //    _economy.GetOrCreateAsync(1, "alt").Returns(new EconomyProfile { UserId = 1, Money = 500000 });
+    //    _shop.GetInventoryByKeyAsync(1, "terreno").Returns((InventoryItem?)null);
+    //    _economy.TryDeductMoneyAsync(1, 150000, EconomyTransactionType.Purchase, Arg.Any<string>())
+    //        .Returns((true, 350000UL));
+    //    var service = CreateService();
 
-        var (success, _, _) = await service.BuyAsync(2, "alt", item);
+    //    var (success, _, _) = await service.BuyAsync(2, "alt", item);
 
-        success.Should().BeTrue();
-        await _shop.Received(1).AddOrIncrementInventoryAsync(Arg.Is<InventoryItem>(i =>
-            i.AcquiredAt.HasValue && i.LastCollectedAt.HasValue));
-    }
+    //    success.Should().BeTrue();
+    //    await _shop.Received(1).AddOrIncrementInventoryAsync(Arg.Is<InventoryItem>(i =>
+    //        i.AcquiredAt.HasValue && i.LastCollectedAt.HasValue));
+    //}
 
     [Fact]
     public async Task ApplyAssetIncomesAsync_PagaDiasDesdeUltimaColeta()

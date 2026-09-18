@@ -1,3 +1,4 @@
+using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using FluentAssertions;
@@ -33,5 +34,7 @@ public class ProfileSlashModuleTests
         command.Module.IsSlashGroup.Should().BeTrue();
         command.Module.SlashGroupName.Should().Be("perfil");
         command.Name.Should().Be("ver");
+        command.Parameters.Should().ContainSingle()
+            .Which.ParameterType.Should().Be(typeof(IUser));
     }
 }

@@ -66,13 +66,14 @@ public class RankingModule : ModuleBase<SocketCommandContext>
         if (fame.Count > 0)
         {
             var sb = new StringBuilder();
+            sb.AppendLine();
             foreach (var f in fame)
             {
                 var mainId = await _accessor.ResolveMainIdAsync(f.UserId);
                 var profile = await _economy.GetOrCreateAsync(mainId, string.Empty);
                 var name = await ResolveGlobalNameAsync(f.UserId, profile.Username);
                 var snapshot = await _patrimonio.GetSnapshotAsync(f.UserId);
-                sb.AppendLine($"👑 **{f.Title}** — **{name}** — {EconomyFormat.Compact(snapshot.Total)}");
+                sb.AppendLine($"👑 **{f.Title}** — **{name}**");
                 if (!string.IsNullOrWhiteSpace(f.Phrase))
                     sb.AppendLine($"   *“{f.Phrase}”*");
             }

@@ -139,11 +139,20 @@ public class EconomyRepository : IEconomyRepository
 
     public async Task<(bool success, ulong wallet, ulong savings, ulong streak)> DepositSavingsAsync(ulong userId, ulong amount)
     {
+        var now = DateTime.UtcNow;
+        var current = await _collection.Find(Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId))
+            .FirstOrDefaultAsync();
+        var newStreak = EconomyRules.NextSavingsStreak(current?.SavingsStreak ?? 0, current?.SavingsLastDepositDate, now);
+
         var filter = Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId)
             & Builders<EconomyProfile>.Filter.Gte(p => p.Money, amount);
 
         var update = new BsonDocumentUpdateDefinition<EconomyProfile>(
-            new BsonDocument("$inc", new BsonDocument { { "Money", -(long)amount }, { "Savings", (long)amount }, { "SavingsStreak", 1 } }));
+            new BsonDocument
+            {
+                { "$inc", new BsonDocument { { "Money", -(long)amount }, { "Savings", (long)amount } } },
+                { "$set", new BsonDocument { { "SavingsStreak", (long)newStreak }, { "SavingsLastDepositDate", now } } }
+            });
 
         var result = await _collection.FindOneAndUpdateAsync(filter, update,
             new FindOneAndUpdateOptions<EconomyProfile>
@@ -163,11 +172,7 @@ public class EconomyRepository : IEconomyRepository
             & Builders<EconomyProfile>.Filter.Gte(p => p.Savings, amount);
 
         var update = new BsonDocumentUpdateDefinition<EconomyProfile>(
-            new BsonDocument
-            {
-                { "$inc", new BsonDocument { { "Savings", -(long)amount }, { "Money", (long)amount } } },
-                { "$set", new BsonDocument("SavingsStreak", 0) }
-            });
+            new BsonDocument("$inc", new BsonDocument { { "Savings", -(long)amount }, { "Money", (long)amount } }));
 
         var result = await _collection.FindOneAndUpdateAsync(filter, update,
             new FindOneAndUpdateOptions<EconomyProfile>
@@ -176,6 +181,15 @@ public class EconomyRepository : IEconomyRepository
             });
 
         if (result == null) return (false, 0, 0, 0);
+
+        if (result.Savings == 0)
+        {
+            await _collection.UpdateOneAsync(
+                Builders<EconomyProfile>.Filter.Eq(p => p.UserId, userId),
+                Builders<EconomyProfile>.Update
+                    .Set(p => p.SavingsStreak, 0UL)
+                    .Set(p => p.SavingsLastDepositDate, (DateTime?)null));
+        }
 
         await AddTransactionAsync(userId, EconomyTransactionType.SavingsWithdraw, (long)amount, "Resgate da poupança");
         return (true, result.Money, result.Savings, result.SavingsStreak);
@@ -322,7 +336,11 @@ public class EconomyRepository : IEconomyRepository
     {
         var today = DateTime.UtcNow.Date;
 
-        var bankFilter = Builders<EconomyProfile>.Filter.Gt(p => p.Bank, 1);
+        var bankFilter = Builders<EconomyProfile>.Filter.And(
+            Builders<EconomyProfile>.Filter.Gt(p => p.Bank, 0),
+            Builders<EconomyProfile>.Filter.Or(
+                Builders<EconomyProfile>.Filter.Eq(p => p.BankLastInterestDate, null),
+                Builders<EconomyProfile>.Filter.Lt(p => p.BankLastInterestDate, today)));
         var savingsFilter = Builders<EconomyProfile>.Filter.And(
             Builders<EconomyProfile>.Filter.Gt(p => p.Savings, 0),
             Builders<EconomyProfile>.Filter.Or(
@@ -341,13 +359,16 @@ public class EconomyRepository : IEconomyRepository
             {
                 var ops = new List<UpdateDefinition<EconomyProfile>>();
 
-                if (profile.Bank > 1UL)
+                if (profile.Bank > 0UL && (profile.BankLastInterestDate is null || profile.BankLastInterestDate.Value < today))
                 {
-                    var newBank = (ulong)Math.Ceiling(profile.Bank * 0.99);
-                    if (newBank != profile.Bank)
+                    var rate = GetBankInterestRate(Random.Shared);
+                    var interest = EconomyRules.ComputeInterestAmount(profile.Bank, rate);
+                    if (interest > 0UL)
                     {
-                        ops.Add(Builders<EconomyProfile>.Update.Set(p => p.Bank, newBank));
-                        toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Tax, (long)newBank - (long)profile.Bank, "Taxa bancária diária"));
+                        ops.Add(Builders<EconomyProfile>.Update.Inc(p => p.Bank, interest));
+                        ops.Add(Builders<EconomyProfile>.Update.Set(p => p.BankLastInterestDate, DateTime.UtcNow));
+                        toLog.Add(MakeTransaction(profile.UserId, EconomyTransactionType.Interest, (long)interest,
+                            $"Juros do banco (CDB, {rate:P1} ao dia)"));
                     }
                 }
 
@@ -448,6 +469,12 @@ public class EconomyRepository : IEconomyRepository
             Description = description,
             CreatedAt = DateTime.UtcNow
         });
+    }
+
+    private static double GetBankInterestRate(Random rng)
+    {
+        var (min, max) = EconomyRules.GetBankInterestRange();
+        return min + (rng.NextDouble() * (max - min));
     }
 
     private static EconomyTransaction MakeTransaction(ulong userId, EconomyTransactionType type, long amount, string description)

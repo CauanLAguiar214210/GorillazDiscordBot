@@ -88,6 +88,25 @@ public class EconomyRulesTests
     }
 
     [Fact]
+    public void WorkCooldown_FaculdadeUsaCincoMinutos()
+    {
+        EconomyRules.WorkCooldown(EconomyJobs.FindByKey("professor")!).Should().Be(TimeSpan.FromMinutes(5));
+        EconomyRules.WorkCooldown(EconomyJobs.FindByKey("programador")!).Should().Be(TimeSpan.FromMinutes(5));
+        EconomyRules.WorkCooldown(EconomyJobs.FindByKey("engenheiro")!).Should().Be(TimeSpan.FromMinutes(5));
+        EconomyRules.WorkCooldown(EconomyJobs.FindByKey("motorista-app")!).Should().Be(TimeSpan.FromHours(3));
+    }
+
+    [Fact]
+    public void WorkCooldown_JogosDeVeiculoUsamCincoMinutos()
+    {
+        EconomyRules.WorkCooldown(EconomyJobs.FindByKey("condutor-lancha")!).Should().Be(TimeSpan.FromMinutes(5));
+        EconomyRules.WorkCooldown(EconomyJobs.FindByKey("comandante-iate")!).Should().Be(TimeSpan.FromMinutes(5));
+        EconomyRules.WorkCooldown(EconomyJobs.FindByKey("capitao-navio")!).Should().Be(TimeSpan.FromMinutes(5));
+
+        EconomyRules.WorkCooldown(EconomyJobs.FindByKey("manobrista")!).Should().Be(TimeSpan.FromHours(2));
+    }
+
+    [Fact]
     public void EconomyJobs_EncontraPorChaveOuNome()
     {
         EconomyJobs.Find("programador").Should().NotBeNull();
@@ -104,6 +123,9 @@ public class EconomyRulesTests
         EconomyJobs.Find("piloto-aviao").Should().NotBeNull();
         EconomyJobs.Find("piloto-comercial").Should().NotBeNull();
         EconomyJobs.Find("piloto-linha-aerea").Should().NotBeNull();
+        EconomyJobs.Find("condutor-lancha").Should().NotBeNull();
+        EconomyJobs.Find("comandante-iate").Should().NotBeNull();
+        EconomyJobs.Find("capitao-navio").Should().NotBeNull();
     }
 
     [Fact]
@@ -124,7 +146,20 @@ public class EconomyRulesTests
         EconomyJobs.FindByKey("piloto-aviao")!.TypeBonusPercent.Should().Be(5);
         EconomyJobs.FindByKey("piloto-comercial")!.TypeBonusPercent.Should().Be(5);
         EconomyJobs.FindByKey("piloto-linha-aerea")!.TypeBonusPercent.Should().Be(10);
-        foreach (var job in EconomyJobs.Veiculos.Where(j => j.PayMode == JobPayMode.Inflation))
+        foreach (var job in EconomyJobs.Veiculos.Where(j => j.RequiredVehicleType is not null))
             job.CategoryBonusPercent.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void Aquaticos_TemBonusParticularPorTipo()
+    {
+        EconomyJobs.FindByKey("condutor-lancha")!.TypeBonusPercent.Should().Be(5);
+        EconomyJobs.FindByKey("comandante-iate")!.TypeBonusPercent.Should().Be(5);
+        EconomyJobs.FindByKey("capitao-navio")!.TypeBonusPercent.Should().Be(10);
+
+        EconomyJobs.FindByKey("condutor-lancha")!.RequiredLicense.Should().Be(LicenseLevel.Arrais);
+        EconomyJobs.FindByKey("comandante-iate")!.RequiredLicense.Should().Be(LicenseLevel.Mestre);
+        EconomyJobs.FindByKey("capitao-navio")!.RequiredLicense.Should().Be(LicenseLevel.Capitao);
+        EconomyJobs.FindByKey("capitao-navio")!.VehicleDomain.Should().Be(LicenseDomain.Maritima);
     }
 }

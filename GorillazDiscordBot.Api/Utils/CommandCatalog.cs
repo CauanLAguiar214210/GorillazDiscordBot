@@ -23,16 +23,19 @@ public static class CommandCatalog
         new("economia", "💰", "Economia", new[]
         {
             new CommandEntry("daily", "Reivindica moedas diárias", CommandKind.Prefix),
-            new CommandEntry("saldo", "Ver seu saldo (alias: carteira)", CommandKind.Prefix),
-            new CommandEntry("pagar <usuário> <valor>", "Transferir moedas para outro usuário", CommandKind.Prefix),
-            new CommandEntry("depositar <valor>", "Move moedas da carteira para o banco", CommandKind.Prefix),
-            new CommandEntry("sacar <valor>", "Move moedas do banco para a carteira", CommandKind.Prefix),
-            new CommandEntry("banco", "Consulta seu banco", CommandKind.Prefix),
-            new CommandEntry("poupar <valor>", "Deposita na poupança com juros diários", CommandKind.Prefix),
-            new CommandEntry("resgatar <valor>", "Saca moedas da poupança", CommandKind.Prefix),
+            new CommandEntry("/carteira ver", "Mostra o saldo da sua carteira e patrimônio", CommandKind.Slash),
+            new CommandEntry("/carteira pagar <membro> <valor|tudo>", "Transfere moedas da carteira para outro usuário", CommandKind.Slash),
+            new CommandEntry("/banco ver", "Consulta banco, poupança e juros (CDB + renda fixa)", CommandKind.Slash),
+            new CommandEntry("/banco depositar <valor|tudo>", "Move moedas da carteira para o banco (rende CDB diário)", CommandKind.Slash),
+            new CommandEntry("/banco sacar <valor|tudo>", "Move moedas do banco para a carteira", CommandKind.Slash),
+            new CommandEntry("/banco poupar <valor|tudo>", "Deposita na poupança (juros + streak diário)", CommandKind.Slash),
+            new CommandEntry("/banco resgatar <valor|tudo>", "Saca da poupança (parcial mantém o streak)", CommandKind.Slash),
+            new CommandEntry("/banco extrato [n]", "Mostra o histórico de transações", CommandKind.Slash),
+            new CommandEntry("/banco ativos listar", "Mercado de ativos de renda (cotas, preço do dia)", CommandKind.Slash),
+            new CommandEntry("/banco ativos comprar <ativo> [cotas]", "Compra cotas de um ativo pelo preço do dia", CommandKind.Slash),
+            new CommandEntry("/banco ativos vender <ativo> [cotas]", "Vende cotas de um ativo pelo preço do dia", CommandKind.Slash),
             new CommandEntry("trabalhar", "Redireciona para o novo sistema de trabalho (/trabalho)", CommandKind.Prefix),
             new CommandEntry("roubar <usuário>", "Tenta roubar moedas de outro usuário", CommandKind.Prefix),
-            new CommandEntry("historico [n]", "Mostra o histórico de transações", CommandKind.Prefix),
             new CommandEntry("ranking", "Ranking de riqueza (patrimônio) com classes e Hall da Fama", CommandKind.Prefix),
             new CommandEntry("raldafama", "As lendas do servidor com títulos e frases", CommandKind.Prefix),
             new CommandEntry("tiers", "Lista as classes econômicas (de 🕳️ Miserável a 👑 Magnata)", CommandKind.Prefix),
@@ -41,6 +44,8 @@ public static class CommandCatalog
         {
             new CommandEntry("/trabalho listar", "Lista os subempregos e empregos disponíveis", CommandKind.Slash),
             new CommandEntry("/trabalho trabalhar <profissão>", "Trabalha em uma profissão e recebe o pagamento", CommandKind.Slash),
+            new CommandEntry("/trabalho profissao", "Trabalha na sua profissão definida (defina em /trabalho listar)", CommandKind.Slash),
+            new CommandEntry("/trabalho extra", "Trabalha no seu extra (subemprego) definido em /trabalho listar", CommandKind.Slash),
             new CommandEntry("/trabalho prova <profissão>", "Faz a prova de licença de um emprego (2 de 3 acertos)", CommandKind.Slash),
             new CommandEntry("/trabalho diplomas", "Mostra os diplomas que você já conquistou", CommandKind.Slash),
         }),
@@ -106,17 +111,27 @@ public static class CommandCatalog
             new CommandEntry("contas confirmar <código>", "Confirma o vínculo usando o código recebido por DM", CommandKind.Prefix),
             new CommandEntry("contas desvincular <conta>", "Remove uma conta do seu grupo", CommandKind.Prefix),
         }),
-        new("gifs", "🖼️", "GIFs", new[]
-        {
-            new CommandEntry("gif <nome>", "Envia o GIF salvo com esse nome", CommandKind.Prefix),
-            new CommandEntry("gif add <nome> <url>", "Salva um GIF no servidor", CommandKind.Prefix),
-            new CommandEntry("gif random", "Sorteia um GIF salvo", CommandKind.Prefix),
-        }),
         new("interacoes", "💬", "Interações", new[]
         {
-            new CommandEntry("interaction add <trigger> <resposta>", "Adiciona uma interação automática do servidor", CommandKind.Prefix),
-            new CommandEntry("interaction remove <trigger>", "Remove uma interação do servidor", CommandKind.Prefix),
-            new CommandEntry("interaction list", "Lista as interações do servidor", CommandKind.Prefix),
+            new CommandEntry("/interacao criar <trigger> <resposta> [tipo]", "Trigger responde com texto, GIF, áudio ou vídeo", CommandKind.Slash),
+            new CommandEntry("/interacao remover <trigger>", "Remove uma interação do servidor", CommandKind.Slash),
+            new CommandEntry("/interacao listar", "Lista as interações do servidor", CommandKind.Slash),
+        }),
+        new("moderacao", "🛡️", "Moderação", new[]
+        {
+            new CommandEntry("limpar [n] [@usuário]", "Apaga até N mensagens do canal (padrão 50)", CommandKind.Both),
+            new CommandEntry("limpar-tudo", "Recria o canal apagando todo o histórico", CommandKind.Both),
+            new CommandEntry("expulsar <@usuário> [motivo]", "Expulsa um membro do servidor", CommandKind.Both),
+            new CommandEntry("banir <@usuário> [motivo] [dias]", "Bane um membro do servidor (0-7 dias de mensagens)", CommandKind.Both),
+            new CommandEntry("desbanir <id>", "Remove o banimento de um usuário pelo ID", CommandKind.Both),
+            new CommandEntry("banimentos", "Lista os usuários banidos do servidor", CommandKind.Both),
+            new CommandEntry("timeout <@usuário> <minutos> [motivo]", "Aplica ou remove um timeout (0 remove)", CommandKind.Both),
+            new CommandEntry("avisar <@usuário> [motivo]", "Aplica um aviso registrado a um membro", CommandKind.Both),
+            new CommandEntry("avisos [@usuário]", "Lista os avisos de um membro ou o resumo do servidor", CommandKind.Both),
+            new CommandEntry("removeaviso <@usuário> <id>", "Remove um aviso de um membro pelo ID", CommandKind.Both),
+            new CommandEntry("ritmolento <segundos> [canal]", "Define o ritmo lento (slowmode) do canal", CommandKind.Both),
+            new CommandEntry("trancar [canal]", "Bloqueia o envio de mensagens", CommandKind.Both),
+            new CommandEntry("destrancar [canal]", "Libera o envio de mensagens", CommandKind.Both),
         }),
         new("config", "⚙️", "Configuração", new[]
         {
