@@ -155,6 +155,9 @@ public class ShopService
     {
         await _economy.GetOrCreateAsync(mainId, username);
 
+        if (item.Category == ItemCategory.Asset)
+            return (false, "📈 Ativos agora são comprados por cotas: use `/banco ativos comprar`.", 0);
+
         if (item.Category == ItemCategory.Pet)
         {
             var inventory = await _shop.GetInventoryAsync(mainId);
@@ -206,6 +209,150 @@ public class ShopService
         return (true, null, balance);
     }
 
+    public async Task<(bool success, string? message, ulong balance)> BuyAssetAsync(
+        ulong userId, string username, ShopItem item, int cotas)
+    {
+        if (item.IsPlaceholder)
+            return (false, $"🔒 **{item.Name}** ainda não está disponível. Volte em breve!", 0);
+
+        if (cotas < 1)
+            return (false, "❌ Informe ao menos **1 cota**.", 0);
+
+        if (cotas > EconomyRules.AssetQuotasPerShare)
+            return (false, $"❌ O limite é de **{EconomyRules.AssetQuotasPerShare} cotas** por ativo.", 0);
+
+        var mainId = await _accessor.ResolveMainIdAsync(userId);
+        var gate = GetUserLock(mainId);
+        await gate.WaitAsync();
+        try
+        {
+            return await BuyAssetCoreAsync(mainId, username, item, cotas);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async Task<(bool success, string? message, ulong balance)> BuyAssetCoreAsync(
+        ulong mainId, string username, ShopItem item, int cotas)
+    {
+        await _economy.GetOrCreateAsync(mainId, username);
+
+        var owned = await _shop.GetInventoryByKeyAsync(mainId, item.Key);
+        if (owned is { Quantity: 1 })
+        {
+            owned.Quantity = EconomyRules.AssetQuotasPerShare;
+            await _shop.SetQuantityAsync(mainId, item.Key, owned.Quantity);
+        }
+
+        var held = owned?.Quantity ?? 0;
+        if (held + cotas > EconomyRules.AssetQuotasPerShare)
+            return (false, $"❌ Você já possui **{held} cotas** de **{item.Emoji} {item.Name}**. Limite: **{EconomyRules.AssetQuotasPerShare} cotas**.", 0);
+
+        var price = EconomyRules.ComputeQuotaPrice(item.Key, item.Price, cotas);
+
+        var (deducted, balance) = await _economy.TryDeductMoneyAsync(
+            mainId, price, EconomyTransactionType.Purchase,
+            $"Comprou {cotas} cotas de {item.Name}");
+
+        if (!deducted)
+            return (false, "❌ Você não tem moedas suficientes na carteira.", 0);
+
+        var now = DateTime.UtcNow;
+        await _shop.AddOrIncrementInventoryAsync(new InventoryItem
+        {
+            UserId = mainId,
+            ItemKey = item.Key,
+            Quantity = cotas,
+            ExpiresAt = null,
+            AcquiredAt = now,
+            LastCollectedAt = now
+        });
+
+        return (true, null, balance);
+    }
+
+    public async Task<(bool success, string? message, ulong balance)> SellAssetAsync(
+        ulong userId, string username, ShopItem item, int cotas)
+    {
+        if (cotas < 1)
+            return (false, "❌ Informe ao menos **1 cota** para vender.", 0);
+
+        var mainId = await _accessor.ResolveMainIdAsync(userId);
+        var gate = GetUserLock(mainId);
+        await gate.WaitAsync();
+        try
+        {
+            return await SellAssetCoreAsync(mainId, username, item, cotas);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async Task<(bool success, string? message, ulong balance)> SellAssetCoreAsync(
+        ulong mainId, string username, ShopItem item, int cotas)
+    {
+        await _economy.GetOrCreateAsync(mainId, username);
+
+        var owned = await _shop.GetInventoryByKeyAsync(mainId, item.Key);
+        if (owned is { Quantity: 1 })
+        {
+            owned.Quantity = EconomyRules.AssetQuotasPerShare;
+            await _shop.SetQuantityAsync(mainId, item.Key, owned.Quantity);
+        }
+
+        var held = owned?.Quantity ?? 0;
+        if (held <= 0)
+            return (false, $"❌ Você não possui **{item.Emoji} {item.Name}**. Use `/banco ativos comprar`.", 0);
+
+        if (cotas > held)
+            return (false, $"❌ Você possui apenas **{held} cotas** de **{item.Emoji} {item.Name}**.", 0);
+
+        var refund = EconomyRules.ComputeQuotaPrice(item.Key, item.Price, cotas);
+        await _economy.AddMoneyAsync(mainId, refund, EconomyTransactionType.Sell,
+            $"Vendeu {cotas} cota(s) de {item.Name} pelo preço do dia");
+
+        await _shop.DecrementOrRemoveInventoryAsync(mainId, item.Key, cotas);
+
+        var balance = (await _economy.GetOrCreateAsync(mainId, username)).Money;
+        return (true, null, balance);
+    }
+
+    public async Task<List<(InventoryItem Owned, ShopItem Asset)>> GetOwnedAssetPositionsAsync(ulong userId)
+    {
+        var mainId = await _accessor.ResolveMainIdAsync(userId);
+        var catalog = await GetCatalogAsync();
+        var catalogByKey = catalog.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+        var inventory = await _shop.GetInventoryAsync(mainId);
+
+        await NormalizeLegacyAssetQuantitiesAsync(mainId, inventory, catalogByKey);
+
+        return inventory
+            .Where(e => e.Quantity > 0
+                        && catalogByKey.TryGetValue(e.ItemKey, out var it)
+                        && it.Category == ItemCategory.Asset)
+            .Select(e => (Owned: e, Asset: catalogByKey[e.ItemKey]))
+            .OrderBy(x => x.Asset.SortOrder)
+            .ToList();
+    }
+
+    private async Task NormalizeLegacyAssetQuantitiesAsync(
+        ulong mainId, List<InventoryItem> inventory, Dictionary<string, ShopItem> catalogByKey)
+    {
+        foreach (var entry in inventory)
+        {
+            if (!catalogByKey.TryGetValue(entry.ItemKey, out var item)) continue;
+            if (item.Category != ItemCategory.Asset) continue;
+            if (entry.Quantity != 1) continue;
+
+            entry.Quantity = EconomyRules.AssetQuotasPerShare;
+            await _shop.SetQuantityAsync(mainId, entry.ItemKey, entry.Quantity);
+        }
+    }
+
     public async Task<ulong> GetBalanceAsync(ulong userId, string username)
     {
         var mainId = await _accessor.ResolveMainIdAsync(userId);
@@ -235,6 +382,9 @@ public class ShopService
         int daysTotal = 0;
         var entries = new List<AssetIncomeEntry>();
 
+        var catalogByKey = catalog.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+        await NormalizeLegacyAssetQuantitiesAsync(mainId, inventory, catalogByKey);
+
         foreach (var entry in inventory)
         {
             if (!assetKeys.Contains(entry.ItemKey)) continue;
@@ -245,7 +395,7 @@ public class ShopService
             if (days <= 0) continue;
 
             days = Math.Min(days, MaxIncomeBacklogDays);
-            var income = item.DailyIncome * (ulong)days;
+            var income = EconomyRules.ComputeQuotaIncome(item.DailyIncome, Math.Max(0, entry.Quantity)) * (ulong)days;
             if (boosted)
                 income *= 2;
             if (assetPetBonus > 0)
@@ -292,6 +442,9 @@ public class ShopService
     private async Task<(bool success, string? message, ulong balance)> SellCoreAsync(
         ulong mainId, string username, ShopItem item)
     {
+        if (item.Category == ItemCategory.Asset)
+            return (false, "📈 Ativos agora são vendidos por cotas: use `/banco ativos vender`.", 0);
+
         var owned = await _shop.GetInventoryByKeyAsync(mainId, item.Key);
         if (owned == null || owned.Quantity < 1)
             return (false, "❌ Você não possui esse item para vender.", 0);
@@ -511,6 +664,8 @@ public class ShopService
         var inventory = await _shop.GetInventoryAsync(mainId);
         var catalogByKey = catalog.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
 
+        await NormalizeLegacyAssetQuantitiesAsync(mainId, inventory, catalogByKey);
+
         ulong total = 0;
         foreach (var entry in inventory)
         {
@@ -518,7 +673,10 @@ public class ShopService
             if (!catalogByKey.TryGetValue(entry.ItemKey, out var item)) continue;
             if (item.Price == 0) continue;
 
-            total = CheckedAdd(total, item.Price * (ulong)entry.Quantity);
+            if (item.Category == ItemCategory.Asset)
+                total = CheckedAdd(total, EconomyRules.ComputeQuotaPrice(item.Key, item.Price, entry.Quantity));
+            else
+                total = CheckedAdd(total, item.Price * (ulong)entry.Quantity);
         }
 
         return total;
@@ -671,7 +829,7 @@ public class ShopService
             Effect = BoostEffect.None,
             DurationHours = 0,
             DailyIncome = dailyIncome,
-            MaxQuantity = 1,
+            MaxQuantity = 0,
             IsActive = true,
             SortOrder = sortOrder
         };

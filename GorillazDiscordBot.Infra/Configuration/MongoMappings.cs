@@ -46,6 +46,8 @@ public static class MongoMappings
             map.MapMember(c => c.Savings).SetElementName("Savings");
             map.MapMember(c => c.SavingsStreak).SetElementName("SavingsStreak");
             map.MapMember(c => c.SavingsLastInterestDate).SetElementName("SavingsLastInterestDate");
+            map.MapMember(c => c.SavingsLastDepositDate).SetElementName("SavingsLastDepositDate");
+            map.MapMember(c => c.BankLastInterestDate).SetElementName("BankLastInterestDate");
             map.MapMember(c => c.LastWorkTime).SetElementName("LastWorkTime");
             map.MapMember(c => c.LastRobTime).SetElementName("LastRobTime");
             map.MapMember(c => c.RobCaughtUntil).SetElementName("RobCaughtUntil");
@@ -82,6 +84,8 @@ public static class MongoMappings
             map.MapMember(c => c.CasaAtualKey).SetElementName("CasaAtualKey");
             map.MapMember(c => c.VeiculoAtualKey).SetElementName("VeiculoAtualKey");
             map.MapMember(c => c.RoupaAtualKey).SetElementName("RoupaAtualKey");
+            map.MapMember(c => c.ProfissaoKey).SetElementName("ProfissaoKey");
+            map.MapMember(c => c.ExtraKey).SetElementName("ExtraKey");
             map.MapMember(c => c.CreatedAt).SetElementName("CreatedAt");
             map.MapMember(c => c.UpdatedAt).SetElementName("UpdatedAt");
         });
@@ -105,6 +109,7 @@ public static class MongoMappings
                .SetIdGenerator(StringObjectIdGenerator.Instance);
             map.MapMember(c => c.GuildId).SetElementName("guildId");
             map.MapMember(c => c.Trigger).SetElementName("trigger");
+            map.MapMember(c => c.Tipo).SetElementName("tipo");
             map.MapMember(c => c.Response).SetElementName("response");
             map.MapMember(c => c.AddedBy).SetElementName("addedBy");
             map.MapMember(c => c.CreatedAt).SetElementName("createdAt");

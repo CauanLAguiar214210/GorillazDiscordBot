@@ -11,6 +11,8 @@ public class EconomyProfile
     public ulong Savings { get; set; }
     public ulong SavingsStreak { get; set; }
     public DateTime? SavingsLastInterestDate { get; set; }
+    public DateTime? SavingsLastDepositDate { get; set; }
+    public DateTime? BankLastInterestDate { get; set; }
     public DateTime? LastWorkTime { get; set; }
     public DateTime? LastRobTime { get; set; }
     public DateTime? RobCaughtUntil { get; set; }

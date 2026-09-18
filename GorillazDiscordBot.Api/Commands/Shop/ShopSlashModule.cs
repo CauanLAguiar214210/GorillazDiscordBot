@@ -567,7 +567,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         sb.AppendLine($"{item.Emoji} **{item.Name}** — **{EconomyFormat.Full(item.Price)}** moedas");
         sb.AppendLine($"   └ {item.Description}{extra}");
         if (item.Category == ItemCategory.Asset && item.DailyIncome > 0)
-            sb.AppendLine($"   └ Renda: **+{EconomyFormat.Full(item.DailyIncome)}/dia** no daily · limite: 1 por usuário");
+            sb.AppendLine($"   └ Renda: **+{EconomyFormat.Full(item.DailyIncome)}/dia** no daily · cotas: até 100 · preço varia todo dia");
         if (item.Category == ItemCategory.Relic)
             sb.AppendLine($"   └ Efeito: {DescribeRelic(item)}");
         if (item.Category == ItemCategory.Pet)
@@ -836,7 +836,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         if (item.DurationHours > 0)
             sb.AppendLine($"⏰ Duração: **{item.DurationHours}h**");
         if (item.Category == ItemCategory.Asset && item.DailyIncome > 0)
-            sb.AppendLine($"📈 Renda: **+{EconomyFormat.Full(item.DailyIncome)}/dia** no daily · limite: 1 por usuário");
+            sb.AppendLine($"📈 Renda: **+{EconomyFormat.Full(item.DailyIncome)}/dia** no daily · cotas: até 100 · preço varia todo dia");
         if (item.Category == ItemCategory.Relic)
             sb.AppendLine($"⚙️ Efeito: {DescribeRelic(item)}");
         if (item.Category == ItemCategory.Pet)

@@ -13,7 +13,8 @@ public interface IShopRepository
     Task<List<InventoryItem>> GetInventoryAsync(ulong userId);
     Task<InventoryItem?> GetInventoryByKeyAsync(ulong userId, string itemKey);
     Task AddOrIncrementInventoryAsync(InventoryItem inventory);
-    Task DecrementOrRemoveInventoryAsync(ulong userId, string itemKey);
+    Task DecrementOrRemoveInventoryAsync(ulong userId, string itemKey, int amount = 1);
+    Task SetQuantityAsync(ulong userId, string itemKey, int quantity);
     Task UpdateIncomeTimestampAsync(ulong userId, string itemKey, DateTime collectedAt);
     Task UnequipAllAsync(ulong userId);
     Task SetEquippedAsync(ulong userId, string itemKey, bool equipped);

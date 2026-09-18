@@ -20,25 +20,35 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
     private const string DomainAction = "vdomain";
     private const string JobSelAction = "job";
     private const string DoAction = "do";
+    private const string GameOptAction = "gjopt";
+    private const string GameReadyAction = "gjready";
+    private const string GameFinishAction = "gjfinish";
+    private const string GameCountAction = "gjcount";
+    private const string SetProAction = "setpro";
+    private const string SetExtraAction = "setextra";
+    private const string BackAction = "back";
 
     private readonly ICharacterProfileRepository _profiles;
     private readonly IEconomyRepository _economy;
     private readonly ShopService _shop;
     private readonly IEconomyAccessor _accessor;
     private readonly ManobristaSessionService _manobrista;
+    private readonly JobGameSessionService _games;
 
     public TrabalhoSlashModule(
         ICharacterProfileRepository profiles,
         IEconomyRepository economy,
         ShopService shop,
         IEconomyAccessor accessor,
-        ManobristaSessionService manobrista)
+        ManobristaSessionService manobrista,
+        JobGameSessionService games)
     {
         _profiles = profiles;
         _economy = economy;
         _shop = shop;
         _accessor = accessor;
         _manobrista = manobrista;
+        _games = games;
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -152,7 +162,12 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
 
         var component = (SocketMessageComponent)Context.Interaction;
         var jobKey = component.Data.Values.FirstOrDefault();
-        if (string.IsNullOrEmpty(jobKey)) return;
+
+        if (string.IsNullOrEmpty(jobKey))
+        {
+            await ShowBackToListAsync(component, owner, catDomainId);
+            return;
+        }
 
         if (jobKey == "back")
         {
@@ -160,11 +175,6 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
             if (backCat == JobCategory.Veiculo && backDomain is not null)
             {
                 await ShowVehicleDomainMenuAsync(component, owner);
-                return;
-            }
-            if (backCat is not null)
-            {
-                await ShowJobListAsync(component, owner, backCat.Value, backDomain);
                 return;
             }
             await ShowOverviewAsync(component, owner);
@@ -179,20 +189,36 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
         }
 
         var mainId = await _accessor.ResolveMainIdAsync(owner);
-        var profile = await _profiles.GetOrCreateAsync(mainId, Context.User.Username);
-        var ownedTypes = await _shop.GetOwnedVehicleTypesAsync(mainId);
-        var economy = await _economy.GetOrCreateAsync(mainId, Context.User.Username);
-        var manobVagas = await _shop.GetUpgradeFlatAsync(mainId, UpgradeEffect.ManobristaVagas);
-        var manobBasePct = await _shop.GetUpgradeFlatAsync(mainId, UpgradeEffect.ManobristaBase);
+        await UpdateJobDetailAsync(mainId, component, owner, job);
+    }
 
-        var embed = BuildJobDetailEmbed(Context.User, job, profile, ownedTypes, economy, manobVagas, manobBasePct);
-        var components = BuildJobDetailComponents(owner, job, profile, ownedTypes, catDomainId);
+    // ──────────────────────────────────────────────────────────────
+    // Botao "Voltar" do detalhe do trabalho (volta para a lista)
+    // ──────────────────────────────────────────────────────────────
 
-        await component.ModifyOriginalResponseAsync(m =>
+    [ComponentInteraction(CustomIdPrefix + ":" + BackAction + ":*:*", true)]
+    public async Task BackAsync(ulong ownerId, string catDomainId)
+    {
+        if (ownerId != Context.User.Id)
         {
-            m.Embed = embed;
-            m.Components = components;
-        });
+            await RespondAsync("Essas opcoes nao sao suas.", ephemeral: true);
+            return;
+        }
+
+        await DeferAsync();
+
+        var component = (SocketMessageComponent)Context.Interaction;
+        await ShowBackToListAsync(component, ownerId, catDomainId);
+    }
+
+    private async Task ShowBackToListAsync(
+        SocketMessageComponent component, ulong ownerId, string catDomainId)
+    {
+        var (backCat, backDomain) = ParseCatDomainId(catDomainId);
+        if (backCat is not null)
+            await ShowJobListAsync(component, ownerId, backCat.Value, backDomain);
+        else
+            await ShowOverviewAsync(component, ownerId);
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -219,6 +245,96 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
     }
 
     // ──────────────────────────────────────────────────────────────
+    // Definir profissao / extra (botoes do detalhe do trabalho)
+    // ──────────────────────────────────────────────────────────────
+
+    [ComponentInteraction(CustomIdPrefix + ":" + SetProAction + ":*:*", true)]
+    public async Task SetProfissaoAsync(ulong ownerId, string jobKey)
+    {
+        await DeferAsync();
+
+        if (ownerId != Context.User.Id)
+        {
+            await FollowupAsync("Este botao nao e seu.", ephemeral: true);
+            return;
+        }
+
+        var job = EconomyJobs.FindByKey(jobKey);
+        if (job == null || job.IsSubEmprego)
+        {
+            await FollowupAsync("Somente **empregos** e **trabalhos com veiculo** podem ser sua profissao.", ephemeral: true);
+            return;
+        }
+
+        var mainId = await _accessor.ResolveMainIdAsync(ownerId);
+        var profile = await _profiles.GetOrCreateAsync(mainId, Context.User.Username);
+        var ownedTypes = await _shop.GetOwnedVehicleTypesAsync(mainId);
+
+        if (IsLocked(job, profile, ownedTypes))
+        {
+            await FollowupAsync("Voce ainda nao pode exercer essa profissao: atenda aos requisitos (escolaridade, diploma ou licenca).", ephemeral: true);
+            return;
+        }
+
+        if (profile.ProfissaoKey == job.Key)
+        {
+            await FollowupAsync($"A profissao **{job.Emoji} {job.Name}** ja esta definida.", ephemeral: true);
+            return;
+        }
+
+        profile.ProfissaoKey = job.Key;
+        await _profiles.SaveAsync(profile);
+
+        var component = (SocketMessageComponent)Context.Interaction;
+        await UpdateJobDetailAsync(mainId, component, ownerId, job);
+
+        await FollowupAsync($"\U0001F4CC **Profissao definida:** {job.Emoji} **{job.Name}** agora aparece no seu /perfil.", ephemeral: true);
+    }
+
+    [ComponentInteraction(CustomIdPrefix + ":" + SetExtraAction + ":*:*", true)]
+    public async Task SetExtraAsync(ulong ownerId, string jobKey)
+    {
+        await DeferAsync();
+
+        if (ownerId != Context.User.Id)
+        {
+            await FollowupAsync("Este botao nao e seu.", ephemeral: true);
+            return;
+        }
+
+        var job = EconomyJobs.FindByKey(jobKey);
+        if (job == null || !job.IsSubEmprego)
+        {
+            await FollowupAsync("Somente **subempregos** podem ser seu extra (bico).", ephemeral: true);
+            return;
+        }
+
+        var mainId = await _accessor.ResolveMainIdAsync(ownerId);
+        var profile = await _profiles.GetOrCreateAsync(mainId, Context.User.Username);
+        var ownedTypes = await _shop.GetOwnedVehicleTypesAsync(mainId);
+
+        if (IsLocked(job, profile, ownedTypes))
+        {
+            await FollowupAsync("Voce ainda nao pode exercer esse extra.", ephemeral: true);
+            return;
+        }
+
+        if (profile.ExtraKey == job.Key)
+        {
+            await FollowupAsync($"O extra **{job.Emoji} {job.Name}** ja esta definido.", ephemeral: true);
+            return;
+        }
+
+        profile.ExtraKey = job.Key;
+        await _profiles.SaveAsync(profile);
+
+        var component = (SocketMessageComponent)Context.Interaction;
+        await UpdateJobDetailAsync(mainId, component, ownerId, job);
+
+        await FollowupAsync($"\U0001F527 **Extra definido:** {job.Emoji} **{job.Name}** agora aparece no seu /perfil.", ephemeral: true);
+    }
+
+    // ──────────────────────────────────────────────────────────────
     // /trabalho trabalhar — atalho rapido por string (mantido)
     // ──────────────────────────────────────────────────────────────
 
@@ -230,6 +346,54 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
         if (job == null)
         {
             await RespondAsync("Profissao nao encontrada. Use `/trabalho listar` para ver as opcoes.", ephemeral: true);
+            return;
+        }
+
+        await ExecuteJobAsync(job);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // /trabalho profissao e /trabalho extra — trabalhar o que esta definido
+    // ──────────────────────────────────────────────────────────────
+
+    [SlashCommand("profissao", "Trabalha na sua profissao definida (defina em /trabalho listar)")]
+    public async Task ProfissaoAsync()
+    {
+        await ExecuteAssignedJobAsync(p => p.ProfissaoKey, isExtra: false);
+    }
+
+    [SlashCommand("extra", "Trabalha no seu extra (subemprego) definido em /trabalho listar")]
+    public async Task ExtraAsync()
+    {
+        await ExecuteAssignedJobAsync(p => p.ExtraKey, isExtra: true);
+    }
+
+    private async Task ExecuteAssignedJobAsync(Func<CharacterProfile, string?> keySelector, bool isExtra)
+    {
+        var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
+        var profile = await _profiles.GetOrCreateAsync(mainId, Context.User.Username);
+        var key = keySelector(profile);
+
+        if (string.IsNullOrEmpty(key))
+        {
+            await RespondAsync(
+                isExtra
+                    ? "Voce ainda nao definiu um extra. Escolha um **subemprego** em `/trabalho listar`."
+                    : "Voce ainda nao definiu uma profissao. Escolha um trabalho em `/trabalho listar`.",
+                ephemeral: true);
+            return;
+        }
+
+        var job = EconomyJobs.FindByKey(key);
+        if (job == null)
+        {
+            await RespondAsync("Sua profissao/extra registrado nao existe mais no mercado de trabalho.", ephemeral: true);
+            return;
+        }
+
+        if (isExtra && !job.IsSubEmprego)
+        {
+            await RespondAsync("Seu extra registrado nao e um subemprego. Reconfigure em `/trabalho listar`.", ephemeral: true);
             return;
         }
 
@@ -269,6 +433,12 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
             return;
         }
 
+        if (JobGameCatalog.ForJobKey(job.Key) is not null)
+        {
+            await StartJobGameAsync(job, mainId);
+            return;
+        }
+
         if (job.PayMode == JobPayMode.Clicker)
         {
             await StartManobristaAsync(job, mainId);
@@ -278,7 +448,7 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
         var now = DateTime.UtcNow;
         var economy = await _economy.GetOrCreateAsync(mainId, Context.User.Username);
 
-        if (EconomyRules.GetRemainingCooldown(economy.LastWorkTime, now, TimeSpan.FromHours(job.Hours)) is { } remaining)
+        if (EconomyRules.GetRemainingCooldown(economy.LastWorkTime, now, EconomyRules.WorkCooldown(job)) is { } remaining)
         {
             await RespondAsync($"\u23f3 Voce ainda esta trabalhando! Espere {FormatRemaining(remaining)} para trabalhar como **{job.Name}**.", ephemeral: true);
             return;
@@ -299,7 +469,7 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
         if (boost)
             pay *= 2;
 
-        if (!await _economy.TryClaimWorkAsync(mainId, now, TimeSpan.FromHours(job.Hours)))
+        if (!await _economy.TryClaimWorkAsync(mainId, now, EconomyRules.WorkCooldown(job)))
         {
             await RespondAsync("Voce ja esta trabalhando neste momento. Aguarde o termino para comecar outro servico.", ephemeral: true);
             return;
@@ -368,6 +538,236 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
         await RespondAsync(
             embed: BuildClickerEmbed(Context.User, session),
             components: BuildClickerComponents(Context.User.Id, session));
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Subempregos — mini-jogos
+    // ──────────────────────────────────────────────────────────────
+
+    private async Task StartJobGameAsync(Job job, ulong mainId)
+    {
+        var kind = JobGameCatalog.ForJobKey(job.Key);
+        if (kind is null)
+        {
+            await RespondAsync("Este trabalho ainda nao tem mini-jogo.", ephemeral: true);
+            return;
+        }
+
+        if (!job.IsSubEmprego)
+        {
+            var now = DateTime.UtcNow;
+            var economy = await _economy.GetOrCreateAsync(mainId, Context.User.Username);
+
+            if (EconomyRules.GetRemainingCooldown(economy.LastWorkTime, now, EconomyRules.WorkCooldown(job)) is { } remaining)
+            {
+                await RespondAsync($"\u23f3 Espere {FormatRemaining(remaining)} para trabalhar como **{job.Name}**.", ephemeral: true);
+                return;
+            }
+
+            if (kind.Value == JobGameKind.Professor)
+            {
+                await RespondAsync(
+                    embed: BuildJobGameCountEmbed(Context.User, job),
+                    components: BuildJobGameCountComponents(Context.User.Id, job));
+                return;
+            }
+        }
+
+        if (!_games.TryStart(mainId, kind.Value, out var session))
+        {
+            await RespondAsync("\U0001f3ae Voce ja tem um mini-jogo aberto! Encerre o atual para comecar outro.", ephemeral: true);
+            return;
+        }
+
+        await RespondAsync(
+            embed: BuildJobGameEmbed(Context.User, session, string.Empty),
+            components: BuildJobGameComponents(Context.User.Id, session));
+    }
+
+    private async Task PayJobGameAsync(JobGameSession session)
+    {
+        var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
+
+        var pay = (ulong)Math.Round(session.TotalRaw);
+
+        var workBonus = await _shop.GetUpgradePercentAsync(mainId, UpgradeEffect.Work);
+        if (workBonus > 0)
+            pay += pay * (ulong)workBonus / 100;
+
+        var economy = await _economy.GetOrCreateAsync(mainId, Context.User.Username);
+        var boost = economy.WorkBoostPending;
+        if (boost && economy.WorkBoostExpiresAt is { } wExp && wExp <= DateTime.UtcNow)
+        {
+            await _economy.SetWorkBoostAsync(mainId, false);
+            boost = false;
+        }
+        if (boost)
+            pay *= 2;
+
+        _games.Remove(Context.User.Id);
+
+        if (pay > 0)
+        {
+            var (title, _) = JobGameCatalog.Meta(session.Kind);
+            await _economy.AddMoneyAsync(
+                mainId, pay, EconomyTransactionType.Work,
+                $"Mini-jogo {title} ({session.CorrectRounds} rodadas)");
+        }
+
+        if (boost)
+            await _economy.SetWorkBoostAsync(mainId, false);
+
+        var boostSuffix = boost ? " \u26a1 **(bonus x2!)**" : string.Empty;
+        var petSuffix = workBonus > 0 ? $" \U0001f43e (+{workBonus}% pet)" : string.Empty;
+
+        await Context.Interaction.ModifyOriginalResponseAsync(m =>
+        {
+            m.Embed = BuildJobGameResultEmbed(Context.User, session, pay, $"{petSuffix}{boostSuffix}");
+            m.Components = new ComponentBuilder().Build();
+        });
+    }
+
+    private static string BuildGameFeedback(JobGameSession session)
+    {
+        if (!session.LastWasCorrect)
+            return $"\u274c Errado! A resposta era **{session.CurrentRound.CorrectOption}**. Faltam {session.ErrorsLeft} tentativa(s).";
+
+        var msg = $"\u2705 Acertou! **+{EconomyFormat.Full((ulong)Math.Round(session.LastStepCoins))} moedas**";
+        if (session.LastBonus > 0)
+            msg += $" \u00b7 {session.LastEvent} **+{EconomyFormat.Full((ulong)Math.Round(session.LastBonus))}**";
+        return msg;
+    }
+
+    [ComponentInteraction(CustomIdPrefix + ":" + GameReadyAction + ":*:*", true)]
+    public async Task GameReadyAsync(string kind, ulong ownerId)
+    {
+        await DeferAsync();
+
+        if (ownerId != Context.User.Id)
+        {
+            await FollowupAsync("Este mini-jogo nao e seu.", ephemeral: true);
+            return;
+        }
+
+        var result = _games.Ready(ownerId, out var session);
+        if (result == JobGamePlayResult.Invalid || session is null || session.Finished)
+        {
+            await FollowupAsync("\U0001f3ae Nenhum mini-jogo em andamento. Use `/trabalho trabalhar <profissao>`.", ephemeral: true);
+            return;
+        }
+
+        await Context.Interaction.ModifyOriginalResponseAsync(m =>
+        {
+            m.Embed = BuildJobGameEmbed(Context.User, session, string.Empty);
+            m.Components = BuildJobGameComponents(Context.User.Id, session);
+        });
+    }
+
+    [ComponentInteraction(CustomIdPrefix + ":" + GameOptAction + ":*:*:*", true)]
+    public async Task GameOptionAsync(string kind, ulong ownerId, int optionIndex)
+    {
+        await DeferAsync();
+
+        if (ownerId != Context.User.Id)
+        {
+            await FollowupAsync("Este mini-jogo nao e seu.", ephemeral: true);
+            return;
+        }
+
+        var result = _games.TryPlay(ownerId, optionIndex, out var session);
+        if (session is null || result == JobGamePlayResult.Invalid)
+        {
+            await FollowupAsync("\U0001f3ae Nenhum mini-jogo em andamento. Use `/trabalho trabalhar <profissao>`.", ephemeral: true);
+            return;
+        }
+
+        if (result == JobGamePlayResult.Finished)
+        {
+            await PayJobGameAsync(session);
+            return;
+        }
+
+        var feedback = BuildGameFeedback(session);
+        await Context.Interaction.ModifyOriginalResponseAsync(m =>
+        {
+            m.Embed = BuildJobGameEmbed(Context.User, session, feedback);
+            m.Components = BuildJobGameComponents(Context.User.Id, session);
+        });
+    }
+
+    [ComponentInteraction(CustomIdPrefix + ":" + GameFinishAction + ":*", true)]
+    public async Task GameFinishAsync(ulong ownerId)
+    {
+        await DeferAsync();
+
+        if (ownerId != Context.User.Id)
+        {
+            await FollowupAsync("Este mini-jogo nao e seu.", ephemeral: true);
+            return;
+        }
+
+        var session = _games.Get(ownerId);
+        if (session is null || session.Finished)
+        {
+            await FollowupAsync("\U0001f3ae Nenhum mini-jogo em andamento.", ephemeral: true);
+            return;
+        }
+
+        _games.Finish(ownerId);
+        await PayJobGameAsync(session);
+    }
+
+    [ComponentInteraction(CustomIdPrefix + ":" + GameCountAction + ":*:*", true)]
+    public async Task GameCountAsync(ulong ownerId, string jobKey)
+    {
+        if (ownerId != Context.User.Id)
+        {
+            await RespondAsync("Este mini-jogo nao e seu.", ephemeral: true);
+            return;
+        }
+
+        await DeferAsync();
+
+        var job = EconomyJobs.FindByKey(jobKey);
+        var kind = job is null ? null : JobGameCatalog.ForJobKey(job.Key);
+        if (job is null || kind is null)
+        {
+            await FollowupAsync("Trabalho nao encontrado.", ephemeral: true);
+            return;
+        }
+
+        var component = (SocketMessageComponent)Context.Interaction;
+        if (!int.TryParse(component.Data.Values.FirstOrDefault(), out var count))
+            return;
+
+        var mainId = await _accessor.ResolveMainIdAsync(ownerId);
+        var now = DateTime.UtcNow;
+        var economy = await _economy.GetOrCreateAsync(mainId, Context.User.Username);
+
+        if (EconomyRules.GetRemainingCooldown(economy.LastWorkTime, now, EconomyRules.WorkCooldown(job)) is { } remaining)
+        {
+            await FollowupAsync($"\u23f3 Espere {FormatRemaining(remaining)} para trabalhar como **{job.Name}**.", ephemeral: true);
+            return;
+        }
+
+        if (!_games.TryStart(mainId, kind.Value, out var session, count))
+        {
+            await FollowupAsync("\U0001f3ae Voce ja tem um mini-jogo aberto! Encerre o atual para comecar outro.", ephemeral: true);
+            return;
+        }
+
+        if (!await _economy.TryClaimWorkAsync(mainId, now, EconomyRules.WorkCooldown(job)))
+        {
+            _games.Remove(mainId);
+            await FollowupAsync("Voce ja esta trabalhando neste momento. Aguarde o termino para comecar outro servico.", ephemeral: true);
+            return;
+        }
+
+        await Context.Interaction.ModifyOriginalResponseAsync(m =>
+        {
+            m.Embed = BuildJobGameEmbed(Context.User, session, string.Empty);
+            m.Components = BuildJobGameComponents(Context.User.Id, session);
+        });
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -524,6 +924,26 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
         });
     }
 
+    private async Task UpdateJobDetailAsync(
+        ulong mainId, SocketMessageComponent component, ulong ownerId, Job job)
+    {
+        var profile = await _profiles.GetOrCreateAsync(mainId, Context.User.Username);
+        var ownedTypes = await _shop.GetOwnedVehicleTypesAsync(mainId);
+        var economy = await _economy.GetOrCreateAsync(mainId, Context.User.Username);
+        var manobVagas = await _shop.GetUpgradeFlatAsync(mainId, UpgradeEffect.ManobristaVagas);
+        var manobBasePct = await _shop.GetUpgradeFlatAsync(mainId, UpgradeEffect.ManobristaBase);
+
+        var catDomainId = BuildCatDomainId(job.Category, job.VehicleDomain);
+        var embed = BuildJobDetailEmbed(Context.User, job, profile, ownedTypes, economy, manobVagas, manobBasePct);
+        var comps = BuildJobDetailComponents(ownerId, job, profile, ownedTypes, catDomainId);
+
+        await component.ModifyOriginalResponseAsync(m =>
+        {
+            m.Embed = embed;
+            m.Components = comps;
+        });
+    }
+
     // ──────────────────────────────────────────────────────────────
     // Builders de embed
     // ──────────────────────────────────────────────────────────────
@@ -603,7 +1023,12 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
             var status = Status(job, profile, ownedTypes, manobVagas, manobBasePct);
             sb.AppendLine($"{job.Emoji} **{job.Name}** (`{job.Key}`)");
             sb.AppendLine($"   \u2514 {status}");
-            sb.AppendLine($"   \u2514 {job.Hours}h \u00b7 **{EconomyFormat.Full(job.TotalPay)}** moedas");
+            if (job.IsSubEmprego)
+                sb.AppendLine($"   \u2514 \U0001f3ae mini-jogo \u00b7 sem cooldown");
+            else if (JobGameCatalog.ForJobKey(job.Key) is not null)
+                sb.AppendLine($"   \u2514 \U0001f3ae mini-jogo \u00b7 cooldown {FormatCooldown(job)}");
+            else
+                sb.AppendLine($"   \u2514 {FormatCooldown(job)} \u00b7 **{EconomyFormat.Full(job.TotalPay)}** moedas");
             if (job.PayMode == JobPayMode.Clicker)
             {
                 var vagas = ManobristaRules.Vagas + manobVagas;
@@ -643,25 +1068,44 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
         sb.AppendLine();
 
         sb.AppendLine("**Pagamento**");
-        sb.AppendLine($"   \u2514 \u23f1\ufe0f Cooldown: **{job.Hours}h**");
-        if (job.PayMode == JobPayMode.Clicker)
+        if (job.IsSubEmprego)
         {
-            var vagas = ManobristaRules.Vagas + manobVagas;
-            var baseVal = (double)ManobristaRules.BasePerCar * (100 + manobBasePct) / 100.0;
-            sb.AppendLine($"   \u2514 \U0001f17f\ufe0f **{vagas} vagas** \u00b7 **{EconomyFormat.Full((ulong)Math.Round(baseVal))}** por carro");
+            sb.AppendLine($"   \u2514 \U0001f3ae **Mini-jogo** por rodadas \u00b7 sem cooldown");
+            sb.AppendLine($"   \u2514 Acerte para acumular moedas e combo; encerre para receber");
+        }
+        else if (JobGameCatalog.ForJobKey(job.Key) is { } gameKind)
+        {
+            var (title, emoji) = JobGameCatalog.Meta(gameKind);
+            var roundsDesc = gameKind == JobGameKind.Professor
+                ? $"escolha {ProfessorGame.MinQuestions}\u2013{ProfessorGame.MaxQuestions} questões"
+                : $"{JobGameRules.RoundsPerSession} rodadas";
+
+            sb.AppendLine($"   \u2514 {emoji} **{title}** \u00b7 {roundsDesc}");
+            sb.AppendLine($"   \u2514 \u23f1\ufe0f Cooldown: **{FormatCooldown(job)}** \u00b7 acerte para acumular moedas e combo");
         }
         else
         {
-            sb.AppendLine($"   \u2514 \U0001f4b0 Fixo: **{EconomyFormat.Full(job.TotalPay)}** moedas");
-            if (job.RequiredVehicleType is not null)
-                sb.AppendLine($"   \u2514 +{job.CategoryBonusPercent + job.TypeBonusPercent}% com veículo particular");
+            sb.AppendLine($"   \u2514 \u23f1\ufe0f Cooldown: **{FormatCooldown(job)}**");
+            if (job.PayMode == JobPayMode.Clicker)
+            {
+                var vagas = ManobristaRules.Vagas + manobVagas;
+                var baseVal = (double)ManobristaRules.BasePerCar * (100 + manobBasePct) / 100.0;
+                sb.AppendLine($"   \u2514 \U0001f17f\ufe0f **{vagas} vagas** \u00b7 **{EconomyFormat.Full((ulong)Math.Round(baseVal))}** por carro");
+            }
+            else
+            {
+                sb.AppendLine($"   \u2514 \U0001f4b0 Fixo: **{EconomyFormat.Full(job.TotalPay)}** moedas");
+                if (job.RequiredVehicleType is not null)
+                    sb.AppendLine($"   \u2514 +{job.CategoryBonusPercent + job.TypeBonusPercent}% com veículo particular");
+            }
         }
         sb.AppendLine();
 
         var statusLine = Status(job, profile, ownedTypes, manobVagas, manobBasePct);
         sb.AppendLine($"**Seu status:** {statusLine}");
 
-        if (EconomyRules.GetRemainingCooldown(economy.LastWorkTime, DateTime.UtcNow, TimeSpan.FromHours(job.Hours)) is { } remaining)
+        if (!job.IsSubEmprego
+            && EconomyRules.GetRemainingCooldown(economy.LastWorkTime, DateTime.UtcNow, EconomyRules.WorkCooldown(job)) is { } remaining)
             sb.AppendLine($"\u23f3 Em cooldown: **{FormatRemaining(remaining)}** restantes");
 
         return new EmbedBuilder()
@@ -735,7 +1179,7 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
         };
 
         options.AddRange(jobs.Take(24).Select(j =>
-            new SelectMenuOptionBuilder($"{j.Emoji} {j.Name}", j.Key, $"{j.Hours}h cooldown")));
+            new SelectMenuOptionBuilder($"{j.Emoji} {j.Name}", j.Key, $"{FormatCooldown(j)} cooldown")));
 
         return new ComponentBuilder()
             .WithSelectMenu(new SelectMenuBuilder()
@@ -770,9 +1214,28 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
             .WithStyle(ButtonStyle.Success)
             .WithDisabled(locked));
 
+        if (job.IsSubEmprego)
+        {
+            var isExtraCurrent = profile.ExtraKey == job.Key;
+            builder.WithButton(new ButtonBuilder()
+                .WithLabel(isExtraCurrent ? "\U0001f527 Extra atual" : "\U0001f527 Definir como Extra")
+                .WithCustomId($"{CustomIdPrefix}:{SetExtraAction}:{userId}:{job.Key}")
+                .WithStyle(ButtonStyle.Secondary)
+                .WithDisabled(locked || isExtraCurrent));
+        }
+        else
+        {
+            var isProfissaoCurrent = profile.ProfissaoKey == job.Key;
+            builder.WithButton(new ButtonBuilder()
+                .WithLabel(isProfissaoCurrent ? "\U0001F4CC Profissão atual" : "\U0001F4CC Definir como Profissão")
+                .WithCustomId($"{CustomIdPrefix}:{SetProAction}:{userId}:{job.Key}")
+                .WithStyle(ButtonStyle.Primary)
+                .WithDisabled(locked || isProfissaoCurrent));
+        }
+
         builder.WithButton(new ButtonBuilder()
             .WithLabel("\u2b05 Voltar")
-            .WithCustomId($"{CustomIdPrefix}:{JobSelAction}:{userId}:{catDomainId}")
+            .WithCustomId($"{CustomIdPrefix}:{BackAction}:{userId}:{catDomainId}")
             .WithStyle(ButtonStyle.Secondary));
 
         return builder.Build();
@@ -828,6 +1291,135 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
         builder.WithButton("\u2705 Encerrar e receber", $"{CustomIdPrefix}:{FinishAction}:{ownerId}", ButtonStyle.Success);
 
         return builder.Build();
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Builders dos mini-jogos (subempregos e professor)
+    // ──────────────────────────────────────────────────────────────
+
+    private static Embed BuildJobGameCountEmbed(IUser user, Job job)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"**{job.Emoji} {job.Name}** \u2014 Correção de Provas");
+        sb.AppendLine($"\U0001F4DD Corrija de **{ProfessorGame.MinQuestions} a {ProfessorGame.MaxQuestions}** questões de matemática (nível abaixo do superior).");
+        sb.AppendLine();
+        sb.AppendLine("Avalie a resposta de cada aluno: acerte para acumular moedas e combo. **3 erros** encerram a correção.");
+        sb.AppendLine();
+        sb.AppendLine($"\u23f1\ufe0f Cooldown: **{FormatCooldown(job)}** \u00b7 **{EconomyFormat.Full(ProfessorGame.BasePerRound)} moedas** por acerto");
+
+        return new EmbedBuilder()
+            .WithGoldTheme()
+            .WithAuthor($"{user.GetDisplayName()} \u2014 Correção de Provas", user.GetAvatarUrl())
+            .WithTitle("\U0001F4DD Corrigir Provas")
+            .WithDescription(sb.ToString())
+            .WithStandardFooter("Escolha quantas questões corrigir")
+            .Build();
+    }
+
+    private static MessageComponent BuildJobGameCountComponents(ulong ownerId, Job job)
+    {
+        var options = Enumerable
+            .Range(ProfessorGame.MinQuestions, ProfessorGame.MaxQuestions)
+            .Select(n => new SelectMenuOptionBuilder(
+                $"{n} questão(ões)",
+                n.ToString(),
+                $"Até {EconomyFormat.Full(ProfessorGame.BasePerRound * (ulong)n)} moedas"))
+            .ToList();
+
+        return new ComponentBuilder()
+            .WithSelectMenu(new SelectMenuBuilder()
+                .WithCustomId($"{CustomIdPrefix}:{GameCountAction}:{ownerId}:{job.Key}")
+                .WithPlaceholder("Quantas questões corrigir?")
+                .WithOptions(options))
+            .Build();
+    }
+
+    private static Embed BuildJobGameEmbed(IUser user, JobGameSession session, string feedback)
+    {
+        var (title, emoji) = JobGameCatalog.Meta(session.Kind);
+        var sb = new StringBuilder();
+
+        sb.AppendLine($"**{emoji} {title}**");
+        sb.AppendLine($"\U0001f3af Rodada **{session.RoundIndex + 1}/{session.TotalRounds}** \u00b7 \u2764\ufe0f Erros **{session.Errors}/{JobGameRules.MaxErrors}** \u00b7 \U0001f525 **\u00d7{JobGameRules.ComboMultiplier(session.Combo):0.00}**");
+        sb.AppendLine($"\U0001f4b0 Acumulado: **{EconomyFormat.Full((ulong)Math.Round(session.TotalRaw))} moedas**");
+
+        if (!string.IsNullOrEmpty(feedback))
+        {
+            sb.AppendLine();
+            sb.AppendLine(feedback);
+        }
+
+        sb.AppendLine();
+
+        if (session.IsMemory && !session.Revealed)
+        {
+            sb.AppendLine(JobGameCatalog.Reveal(session.Kind, session.RoundIndex) ?? string.Empty);
+            sb.AppendLine();
+            sb.AppendLine("Quando memorizar, clique em **\u2705 Eu decorei**.");
+        }
+        else
+        {
+            sb.AppendLine(session.CurrentRound.Prompt);
+            sb.AppendLine();
+            for (var i = 0; i < session.CurrentRound.Options.Count; i++)
+                sb.AppendLine($"`{Letter(i)}` {session.CurrentRound.Options[i]}");
+        }
+
+        return new EmbedBuilder()
+            .WithGoldTheme()
+            .WithAuthor($"{user.GetDisplayName()} \u2014 {title}", user.GetAvatarUrl())
+            .WithTitle("\U0001f3ae Mini-jogo")
+            .WithDescription(sb.ToString())
+            .WithStandardFooter("Acerte as rodadas para acumular moedas \u00b7 Encerre para receber")
+            .Build();
+    }
+
+    private static MessageComponent BuildJobGameComponents(ulong ownerId, JobGameSession session)
+    {
+        var builder = new ComponentBuilder();
+
+        if (session.IsMemory && !session.Revealed)
+        {
+            builder.WithButton(
+                "\u2705 Eu decorei! Comecar",
+                $"{CustomIdPrefix}:{GameReadyAction}:{session.Kind}:{ownerId}",
+                ButtonStyle.Success);
+            return builder.Build();
+        }
+
+        for (var i = 0; i < session.CurrentRound.Options.Count && i < 4; i++)
+            builder.WithButton(
+                $"{Letter(i)}) {session.CurrentRound.Options[i]}",
+                $"{CustomIdPrefix}:{GameOptAction}:{session.Kind}:{ownerId}:{i}",
+                ButtonStyle.Primary);
+
+        builder.WithButton(
+            "\U0001f3c1 Encerrar e receber",
+            $"{CustomIdPrefix}:{GameFinishAction}:{ownerId}",
+            ButtonStyle.Danger);
+
+        return builder.Build();
+    }
+
+    private static Embed BuildJobGameResultEmbed(IUser user, JobGameSession session, ulong pay, string suffix)
+    {
+        var (title, emoji) = JobGameCatalog.Meta(session.Kind);
+        var reason = string.IsNullOrEmpty(session.FinishedReason) ? "Sessao encerrada" : session.FinishedReason;
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"\u2705 Rodadas corretas: **{session.CorrectRounds}/{session.TotalRounds}**");
+        sb.AppendLine($"\u274c Erros: **{session.Errors}/{JobGameRules.MaxErrors}**");
+        sb.AppendLine();
+        sb.AppendLine($"\U0001f4b0 Voce recebeu **{EconomyFormat.Full(pay)} moedas**!{suffix}");
+        sb.AppendLine();
+        sb.AppendLine($"({reason})");
+
+        return new EmbedBuilder()
+            .WithGoldTheme()
+            .WithAuthor($"{user.GetDisplayName()} \u2014 {emoji} {title}", user.GetAvatarUrl())
+            .WithTitle("\U0001f3c1 Mini-jogo encerrado")
+            .WithDescription(sb.ToString())
+            .Build();
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -950,5 +1542,15 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
         if (remaining.TotalMinutes >= 1)
             return $"{(int)remaining.TotalMinutes}min";
         return $"{remaining.Seconds}seg";
+    }
+
+    private static string FormatCooldown(Job job)
+    {
+        var cooldown = EconomyRules.WorkCooldown(job);
+        if (cooldown.TotalHours >= 1)
+            return $"{(int)cooldown.TotalHours}h";
+        if (cooldown.TotalMinutes >= 1)
+            return $"{(int)cooldown.TotalMinutes}min";
+        return $"{cooldown.Seconds}seg";
     }
 }

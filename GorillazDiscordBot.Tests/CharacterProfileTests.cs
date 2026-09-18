@@ -18,5 +18,7 @@ public class CharacterProfileTests
         profile.CasaAtualKey.Should().BeNull();
         profile.VeiculoAtualKey.Should().BeNull();
         profile.RoupaAtualKey.Should().BeNull();
+        profile.ProfissaoKey.Should().BeNull();
+        profile.ExtraKey.Should().BeNull();
     }
 }

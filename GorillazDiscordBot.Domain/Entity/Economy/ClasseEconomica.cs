@@ -11,7 +11,7 @@ public sealed record ClasseEconomica(string Title, string Emoji, ulong MinPatrim
         new ClasseEconomica("Rico", "\U0001F48E",             1_000_000),
         new ClasseEconomica("Milionário", "\U0001F3E6",     100_000_000),
         new ClasseEconomica("Magnata", "\U0001F451",      1_000_000_000),
-        new ClasseEconomica("Oligarca", "\U0001F451", 1_000_000_000_000),
+        new ClasseEconomica("Oligarca", "\U0001F451",    100_000_000_000),
     };
 
     public static ClasseEconomica Find(ulong patrimonio)

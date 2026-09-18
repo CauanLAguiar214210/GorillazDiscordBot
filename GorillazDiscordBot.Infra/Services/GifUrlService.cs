@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Services.Interfaces;
 
 namespace GorillazDiscordBot.Services;
@@ -8,11 +9,36 @@ public partial class GifUrlService : IGifUrlService
     private readonly HttpClient _httpClient;
 
     private static readonly HashSet<string> ImageExtensions = [".gif", ".png", ".jpg", ".jpeg", ".webp"];
+    private static readonly HashSet<string> AudioExtensions = [".mp3", ".ogg", ".wav", ".m4a"];
+    private static readonly HashSet<string> VideoExtensions = [".mp4", ".webm", ".mov", ".avi", ".mkv"];
     private static readonly HashSet<string> DirectHosts = ["c.tenor.com", "media.tenor.com"];
 
     public GifUrlService(HttpClient httpClient)
     {
         _httpClient = httpClient;
+    }
+
+    public async Task<string> GetDirectMediaUrlAsync(string url, GuildInteractionType tipo)
+    {
+        if (tipo == GuildInteractionType.Gif)
+            return await GetDirectUrlAsync(url);
+
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("URL não pode estar vazia.");
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            throw new InvalidOperationException("URL inválida. Verifique o link e tente novamente.");
+
+        var path = uri.AbsolutePath.ToLowerInvariant();
+        var extensions = tipo == GuildInteractionType.Audio ? AudioExtensions : VideoExtensions;
+
+        if (!extensions.Any(ext => path.EndsWith(ext)))
+            throw new InvalidOperationException(
+                tipo == GuildInteractionType.Audio
+                    ? "URL inválida. Envie um link direto de áudio (.mp3, .ogg, .wav, .m4a)."
+                    : "URL inválida. Envie um link direto de vídeo (.mp4, .webm, .mov, .avi, .mkv).");
+
+        return url;
     }
 
     public async Task<string> GetDirectUrlAsync(string url)

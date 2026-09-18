@@ -30,17 +30,18 @@ private readonly ICharacterProfileRepository _profiles;
         _shop = shop;
     }
 
-    [SlashCommand("ver", "Mostra as informações do seu personagem no jogo")]
-    public async Task VerAsync()
+    [SlashCommand("ver", "Mostra as informações de um personagem (sem argumento, mostra o seu)")]
+    public async Task VerAsync(Discord.IUser? usuario = null)
     {
-        var mainId = await _accessor.ResolveMainIdAsync(Context.User.Id);
-        var profile = await _profiles.GetOrCreateAsync(mainId, Context.User.Username);
-        var snapshot = await _patrimonio.GetSnapshotAsync(mainId, Context.User.Username);
+        var target = usuario ?? Context.User;
+        var mainId = await _accessor.ResolveMainIdAsync(target.Id);
+        var profile = await _profiles.GetOrCreateAsync(mainId, target.Username);
+        var snapshot = await _patrimonio.GetSnapshotAsync(mainId, target.Username);
         var classe = ClasseEconomica.Find(snapshot.Total);
-        var fame = await _patrimonio.GetHallOfFameAsync(Context.User.Id);
-        var (vehicle, _) = await _shop.GetCurrentVehicleAsync(Context.User.Id);
+        var fame = await _patrimonio.GetHallOfFameAsync(target.Id);
+        var (vehicle, _) = await _shop.GetCurrentVehicleAsync(target.Id);
 
-        var embed = BuildProfileEmbed(Context.User, profile, snapshot, classe, fame, vehicle);
+        var embed = BuildProfileEmbed(target, profile, snapshot, classe, fame, vehicle);
         await RespondAsync(embed: embed);
     }
 
@@ -62,6 +63,13 @@ private readonly ICharacterProfileRepository _profiles;
         sb.AppendLine($"🎓 **Escolaridade:** {FormatSchooling(profile.Escolaridade)}");
         sb.AppendLine();
         sb.AppendLine($"📜 **Diplomas:** \n {(profile.Diplomas.Count > 0 ? string.Join(" · ", profile.Diplomas.Select(d => $"`{d}`")) : "Nenhum")}");
+        sb.AppendLine();
+
+        var profissao = EconomyJobs.FindByKey(profile.ProfissaoKey ?? string.Empty);
+        sb.AppendLine($"💼 **Profissão:** {(profissao != null ? $"{profissao.Emoji} **{profissao.Name}**" : "Nenhuma")}");
+
+        if (profile.ExtraKey is { } extraKey && EconomyJobs.FindByKey(extraKey) is { } extra)
+            sb.AppendLine($"🧩 **Extra:** {extra.Emoji} **{extra.Name}**");
         sb.AppendLine();
 
         sb.AppendLine($"🚗 **Habilitação:** \n {(profile.Licencas.Count > 0 ? string.Join("\n ", profile.Licencas.Order().Select(FormatLicenca)) : "Nenhuma")}");

@@ -17,6 +17,7 @@ public class EnsinoSlashModuleTests
         var services = new ServiceCollection()
             .AddSingleton(Substitute.For<ICharacterProfileRepository>())
             .AddSingleton(new QuizSessionService((pool, count) => pool.Take(count).ToList()))
+            .AddSingleton(new JobExamSessionService((pool, count) => pool.Take(count).ToList()))
             .AddSingleton(Substitute.For<IEconomyAccessor>())
             .BuildServiceProvider();
 
@@ -25,8 +26,8 @@ public class EnsinoSlashModuleTests
 
         var commands = interactions.SlashCommands.ToList();
 
-        commands.Should().HaveCount(2);
+        commands.Should().HaveCount(3);
         commands.Should().OnlyContain(c => c.Module.IsSlashGroup && c.Module.SlashGroupName == "ensino");
-        commands.Select(c => c.Name).Should().BeEquivalentTo("ver", "prova");
+        commands.Select(c => c.Name).Should().BeEquivalentTo("ver", "prova", "faculdade");
     }
 }

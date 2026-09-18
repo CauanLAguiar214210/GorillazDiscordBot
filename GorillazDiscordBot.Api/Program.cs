@@ -120,6 +120,7 @@ builder.Services.AddSingleton<JobExamSessionService>();
 builder.Services.AddSingleton<LicencaExamSessionService>();
 builder.Services.AddSingleton<InflationService>();
 builder.Services.AddSingleton<ManobristaSessionService>();
+builder.Services.AddSingleton<JobGameSessionService>();
 
 // GIF URL Normalization
 builder.Services.AddHttpClient<IGifUrlService, GifUrlService>(client =>
