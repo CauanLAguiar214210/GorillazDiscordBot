@@ -228,7 +228,7 @@ public class EconomyModule : ModuleBase<SocketCommandContext>
         else
         {
             await _economy.SetRobAttemptAsync(attackerMain, now, now.Add(EconomyRules.RobCaughtLockout));
-            await ReplyAsync($"🚨 **Você foi pego roubando** **{target.GetDisplayName()}**! Ficará **3 horas** sem poder roubar.");
+            await ReplyAsync($"🚨 **Você foi pego roubando** **{target.GetDisplayName()}**! Ficará **1 minuto** sem poder cometer crimes.");
         }
     }
 

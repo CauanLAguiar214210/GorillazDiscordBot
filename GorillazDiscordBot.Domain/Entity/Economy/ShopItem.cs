@@ -10,7 +10,9 @@ public enum ItemCategory
     Relic,
     Pet,
     Vehicle,
-    Upgrade
+    Upgrade,
+    Weapon,
+    Equipment
 }
 
 public enum BoostEffect
@@ -30,7 +32,9 @@ public enum UpgradeEffect
     AssetIncome,
     Savings,
     ManobristaBase,
-    ManobristaVagas
+    ManobristaVagas,
+    CrimeDefesa,
+    CrimeFurto
 }
 
 public enum RelicEffect
@@ -60,6 +64,36 @@ public enum RelicGameType
     Baccarat
 }
 
+public enum WeaponType
+{
+    None,
+    Branca,
+    Fogo,
+    Pesada,
+    Choque
+}
+
+public enum EquipmentType
+{
+    None,
+    Luvas,
+    Mascara,
+    Lockpick,
+    PeDeCabra,
+    Colete,
+    Alarme,
+    InibidorEmp,
+    Sapatilhas,
+    Mochila,
+    Scanner,
+    Fumigeno,
+    Camera4k,
+    Cofre,
+    Tinta,
+    Cerca,
+    Medkit
+}
+
 public class ShopItem
 {
     public string Id { get; set; } = string.Empty;
@@ -86,4 +120,10 @@ public class ShopItem
 
     public VehicleType VehicleType { get; set; }
     public LicenseLevel? RequiredLicense { get; set; }
+
+    public WeaponType WeaponType { get; set; }
+    public EquipmentType EquipmentType { get; set; }
+    public int CrimeBonusPercent { get; set; }
+    public int CrimeDefensePercent { get; set; }
+    public ulong CrimeMaxStealBonus { get; set; }
 }

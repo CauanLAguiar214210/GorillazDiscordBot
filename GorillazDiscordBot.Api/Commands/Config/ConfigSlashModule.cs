@@ -42,7 +42,9 @@ public class ConfigSlashModule : InteractionModuleBase<SocketInteractionContext>
             .AddField("Mensagem de boas-vindas", guild.Welcome.WelcomeMessage, false)
             .WithStatus("Despedidas", guild.Welcome.GoodbyeEnabled)
             .WithChannelField("Canal de despedidas", guild.Welcome.GoodbyeChannelId, Context.Guild)
-            .AddField("Mensagem de despedidas", guild.Welcome.GoodbyeMessage, false);
+            .AddField("Mensagem de despedidas", guild.Welcome.GoodbyeMessage, false)
+            .WithStatus("Anúncios de novidades", guild.Release.Enabled)
+            .WithChannelField("Canal de novidades", guild.Release.ChannelId, Context.Guild);
 
         embed = guild.VoiceChannels.Count == 0
             ? embed.AddField("Canais de voz", BotConstants.NotSet, false)
@@ -161,6 +163,36 @@ public class ConfigSlashModule : InteractionModuleBase<SocketInteractionContext>
         await _guildRepository.SaveAsync(guild);
 
         await RespondAsync("✅ Mensagens de despedidas desativadas.");
+    }
+
+    [SlashCommand("release-canal", "Define o canal de anúncios de novidades e ativa")]
+    public async Task ReleaseCanalAsync(
+        [Summary("canal", "Canal de texto que recebe as novidades do bot")] ITextChannel canal)
+    {
+        if (!await CommandGuards.GuardAdminInteractionAsync(Context))
+            return;
+
+        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
+        guild.Release.ChannelId = canal.Id;
+        guild.Release.Enabled = true;
+        await _guildRepository.SaveAsync(guild);
+
+        await RespondAsync(
+            $"✅ Canal de novidades definido para {canal.Mention} e ativado!\n" +
+            "Novidades pendentes são publicadas no próximo reinício do bot — ou use `/release anunciar`.");
+    }
+
+    [SlashCommand("release-desativar", "Desativa os anúncios de novidades")]
+    public async Task ReleaseDesativarAsync()
+    {
+        if (!await CommandGuards.GuardAdminInteractionAsync(Context))
+            return;
+
+        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
+        guild.Release.Enabled = false;
+        await _guildRepository.SaveAsync(guild);
+
+        await RespondAsync("✅ Anúncios de novidades desativados.");
     }
 
     [SlashCommand("voice-setup", "Adiciona/reativa um canal criador de voz")]

@@ -35,7 +35,11 @@ public static class CommandCatalog
             new CommandEntry("/banco ativos comprar <ativo> [cotas]", "Compra cotas de um ativo pelo preço do dia", CommandKind.Slash),
             new CommandEntry("/banco ativos vender <ativo> [cotas]", "Vende cotas de um ativo pelo preço do dia", CommandKind.Slash),
             new CommandEntry("trabalhar", "Redireciona para o novo sistema de trabalho (/trabalho)", CommandKind.Prefix),
-            new CommandEntry("roubar <usuário>", "Tenta roubar moedas de outro usuário", CommandKind.Prefix),
+            new CommandEntry("/crime furto", "Comete um furto rápido nas ruas (sem cooldown)", CommandKind.Slash),
+            new CommandEntry("/crime roubar <usuário>", "Assalta outro usuário (1 min cooldown)", CommandKind.Slash),
+            new CommandEntry("/crime fianca", "Paga a fiança no banco para sair da prisão", CommandKind.Slash),
+            new CommandEntry("/crime arsenal", "Mostra sua arma e equipamento equipados", CommandKind.Slash),
+            new CommandEntry("roubar <usuário>", "Tenta roubar moedas de outro usuário", CommandKind.Both),
             new CommandEntry("ranking", "Ranking de riqueza (patrimônio) com classes e Hall da Fama", CommandKind.Prefix),
             new CommandEntry("raldafama", "As lendas do servidor com títulos e frases", CommandKind.Prefix),
             new CommandEntry("tiers", "Lista as classes econômicas (de 🕳️ Miserável a 👑 Magnata)", CommandKind.Prefix),
@@ -133,6 +137,11 @@ public static class CommandCatalog
             new CommandEntry("trancar [canal]", "Bloqueia o envio de mensagens", CommandKind.Both),
             new CommandEntry("destrancar [canal]", "Libera o envio de mensagens", CommandKind.Both),
         }),
+        new("novidades", "📢", "Novidades", new[]
+        {
+            new CommandEntry("/release listar [todas]", "Mostra as atualizações do bot (todas: changelog completo)", CommandKind.Slash),
+            new CommandEntry("/release anunciar [versao]", "Reenvia o anúncio de uma versão no canal de novidades (admin)", CommandKind.Slash),
+        }),
         new("config", "⚙️", "Configuração", new[]
         {
             new CommandEntry("/config status", "Visão geral da configuração do servidor", CommandKind.Slash),
@@ -143,6 +152,8 @@ public static class CommandCatalog
             new CommandEntry("/config despedidas-canal", "Define o canal de despedidas e ativa", CommandKind.Slash),
             new CommandEntry("/config despedidas-mensagem", "Define a mensagem de despedida", CommandKind.Slash),
             new CommandEntry("/config despedidas-desativar", "Desativa as mensagens de despedida", CommandKind.Slash),
+            new CommandEntry("/config release-canal", "Define o canal de novidades e ativa os anúncios", CommandKind.Slash),
+            new CommandEntry("/config release-desativar", "Desativa os anúncios de novidades", CommandKind.Slash),
             new CommandEntry("/config voice-setup", "Adiciona/reativa um canal criador de voz", CommandKind.Slash),
             new CommandEntry("/config voice-desativar", "Desativa um canal criador de voz", CommandKind.Slash),
             new CommandEntry("/config voice-remover", "Remove um canal criador da configuração", CommandKind.Slash),

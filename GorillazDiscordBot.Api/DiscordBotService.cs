@@ -29,6 +29,7 @@ public class DiscordBotService : IHostedService
     private readonly IUserRepository _userRepository;
     private readonly IGuildMemberRepository _guildMemberRepository;
     private readonly ShopService _shopService;
+    private readonly ReleaseAnnouncementService _releaseAnnouncementService;
 
     public DiscordBotService(
         DiscordSocketClient client,
@@ -42,7 +43,8 @@ public class DiscordBotService : IHostedService
         IChatInteractionService chatInteractionService,
         IUserRepository userRepository,
         IGuildMemberRepository guildMemberRepository,
-        ShopService shopService)
+        ShopService shopService,
+        ReleaseAnnouncementService releaseAnnouncementService)
     {
         _client = client;
         _commands = commands;
@@ -56,6 +58,7 @@ public class DiscordBotService : IHostedService
         _userRepository = userRepository;
         _guildMemberRepository = guildMemberRepository;
         _shopService = shopService;
+        _releaseAnnouncementService = releaseAnnouncementService;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -139,6 +142,26 @@ public class DiscordBotService : IHostedService
 
         await SeedShopAsync();
         await RegisterSlashCommandsAsync();
+        await AnnounceReleasesAsync();
+    }
+
+    private bool _releasesAnnounced;
+
+    private async Task AnnounceReleasesAsync()
+    {
+        if (_releasesAnnounced) return;
+        _releasesAnnounced = true;
+
+        try
+        {
+            var announced = await _releaseAnnouncementService.AnnouncePendingReleasesAsync(_client.Guilds);
+            if (announced > 0)
+                _logger.LogInformation("Anúncios de novidades publicados no boot: {count}", announced);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao anunciar releases pendentes.");
+        }
     }
 
     private async Task SeedShopAsync()

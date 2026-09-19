@@ -1,5 +1,6 @@
 using FluentAssertions;
 using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Entity.Profile;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services;
 using NSubstitute;
@@ -423,6 +424,58 @@ public class ShopServiceTests
     }
 
     [Fact]
+    public async Task EquipAsync_Arma_EquipaComSucesso()
+    {
+        var pistola = MakeWeapon("pistola", "Pistola 9mm", WeaponType.Fogo, 22, 25, 15000);
+        _shop.GetAllAsync().Returns(new List<ShopItem> { pistola });
+        _shop.GetInventoryByKeyAsync(1, "pistola").Returns(new InventoryItem { UserId = 1, ItemKey = "pistola", Quantity = 1 });
+        _profiles.GetOrCreateAsync(1, "alt").Returns(new CharacterProfile { UserId = 1 });
+        var service = CreateService();
+
+        var (success, message) = await service.EquipAsync(2, "alt", "pistola");
+
+        success.Should().BeTrue();
+        message.Should().Contain("equipada");
+        await _shop.Received(1).SetEquippedAsync(1, "pistola", true);
+        await _profiles.Received(1).SaveAsync(Arg.Is<CharacterProfile>(p => p.ArmaAtualKey == "pistola"));
+    }
+
+    [Fact]
+    public async Task EquipAsync_Equipamento_EquipaComSucesso()
+    {
+        var luvas = MakeEquipment("luvas", "Luvas de Pelica", EquipmentType.Luvas, 20, 0);
+        _shop.GetAllAsync().Returns(new List<ShopItem> { luvas });
+        _shop.GetInventoryByKeyAsync(1, "luvas").Returns(new InventoryItem { UserId = 1, ItemKey = "luvas", Quantity = 1 });
+        _profiles.GetOrCreateAsync(1, "alt").Returns(new CharacterProfile { UserId = 1 });
+        var service = CreateService();
+
+        var (success, message) = await service.EquipAsync(2, "alt", "luvas");
+
+        success.Should().BeTrue();
+        message.Should().Contain("equipado");
+        await _shop.Received(1).SetEquippedAsync(1, "luvas", true);
+        await _profiles.Received(1).SaveAsync(Arg.Is<CharacterProfile>(p => p.EquipamentoAtualKey == "luvas"));
+    }
+
+    [Fact]
+    public async Task GetEquippedWeaponAsync_RetornaArmaEBonus()
+    {
+        var pistola = MakeWeapon("pistola", "Pistola 9mm", WeaponType.Fogo, 22, 25, 15000);
+        _profiles.GetAsync(1).Returns(new CharacterProfile { UserId = 1, ArmaAtualKey = "pistola" });
+        _shop.GetAllAsync().Returns(new List<ShopItem> { pistola });
+        _shop.GetInventoryByKeyAsync(1, "pistola").Returns(new InventoryItem { UserId = 1, ItemKey = "pistola", Quantity = 1, IsEquipped = true });
+        var service = CreateService();
+
+        var (weapon, bonus, defense, cap) = await service.GetEquippedWeaponAsync(2);
+
+        weapon.Should().NotBeNull();
+        weapon!.Key.Should().Be("pistola");
+        bonus.Should().Be(22);
+        defense.Should().Be(25);
+        cap.Should().Be(15000);
+    }
+
+    [Fact]
     public async Task UseAsync_BoostRobShield_ExtendeQuandoJaAtivo()
     {
         var item = MakeItem("escudo", "Escudo Anti-Roubo", 2500, ItemCategory.Boost, BoostEffect.RobShield, 24);
@@ -559,6 +612,37 @@ public class ShopServiceTests
             Category = category,
             Effect = effect,
             DurationHours = durationHours,
+            IsActive = true
+        };
+
+    private static ShopItem MakeWeapon(string key, string name, WeaponType type, int bonus, int defense, ulong cap)
+        => new()
+        {
+            Key = key,
+            Name = name,
+            Emoji = "🔫",
+            Description = "arma",
+            Price = 1000,
+            Category = ItemCategory.Weapon,
+            WeaponType = type,
+            CrimeBonusPercent = bonus,
+            CrimeDefensePercent = defense,
+            CrimeMaxStealBonus = cap,
+            IsActive = true
+        };
+
+    private static ShopItem MakeEquipment(string key, string name, EquipmentType type, int bonus, int defense)
+        => new()
+        {
+            Key = key,
+            Name = name,
+            Emoji = "🧤",
+            Description = "equip",
+            Price = 1000,
+            Category = ItemCategory.Equipment,
+            EquipmentType = type,
+            CrimeBonusPercent = bonus,
+            CrimeDefensePercent = defense,
             IsActive = true
         };
 

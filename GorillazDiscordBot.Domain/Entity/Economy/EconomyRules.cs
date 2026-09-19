@@ -130,8 +130,8 @@ public static class EconomyRules
     public const double RobSuccessChance = 0.40;
     public const double RobVictimShare = 0.20;
     public const ulong RobMaxSteal = 1000;
-    public static readonly TimeSpan RobCooldown = TimeSpan.FromMinutes(0);
-    public static readonly TimeSpan RobCaughtLockout = TimeSpan.FromMinutes(3);
+    public static readonly TimeSpan RobCooldown = TimeSpan.FromMinutes(1);
+    public static readonly TimeSpan RobCaughtLockout = TimeSpan.FromMinutes(1);
 
     public static readonly TimeSpan FaculdadeCooldown = TimeSpan.FromMinutes(5);
 

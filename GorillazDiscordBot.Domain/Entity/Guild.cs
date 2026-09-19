@@ -8,6 +8,7 @@ public class Guild : IGuildSettings
     public GuildInfo Info { get; set; }
     public PrefixSettings Prefix { get; set; }
     public WelcomeSettings Welcome { get; set; }
+    public ReleaseSettings Release { get; set; }
     public List<VoiceChannelSettings> VoiceChannels { get; set; }
 
     public Guild()
@@ -15,6 +16,7 @@ public class Guild : IGuildSettings
         Info = new GuildInfo();
         Prefix = new PrefixSettings();
         Welcome = new WelcomeSettings();
+        Release = new ReleaseSettings();
         VoiceChannels = new List<VoiceChannelSettings>();
     }
 }
