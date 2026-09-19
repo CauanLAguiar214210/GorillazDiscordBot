@@ -7,6 +7,7 @@ using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Entity.Profile;
 using GorillazDiscordBot.Domain.Entity.Ranking;
+using GorillazDiscordBot.Domain.Entity.Release;
 
 namespace GorillazDiscordBot.Infra.Configuration;
 
@@ -84,6 +85,8 @@ public static class MongoMappings
             map.MapMember(c => c.CasaAtualKey).SetElementName("CasaAtualKey");
             map.MapMember(c => c.VeiculoAtualKey).SetElementName("VeiculoAtualKey");
             map.MapMember(c => c.RoupaAtualKey).SetElementName("RoupaAtualKey");
+            map.MapMember(c => c.ArmaAtualKey).SetElementName("ArmaAtualKey");
+            map.MapMember(c => c.EquipamentoAtualKey).SetElementName("EquipamentoAtualKey");
             map.MapMember(c => c.ProfissaoKey).SetElementName("ProfissaoKey");
             map.MapMember(c => c.ExtraKey).SetElementName("ExtraKey");
             map.MapMember(c => c.CreatedAt).SetElementName("CreatedAt");
@@ -173,6 +176,11 @@ public static class MongoMappings
             map.MapMember(c => c.UpgradeValue).SetElementName("UpgradeValue");
             map.MapMember(c => c.VehicleType).SetElementName("VehicleType");
             map.MapMember(c => c.RequiredLicense).SetElementName("RequiredLicense");
+            map.MapMember(c => c.WeaponType).SetElementName("WeaponType");
+            map.MapMember(c => c.EquipmentType).SetElementName("EquipmentType");
+            map.MapMember(c => c.CrimeBonusPercent).SetElementName("CrimeBonusPercent");
+            map.MapMember(c => c.CrimeDefensePercent).SetElementName("CrimeDefensePercent");
+            map.MapMember(c => c.CrimeMaxStealBonus).SetElementName("CrimeMaxStealBonus");
         });
 
         BsonClassMap.RegisterClassMap<RankingTier>(map =>
@@ -200,6 +208,20 @@ public static class MongoMappings
             map.MapMember(c => c.Title).SetElementName("Title");
             map.MapMember(c => c.Phrase).SetElementName("Phrase");
             map.MapMember(c => c.SortOrder).SetElementName("SortOrder");
+        });
+
+        BsonClassMap.RegisterClassMap<ReleaseNote>(map =>
+        {
+            map.SetIgnoreExtraElements(true);
+            map.MapIdMember(c => c.Id)
+               .SetSerializer(new StringSerializer(BsonType.ObjectId))
+               .SetIdGenerator(StringObjectIdGenerator.Instance);
+            map.MapMember(c => c.Version).SetElementName("Version");
+            map.MapMember(c => c.Title).SetElementName("Title");
+            map.MapMember(c => c.Description).SetElementName("Description");
+            map.MapMember(c => c.PublishedAt).SetElementName("PublishedAt");
+            map.MapMember(c => c.Features).SetElementName("Features");
+            map.MapMember(c => c.AnnouncedAt).SetElementName("AnnouncedAt");
         });
         }
     }

@@ -550,17 +550,57 @@ public class ShopService
     public async Task<(bool success, string? message)> EquipAsync(ulong userId, string username, string keyOrName)
     {
         var item = await FindItemAsync(keyOrName);
-        if (item is not { Category: ItemCategory.Relic })
-            return (false, "❌ Esse item não é um relógio equipável. Use `usar` para boosts ou `comprar` para adquirir.");
+        if (item is not { Category: ItemCategory.Relic or ItemCategory.Weapon or ItemCategory.Equipment })
+            return (false, "❌ Esse item não é um relógio, arma ou equipamento equipável. Use `usar` para boosts ou `comprar` para adquirir.");
 
         var mainId = await _accessor.ResolveMainIdAsync(userId);
         var owned = await _shop.GetInventoryByKeyAsync(mainId, item.Key);
         if (owned == null || owned.Quantity < 1)
             return (false, $"❌ Você não possui **{item.Emoji} {item.Name}** para equipar.");
 
-        await _shop.UnequipAllAsync(mainId);
-        await _shop.SetEquippedAsync(mainId, item.Key, true);
-        return (true, $"⌚ **{item.Name}** equipado! Bônus ativo no cassino.");
+        if (item.Category == ItemCategory.Relic)
+        {
+            await _shop.UnequipAllAsync(mainId);
+            await _shop.SetEquippedAsync(mainId, item.Key, true);
+
+            var currentProfile = await _profiles.GetAsync(mainId);
+            if (currentProfile?.ArmaAtualKey is { } wKey)
+                await _shop.SetEquippedAsync(mainId, wKey, true);
+            if (currentProfile?.EquipamentoAtualKey is { } eqKey)
+                await _shop.SetEquippedAsync(mainId, eqKey, true);
+
+            return (true, $"⌚ **{item.Name}** equipado! Bônus ativo no cassino.");
+        }
+
+        if (item.Category == ItemCategory.Weapon)
+        {
+            var profile = await _profiles.GetOrCreateAsync(mainId, username);
+            if (profile.ArmaAtualKey is { } prevWeapon && !prevWeapon.Equals(item.Key, StringComparison.OrdinalIgnoreCase))
+            {
+                await _shop.SetEquippedAsync(mainId, prevWeapon, false);
+            }
+
+            profile.ArmaAtualKey = item.Key;
+            await _profiles.SaveAsync(profile);
+            await _shop.SetEquippedAsync(mainId, item.Key, true);
+            return (true, $"{item.Emoji} **{item.Name}** equipada! Pronta para o combate.");
+        }
+
+        if (item.Category == ItemCategory.Equipment)
+        {
+            var profile = await _profiles.GetOrCreateAsync(mainId, username);
+            if (profile.EquipamentoAtualKey is { } prevEquip && !prevEquip.Equals(item.Key, StringComparison.OrdinalIgnoreCase))
+            {
+                await _shop.SetEquippedAsync(mainId, prevEquip, false);
+            }
+
+            profile.EquipamentoAtualKey = item.Key;
+            await _profiles.SaveAsync(profile);
+            await _shop.SetEquippedAsync(mainId, item.Key, true);
+            return (true, $"{item.Emoji} **{item.Name}** equipado! Efeito utilitário ativo.");
+        }
+
+        return (false, "❌ Categoria não equipável.");
     }
 
     public async Task<(bool success, string? message)> UnequipAsync(ulong userId, string keyOrName)
@@ -575,7 +615,27 @@ public class ShopService
             return (false, "❌ Esse item não está equipado.");
 
         await _shop.SetEquippedAsync(mainId, item.Key, false);
-        return (true, $"⌚ **{item.Name}** desequipado.");
+
+        if (item.Category == ItemCategory.Weapon)
+        {
+            var profile = await _profiles.GetAsync(mainId);
+            if (profile is { ArmaAtualKey: not null })
+            {
+                profile.ArmaAtualKey = null;
+                await _profiles.SaveAsync(profile);
+            }
+        }
+        else if (item.Category == ItemCategory.Equipment)
+        {
+            var profile = await _profiles.GetAsync(mainId);
+            if (profile is { EquipamentoAtualKey: not null })
+            {
+                profile.EquipamentoAtualKey = null;
+                await _profiles.SaveAsync(profile);
+            }
+        }
+
+        return (true, $"{item.Emoji} **{item.Name}** desequipado.");
     }
 
     public async Task<(bool success, string? message)> DriveVehicleAsync(
@@ -647,6 +707,50 @@ public class ShopService
             return (null, 0, false);
 
         return (item, item.RelicValue, item.RelicEffect == RelicEffect.Cashback);
+    }
+
+    public async Task<(ShopItem? weapon, int attackBonus, int defenseBonus, ulong maxStealBonus)> GetEquippedWeaponAsync(ulong userId)
+    {
+        var mainId = await _accessor.ResolveMainIdAsync(userId);
+        var profile = await _profiles.GetAsync(mainId);
+        if (profile?.ArmaAtualKey is { } key)
+        {
+            var item = await FindItemAsync(key);
+            if (item != null && item.Category == ItemCategory.Weapon)
+                return (item, item.CrimeBonusPercent, item.CrimeDefensePercent, item.CrimeMaxStealBonus);
+        }
+
+        var inventory = await _shop.GetInventoryAsync(mainId);
+        foreach (var inv in inventory.Where(i => i.IsEquipped))
+        {
+            var item = await FindItemAsync(inv.ItemKey);
+            if (item is { Category: ItemCategory.Weapon })
+                return (item, item.CrimeBonusPercent, item.CrimeDefensePercent, item.CrimeMaxStealBonus);
+        }
+
+        return (null, 0, 0, 0);
+    }
+
+    public async Task<(ShopItem? equipment, EquipmentType type, int bonus, int defense)> GetEquippedEquipmentAsync(ulong userId)
+    {
+        var mainId = await _accessor.ResolveMainIdAsync(userId);
+        var profile = await _profiles.GetAsync(mainId);
+        if (profile?.EquipamentoAtualKey is { } key)
+        {
+            var item = await FindItemAsync(key);
+            if (item != null && item.Category == ItemCategory.Equipment)
+                return (item, item.EquipmentType, item.CrimeBonusPercent, item.CrimeDefensePercent);
+        }
+
+        var inventory = await _shop.GetInventoryAsync(mainId);
+        foreach (var inv in inventory.Where(i => i.IsEquipped))
+        {
+            var item = await FindItemAsync(inv.ItemKey);
+            if (item is { Category: ItemCategory.Equipment })
+                return (item, item.EquipmentType, item.CrimeBonusPercent, item.CrimeDefensePercent);
+        }
+
+        return (null, EquipmentType.None, 0, 0);
     }
 
     public async Task<int> GetUpgradePercentAsync(ulong userId, UpgradeEffect effect)
@@ -791,9 +895,94 @@ public class ShopService
             NewUpgrade("upgrade_vagas_2", "Ampliação Premium", "🅿️", "+5 vagas no estacionamento particular por unidade.", 40000, UpgradeEffect.ManobristaVagas, 5, 2, 47),
             NewUpgrade("upgrade_base_1", "Manutenção Leve", "🔧", "+10% no valor por carro estacionado por unidade.", 15000, UpgradeEffect.ManobristaBase, 10, 3, 48),
             NewUpgrade("upgrade_base_2", "Centro de Logística", "🔧", "+20% no valor por carro estacionado por unidade.", 45000, UpgradeEffect.ManobristaBase, 20, 2, 49),
+
+            NewPet("pet_batedor", "Macaco-Batedor", "🥷", "+3% nas moedas roubadas por nível. Máximo de 2 tipos de pets.", 25000, UpgradeEffect.Rob, 3, 10, 50),
+
+            NewWeapon("canivete", "Canivete Butterfly", "🔪", "Arma branca ágil. +8% de sucesso em assaltos.", 2500, WeaponType.Branca, 8, 5, 2000, 51),
+            NewWeapon("taco", "Taco de Beisebol", "🏏", "Arma de impacto. +12% de sucesso em assaltos e defesa.", 5000, WeaponType.Branca, 12, 10, 4000, 52),
+            NewWeapon("taser", "Taser de Choque", "⚡", "Defesa elétrica. +15% de sucesso; 30% chance de paralisar assaltantes.", 9000, WeaponType.Choque, 15, 30, 6000, 53),
+            NewWeapon("pistola", "Pistola 9mm", "🔫", "Arma de fogo portátil. +22% de sucesso em assaltos e defesa armada.", 25000, WeaponType.Fogo, 22, 25, 15000, 54),
+            NewWeapon("escopeta", "Escopeta Calibre 12", "💥", "Alto poder de fogo. +32% de sucesso e defesa.", 60000, WeaponType.Fogo, 32, 35, 35000, 55),
+            NewWeapon("fuzil", "Fuzil Tático", "💣", "Armamento militar pesado. +45% de sucesso em grandes assaltos.", 140000, WeaponType.Pesada, 45, 45, 80000, 56),
+
+            NewEquipment("luvas", "Luvas de Pelica", "🧤", "Discrição máxima. +20% de sucesso em furtos sem cooldown.", 4000, EquipmentType.Luvas, 20, 0, 57),
+            NewEquipment("balaclava", "Máscara Balaclava", "🎭", "Anonimato. Oculta sua identidade caso seja pego ou cometa crimes.", 6500, EquipmentType.Mascara, 0, 0, 58),
+            NewEquipment("lockpick", "Kit de Gazuas", "🗝️", "Ferramenta para arrombamento silencioso. +15% de sucesso em invasões.", 3500, EquipmentType.Lockpick, 15, 0, 59),
+            NewEquipment("pedecabra", "Pé de Cabra", "🦯", "Alavanca de aço. +25% de moedas obtidas em arrombamentos.", 8000, EquipmentType.PeDeCabra, 25, 0, 60),
+            NewEquipment("colete", "Colete Kevlar", "🦺", "Proteção pessoal. Reduz o dinheiro que conseguem roubar de você pela metade.", 20000, EquipmentType.Colete, 0, 50, 61),
+            NewEquipment("alarme", "Alarme Residencial", "🚨", "Dispara no flagrante: dobra a multa que o invasor paga a você.", 15000, EquipmentType.Alarme, 0, 30, 62),
+
+            NewWeapon("machadinha", "Machadinha Tática", "🪓", "Arma branca silenciosa. +14% em assaltos.", 7500, WeaponType.Branca, 14, 8, 5000, 63),
+            NewWeapon("pistola_silenciosa", "Pistola Silenciada", "🎯", "Disparo sem ruído. +24% sucesso, reduz suspeita.", 38000, WeaponType.Fogo, 24, 15, 18000, 64),
+            NewWeapon("besta", "Besta Tática", "🏹", "Perfuração de blindagem. +28% de sucesso em assaltos.", 48000, WeaponType.Branca, 28, 20, 25000, 65),
+            NewWeapon("mp5", "Submetralhadora MP5", "🔫", "Rajada silenciada. +36% sucesso, alto poder de fogo.", 85000, WeaponType.Fogo, 36, 28, 45000, 66),
+            NewWeapon("motosserra", "Motosserra do Murdoc", "🪚", "Intimidação brutal da banda. +20% sucesso.", 30000, WeaponType.Pesada, 20, 10, 12000, 67),
+            NewWeapon("gl", "Lança-Granadas", "💥", "Poder destrutivo massivo. +48% sucesso, intimidação pesada.", 180000, WeaponType.Pesada, 48, 40, 100000, 68),
+            NewWeapon("sniper", "Fuzil Sniper", "🎯", "Tiro de longa distância. +52% de sucesso no assalto.", 250000, WeaponType.Pesada, 52, 30, 120000, 69),
+            NewWeapon("minigun", "Minigun Dourada", "👑", "Armamento lendário da Ilha. +60% sucesso e defesa máxima.", 1000000, WeaponType.Pesada, 60, 60, 300000, 70),
+            NewWeapon("spray", "Spray de Pimenta", "🌶️", "Autodefesa civil. 40% de chance de afugentar ladrões.", 3500, WeaponType.Choque, 5, 20, 1000, 71),
+            NewWeapon("cassetete", "Cassetete de Titânio", "🦯", "Impacto defensivo rápido. +18% de defesa armada.", 6000, WeaponType.Branca, 10, 18, 2500, 72),
+            NewWeapon("taser_x2", "Taser Duplo X2", "⚡", "Paralisia elétrica dupla. 40% de defesa contra invasores.", 18000, WeaponType.Choque, 16, 40, 7500, 73),
+
+            NewEquipment("emp", "Inibidor EMP", "📡", "Dispositivo eletrônico: anula alarmes residenciais no assalto.", 22000, EquipmentType.InibidorEmp, 15, 0, 74),
+            NewEquipment("sapatilhas", "Sapatilhas Silenciosas", "🥷", "Passos amortecidos. +15% de sucesso em furtos sem cooldown.", 8500, EquipmentType.Sapatilhas, 15, 0, 75),
+            NewEquipment("mochila", "Mochila Tática", "🎒", "Compartimentos reforçados. +50% de moedas roubadas.", 35000, EquipmentType.Mochila, 25, 0, 76),
+            NewEquipment("scanner", "Scanner Policial", "📻", "Intercepta rádio da polícia. Reduz multas de flagrante.", 45000, EquipmentType.Scanner, 10, 10, 77),
+            NewEquipment("fumigeno", "Granada de Fumaça", "💨", "Fumígeno tático de escape instantâneo.", 12000, EquipmentType.Fumigeno, 20, 15, 78),
+            NewEquipment("camera4k", "Câmera Noturna 4K", "📹", "Vigilância perimetral. Revela invasores mascarados.", 18000, EquipmentType.Camera4k, 0, 25, 79),
+            NewEquipment("cofre", "Cofre Fundo Falso", "🏦", "Esconderijo secreto. Protege 40% da carteira contra assaltos.", 50000, EquipmentType.Cofre, 0, 40, 80),
+            NewEquipment("tinta", "Tinta Anti-Furto", "💣", "Armadilha química: queima e destrói 50% das moedas se te roubarem.", 14000, EquipmentType.Tinta, 0, 30, 81),
+            NewEquipment("cerca", "Cerca Eletrificada", "⚡", "Defesa de perímetro: desestimula e repele invasores.", 28000, EquipmentType.Cerca, 0, 35, 82),
+            NewEquipment("medkit", "Kit Médico", "🩺", "Primeiros socorros para emergências em combate.", 10000, EquipmentType.Medkit, 0, 15, 83),
+
+            NewPet("pet_dobermann", "Dobermann de Guarda", "🐕", "+3% por nível de chance de afugentar invasores. Máx 2 pets.", 35000, UpgradeEffect.CrimeDefesa, 3, 10, 84),
+            NewPet("pet_guaxinim", "Guaxinim Gatuno", "🦝", "+4% por nível nas moedas de furtos sem cooldown. Máx 2 pets.", 20000, UpgradeEffect.CrimeFurto, 4, 10, 85),
+            NewPet("pet_falcao", "Falcão Vigilante", "🦅", "+2% por nível de fuga e visão de emboscadas. Máx 2 pets.", 45000, UpgradeEffect.CrimeDefesa, 2, 10, 86),
+            NewPet("pet_serpente", "Serpente Venenosa", "🐍", "+3% por nível de dissuasão defensiva. Máx 2 pets.", 30000, UpgradeEffect.CrimeDefesa, 3, 10, 87),
+            NewPet("pet_papagaio", "Papagaio Informante", "🦜", "+2% por nível de inteligência e vigilância. Máx 2 pets.", 16000, UpgradeEffect.CrimeFurto, 2, 10, 88),
+            NewPet("pet_jacare", "Jacaré do Lago", "🐊", "+5% por nível de defesa máxima de magnata. Máx 2 pets.", 120000, UpgradeEffect.CrimeDefesa, 5, 10, 89),
         };
         return seed;
     }
+
+    private static ShopItem NewWeapon(
+        string key, string name, string emoji, string description, ulong price,
+        WeaponType weaponType, int bonus, int defense, ulong maxStealBonus, int sortOrder)
+        => new()
+        {
+            Key = key,
+            Name = name,
+            Emoji = emoji,
+            Description = description,
+            Price = price,
+            Category = ItemCategory.Weapon,
+            MaxQuantity = 1,
+            IsActive = true,
+            SortOrder = sortOrder,
+            WeaponType = weaponType,
+            CrimeBonusPercent = bonus,
+            CrimeDefensePercent = defense,
+            CrimeMaxStealBonus = maxStealBonus
+        };
+
+    private static ShopItem NewEquipment(
+        string key, string name, string emoji, string description, ulong price,
+        EquipmentType equipType, int bonus, int defense, int sortOrder)
+        => new()
+        {
+            Key = key,
+            Name = name,
+            Emoji = emoji,
+            Description = description,
+            Price = price,
+            Category = ItemCategory.Equipment,
+            MaxQuantity = 1,
+            IsActive = true,
+            SortOrder = sortOrder,
+            EquipmentType = equipType,
+            CrimeBonusPercent = bonus,
+            CrimeDefensePercent = defense
+        };
 
     private static ShopItem NewRelic(
         string key, string name, string emoji, string description, ulong price,

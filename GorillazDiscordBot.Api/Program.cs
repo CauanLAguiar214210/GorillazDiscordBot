@@ -76,6 +76,7 @@ builder.Services.AddSingleton<IGifRepository, GifRepository>();
 builder.Services.AddSingleton<IGuildMemberRepository, GuildMemberRepository>();
 builder.Services.AddSingleton<IRankingRepository, RankingRepository>();
 builder.Services.AddSingleton<ICharacterProfileRepository, CharacterProfileRepository>();
+builder.Services.AddSingleton<IReleaseNoteRepository, ReleaseNoteRepository>();
 
 // Guild settings (cache + MongoDB, um documento por servidor)
 builder.Services.AddSingleton(typeof(ISettingsRepository<>), typeof(SettingsRepository<>));
@@ -84,6 +85,11 @@ builder.Services.AddSingleton<IVoiceChannelService, VoiceChannelService>();
 // Chat interactions por servidor (cache + MongoDB)
 builder.Services.AddSingleton<IGuildInteractionRepository, GuildInteractionRepository>();
 builder.Services.AddSingleton<IChatInteractionService, ChatInteractionService>();
+builder.Services.AddHttpClient(ChatInteractionService.MediaHttpClientName, client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.Add("User-Agent", "GorillazDiscordBot/1.0");
+});
 
 // Contas vinculadas (alt accounts) + economia unificada
 builder.Services.AddSingleton<IEconomyAccessor, EconomyAccessor>();
@@ -114,6 +120,7 @@ builder.Services.AddHttpClient<CasinoApiClient>(client =>
 builder.Services.AddSingleton<PayoutService>();
 builder.Services.AddSingleton<CasinoBetTracker>();
 builder.Services.AddSingleton<ShopService>();
+builder.Services.AddSingleton<ReleaseAnnouncementService>();
 builder.Services.AddSingleton<IPatrimonioService, PatrimonioService>();
 builder.Services.AddSingleton<QuizSessionService>();
 builder.Services.AddSingleton<JobExamSessionService>();
@@ -153,10 +160,11 @@ try
     await host.Services.GetRequiredService<IShopRepository>().EnsureIndexesAsync();
     await host.Services.GetRequiredService<IRankingRepository>().EnsureIndexesAsync();
     await host.Services.GetRequiredService<ICharacterProfileRepository>().EnsureIndexesAsync();
+    await host.Services.GetRequiredService<IReleaseNoteRepository>().EnsureIndexesAsync();
 }
 catch (Exception ex)
 {
-    logger.LogWarning(ex, "Falha ao garantir índices das collections (GuildMember/DiscordUserProfile/Shop/Ranking/CharacterProfile)");
+    logger.LogWarning(ex, "Falha ao garantir índices das collections (GuildMember/DiscordUserProfile/Shop/Ranking/CharacterProfile/ReleaseNote)");
 }
 
 await host.RunAsync();

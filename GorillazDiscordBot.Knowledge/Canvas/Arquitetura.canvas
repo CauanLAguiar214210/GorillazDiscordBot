@@ -1,0 +1,24 @@
+{
+  "nodes": [
+    { "id": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f30", "type": "file", "file": "Home.md", "x": -900, "y": -260, "width": 200, "height": 60 },
+    { "id": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f31", "type": "file", "file": "Integrações/Discord.md", "x": -280, "y": 40, "width": 210, "height": 60 },
+    { "id": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f32", "type": "file", "file": "Projetos/Api.md", "x": -40, "y": 40, "width": 200, "height": 60 },
+    { "id": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f33", "type": "file", "file": "Projetos/Domain.md", "x": -40, "y": -220, "width": 200, "height": 60 },
+    { "id": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f34", "type": "file", "file": "Projetos/Infra.md", "x": -40, "y": -500, "width": 200, "height": 60 },
+    { "id": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f35", "type": "file", "file": "Coleções MongoDB.md", "x": -40, "y": -780, "width": 210, "height": 60 },
+    { "id": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f36", "type": "file", "file": "Integrações/LuckyMonkey.md", "x": 300, "y": 40, "width": 210, "height": 60 },
+    { "id": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f37", "type": "file", "file": "Integrações/Tenor.md", "x": 300, "y": 240, "width": 210, "height": 60 },
+    { "id": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f38", "type": "file", "file": "Operação/AWS.md", "x": 600, "y": -160, "width": 210, "height": 60 }
+  ],
+  "edges": [
+    { "id": "b1d1f71e2b3c4d5e6f7a8b9c0d1e2f40", "fromNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f31", "fromSide": "right", "toNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f32", "toSide": "left" },
+    { "id": "b1d1f71e2b3c4d5e6f7a8b9c0d1e2f41", "fromNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f32", "fromSide": "top", "toNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f33", "toSide": "bottom" },
+    { "id": "b1d1f71e2b3c4d5e6f7a8b9c0d1e2f42", "fromNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f32", "fromSide": "left", "toNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f34", "toSide": "right" },
+    { "id": "b1d1f71e2b3c4d5e6f7a8b9c0d1e2f43", "fromNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f33", "fromSide": "top", "toNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f34", "toSide": "bottom" },
+    { "id": "b1d1f71e2b3c4d5e6f7a8b9c0d1e2f44", "fromNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f34", "fromSide": "top", "toNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f35", "toSide": "bottom" },
+    { "id": "b1d1f71e2b3c4d5e6f7a8b9c0d1e2f45", "fromNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f32", "fromSide": "right", "toNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f36", "toSide": "left" },
+    { "id": "b1d1f71e2b3c4d5e6f7a8b9c0d1e2f46", "fromNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f32", "fromSide": "bottom", "toNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f37", "toSide": "top" },
+    { "id": "b1d1f71e2b3c4d5e6f7a8b9c0d1e2f47", "fromNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f36", "fromSide": "top", "toNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f38", "toSide": "bottom" },
+    { "id": "b1d1f71e2b3c4d5e6f7a8b9c0d1e2f48", "fromNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f30", "fromSide": "right", "toNode": "a1d1f71e2b3c4d5e6f7a8b9c0d1e2f32", "toSide": "left" }
+  ]
+}

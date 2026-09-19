@@ -1120,7 +1120,7 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
     // ──────────────────────────────────────────────────────────────
     // Builders de componentes
     // ──────────────────────────────────────────────────────────────
-
+    #region Builders de componentes
     private static MessageComponent BuildJobCategorySelectMenu(ulong userId)
     {
         var options = new List<SelectMenuOptionBuilder>
@@ -1240,6 +1240,7 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
 
         return builder.Build();
     }
+    #endregion
 
     // ──────────────────────────────────────────────────────────────
     // Builders do manobrista (clicker)

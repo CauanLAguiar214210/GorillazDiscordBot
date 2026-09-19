@@ -40,6 +40,8 @@ public class ShopModule : ModuleBase<SocketCommandContext>
             ("🎁", "Colecionáveis", ItemCategory.Cosmetic),
             ("⚡", "Boosts", ItemCategory.Boost),
             ("📈", "Ativos de Renda", ItemCategory.Asset),
+            ("🔫", "Armas", ItemCategory.Weapon),
+            ("🧰", "Equipamentos", ItemCategory.Equipment),
         };
 
         foreach (var (icon, title, category) in groups)
@@ -143,6 +145,8 @@ if (item.RelicEffect == RelicEffect.Cashback)
             UpgradeEffect.Rob => "nos roubos",
             UpgradeEffect.AssetIncome => "na renda dos ativos",
             UpgradeEffect.Savings => "nos juros da poupança",
+            UpgradeEffect.CrimeDefesa => "na defesa contra assaltos",
+            UpgradeEffect.CrimeFurto => "nos furtos de rua",
             _ => "?"
         };
         var max = item.MaxQuantity > 0 ? $" · máx. nível {item.MaxQuantity}" : "";
@@ -469,6 +473,8 @@ private static ItemCategory? ParseCategory(string raw)
             "ativo" or "asset" => ItemCategory.Asset,
             "reliquia" or "relic" => ItemCategory.Relic,
             "pet" or "pets" => ItemCategory.Pet,
+            "arma" or "armas" or "weapon" => ItemCategory.Weapon,
+            "equipamento" or "equipamentos" or "equipment" => ItemCategory.Equipment,
             _ => null
         };
     }

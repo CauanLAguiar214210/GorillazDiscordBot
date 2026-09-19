@@ -17,7 +17,10 @@ public enum EconomyTransactionType
     Sell,
     BoostUse,
     Income,
-    Merge
+    Merge,
+    Crime,
+    Bail,
+    Fine
 }
 
 public class EconomyTransaction

@@ -43,6 +43,8 @@ public class ConfigSlashModuleTests
             "config prefixo-definir",
             "config prefixo-exibir",
             "config prefixo-resetar",
+            "config release-canal",
+            "config release-desativar",
             "config status",
             "config voice-desativar",
             "config voice-exibir",

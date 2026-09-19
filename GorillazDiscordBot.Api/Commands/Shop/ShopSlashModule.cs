@@ -45,6 +45,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
                 ShopCategoryChoice.Pets => ItemCategory.Pet,
                 ShopCategoryChoice.Veiculos => ItemCategory.Vehicle,
                 ShopCategoryChoice.Melhorias => ItemCategory.Upgrade,
+                ShopCategoryChoice.Armas => ItemCategory.Weapon,
+                ShopCategoryChoice.Equipamentos => ItemCategory.Equipment,
                 _ => (ItemCategory?)null
             };
 
@@ -576,6 +578,10 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             sb.AppendLine($"   └ Efeito: {DescribeUpgrade(item)}");
         if (item.Category == ItemCategory.Vehicle && VehicleRules.RequiredLicense(item) is { } lic)
             sb.AppendLine($"   └ 🪪 Exige: {VehicleRules.FormatRequirement(lic)} — use `/veiculo dirigir`");
+        if (item.Category == ItemCategory.Weapon)
+            sb.AppendLine($"   └ ⚔️ Bônus: **+{item.CrimeBonusPercent}%** no assalto · Defesa: **+{item.CrimeDefensePercent}%** · Teto: **+{EconomyFormat.Full(item.CrimeMaxStealBonus)}**");
+        if (item.Category == ItemCategory.Equipment)
+            sb.AppendLine($"   └ 🧰 Bônus: **+{item.CrimeBonusPercent}%** no furto/crime · Defesa: **+{item.CrimeDefensePercent}%**");
         sb.AppendLine($"   └ id: `{item.Key}`");
         sb.AppendLine();
     }
@@ -589,6 +595,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Pet => ("🐾", "Pets"),
         ItemCategory.Vehicle => ("🚗", "Veículos"),
         ItemCategory.Upgrade => ("🅿️", "Melhorias"),
+        ItemCategory.Weapon => ("🔫", "Armas"),
+        ItemCategory.Equipment => ("🧰", "Equipamentos"),
         _ => ("📋", "Itens")
     };
 
@@ -601,6 +609,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Pet => "pet",
         ItemCategory.Vehicle => "veiculo",
         ItemCategory.Upgrade => "melhoria",
+        ItemCategory.Weapon => "arma",
+        ItemCategory.Equipment => "equipamento",
         _ => "other"
     };
 
@@ -613,6 +623,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         "pet" => ItemCategory.Pet,
         "veiculo" => ItemCategory.Vehicle,
         "melhoria" => ItemCategory.Upgrade,
+        "arma" => ItemCategory.Weapon,
+        "equipamento" => ItemCategory.Equipment,
         _ => null
     };
 
@@ -625,6 +637,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Pet,
         ItemCategory.Vehicle,
         ItemCategory.Upgrade,
+        ItemCategory.Weapon,
+        ItemCategory.Equipment,
     };
 
     private static Embed BuildShopOverviewEmbed(IUser user, List<ShopItem> real, List<ShopItem> placeholders)
@@ -843,6 +857,10 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             sb.AppendLine($"🐾 Efeito: {DescribePet(item)}");
         if (item.Category == ItemCategory.Vehicle && VehicleRules.RequiredLicense(item) is { } lic)
             sb.AppendLine($"🪪 Exige: {VehicleRules.FormatRequirement(lic)} — equipe com `/veiculo dirigir`");
+        if (item.Category == ItemCategory.Weapon)
+            sb.AppendLine($"⚔️ Bônus: **+{item.CrimeBonusPercent}%** no assalto · Defesa: **+{item.CrimeDefensePercent}%** · Teto: **+{EconomyFormat.Full(item.CrimeMaxStealBonus)}**");
+        if (item.Category == ItemCategory.Equipment)
+            sb.AppendLine($"🧰 Bônus: **+{item.CrimeBonusPercent}%** no furto/crime · Defesa: **+{item.CrimeDefensePercent}%**");
         if (owned != null)
             sb.AppendLine($"🎒 Você possui: **{owned.Quantity}**");
 
@@ -885,6 +903,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         ItemCategory.Pet => "Pets",
         ItemCategory.Vehicle => "Veículos",
         ItemCategory.Upgrade => "Melhorias",
+        ItemCategory.Weapon => "Armas",
+        ItemCategory.Equipment => "Equipamentos",
         _ => "Itens"
     };
 
@@ -923,6 +943,8 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             UpgradeEffect.Rob => "nos roubos",
             UpgradeEffect.AssetIncome => "na renda dos ativos",
             UpgradeEffect.Savings => "nos juros da poupança",
+            UpgradeEffect.CrimeDefesa => "na defesa contra assaltos",
+            UpgradeEffect.CrimeFurto => "nos furtos de rua",
             _ => "?"
         };
         var max = item.MaxQuantity > 0 ? $" · máx. nível {item.MaxQuantity}" : "";
@@ -1044,6 +1066,10 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
             sb.AppendLine($"🅿️ {DescribeUpgrade(shopItem)}");
         if (shopItem?.Category == ItemCategory.Vehicle)
             sb.AppendLine($"🚗 Dirija com `/veiculo dirigir {shopItem.Key}`");
+        if (shopItem?.Category == ItemCategory.Weapon)
+            sb.AppendLine($"⚔️ Arma: **+{shopItem.CrimeBonusPercent}%** no assalto · Defesa: **+{shopItem.CrimeDefensePercent}%** · Teto: **+{EconomyFormat.Full(shopItem.CrimeMaxStealBonus)}**");
+        if (shopItem?.Category == ItemCategory.Equipment)
+            sb.AppendLine($"🧰 Equipamento: **+{shopItem.CrimeBonusPercent}%** no furto/crime · Defesa: **+{shopItem.CrimeDefensePercent}%**");
 
         sb.AppendLine($"\n{description}");
 
@@ -1064,7 +1090,7 @@ public class ShopSlashModule : InteractionModuleBase<SocketInteractionContext>
         var builder = new ComponentBuilder();
         var actionRow = 0;
 
-        if (shopItem?.Category == ItemCategory.Relic)
+        if (shopItem?.Category is ItemCategory.Relic or ItemCategory.Weapon or ItemCategory.Equipment)
         {
             var label = invItem.IsEquipped ? "Desequipar" : "Equipar";
             builder.WithButton(new ButtonBuilder()
@@ -1117,5 +1143,9 @@ public enum ShopCategoryChoice
     [ChoiceDisplay("🚗 Veículos")]
     Veiculos,
     [ChoiceDisplay("🅿️ Melhorias")]
-    Melhorias
+    Melhorias,
+    [ChoiceDisplay("🔫 Armas")]
+    Armas,
+    [ChoiceDisplay("🧰 Equipamentos")]
+    Equipamentos
 }
