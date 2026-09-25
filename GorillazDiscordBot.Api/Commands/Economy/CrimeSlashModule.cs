@@ -13,13 +13,13 @@ namespace GorillazDiscordBot.Api.Commands.Economy;
 public class CrimeSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly IEconomyRepository _economy;
-    private readonly IEconomyAccessor _accessor;
+    private readonly IPrimaryAccountResolver _accessor;
     private readonly ShopService _shop;
     private readonly ICharacterProfileRepository _profiles;
 
     public CrimeSlashModule(
         IEconomyRepository economy,
-        IEconomyAccessor accessor,
+        IPrimaryAccountResolver accessor,
         ShopService shop,
         ICharacterProfileRepository profiles)
     {

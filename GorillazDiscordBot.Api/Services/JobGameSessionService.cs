@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Interfaces;
 
 namespace GorillazDiscordBot.Services;
 
@@ -47,7 +47,7 @@ public enum JobGamePlayResult
 
 public sealed class JobGameSessionService
 {
-    private readonly ConcurrentDictionary<ulong, JobGameSession> _sessions = new();
+    private readonly ISessionStore<ulong, JobGameSession> _sessions;
     private readonly Random _rng = new();
     private readonly Func<double> _roll;
     private readonly Func<JobGameKind, int, int, Random, JobGameRound> _roundFactory;
@@ -55,7 +55,16 @@ public sealed class JobGameSessionService
     public JobGameSessionService(
         Func<double>? roll = null,
         Func<JobGameKind, int, int, Random, JobGameRound>? roundFactory = null)
+        : this(new InMemorySessionStore<ulong, JobGameSession>(), roll, roundFactory)
     {
+    }
+
+    internal JobGameSessionService(
+        ISessionStore<ulong, JobGameSession> sessions,
+        Func<double>? roll = null,
+        Func<JobGameKind, int, int, Random, JobGameRound>? roundFactory = null)
+    {
+        _sessions = sessions;
         _roll = roll ?? (() => Random.Shared.NextDouble());
         _roundFactory = roundFactory ?? JobGameCatalog.Round;
     }
@@ -65,7 +74,7 @@ public sealed class JobGameSessionService
         bool IsActive(JobGameSession s)
             => !s.Finished && DateTime.UtcNow - s.StartedAt < JobGameRules.SessionTimeout;
 
-        if (_sessions.TryGetValue(userId, out var existing) && IsActive(existing))
+        if (_sessions.TryGet(userId, out var existing) && IsActive(existing))
         {
             session = existing;
             return false;
@@ -86,15 +95,15 @@ public sealed class JobGameSessionService
         };
         created.CurrentRound = NextRound(created);
 
-        session = _sessions.AddOrUpdate(userId, created, (_, _) => created);
+        session = _sessions.AddOrReplace(userId, created);
         return ReferenceEquals(session, created);
     }
 
     public JobGameSession? Get(ulong userId)
-        => _sessions.TryGetValue(userId, out var session) ? session : null;
+        => _sessions.TryGet(userId, out var session) ? session : null;
 
     public void Remove(ulong userId)
-        => _sessions.TryRemove(userId, out _);
+        => _sessions.TryRemove(userId);
 
     public void Finish(ulong userId)
     {

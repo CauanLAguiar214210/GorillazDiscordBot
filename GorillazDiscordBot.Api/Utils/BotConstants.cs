@@ -8,6 +8,9 @@ public static class BotConstants
     public const string GuildOnly =
         "Este comando só pode ser usado dentro de um servidor.";
 
+    public const string Unknown = "Desconhecido(a)";
+    public const string NotAvailableInCache = "Conteúdo não disponível no cache.";
+
     public const string Enabled = "🟢 Ativado";
     public const string Disabled = "🔴 Desativado";
     public const string NotSet = "Não definido";

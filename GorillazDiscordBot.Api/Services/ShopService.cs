@@ -16,7 +16,7 @@ public sealed class AssetIncomesResult
     public IReadOnlyList<AssetIncomeEntry> Assets { get; init; } = [];
 }
 
-public class ShopService
+public class ShopService : IShopService
 {
     public static readonly TimeSpan CatalogCacheDuration = TimeSpan.FromMinutes(10);
     public const double SellRefundRate = 0.5;
@@ -24,7 +24,7 @@ public class ShopService
 
     private readonly IShopRepository _shop;
     private readonly IEconomyRepository _economy;
-    private readonly IEconomyAccessor _accessor;
+    private readonly IPrimaryAccountResolver _accessor;
     private readonly ICharacterProfileRepository _profiles;
 
     private readonly object _lock = new();
@@ -39,7 +39,7 @@ public class ShopService
     public ShopService(
         IShopRepository shop,
         IEconomyRepository economy,
-        IEconomyAccessor accessor,
+        IPrimaryAccountResolver accessor,
         ICharacterProfileRepository profiles)
     {
         _shop = shop;

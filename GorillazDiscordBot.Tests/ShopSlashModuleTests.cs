@@ -19,7 +19,7 @@ public class ShopSlashModuleTests
             .AddSingleton(Substitute.For<ShopService>(
                 Substitute.For<IShopRepository>(),
                 Substitute.For<IEconomyRepository>(),
-                Substitute.For<IEconomyAccessor>(),
+                Substitute.For<IPrimaryAccountResolver>(),
                 Substitute.For<ICharacterProfileRepository>()))
             .BuildServiceProvider();
 
@@ -48,7 +48,7 @@ public class ShopSlashModuleTests
             .AddSingleton(Substitute.For<ShopService>(
                 Substitute.For<IShopRepository>(),
                 Substitute.For<IEconomyRepository>(),
-                Substitute.For<IEconomyAccessor>(),
+                Substitute.For<IPrimaryAccountResolver>(),
                 Substitute.For<ICharacterProfileRepository>()))
             .BuildServiceProvider();
 

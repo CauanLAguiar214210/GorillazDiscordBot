@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services;
 using LuckyMonkey.Contracts.Bets;
 using LuckyMonkey.Contracts.Common;
@@ -19,7 +20,7 @@ internal static class CasinoApiFlow
 {
     public static async Task<BetResponse?> OpenBetAsync(
         InteractionModuleBase<SocketInteractionContext> module,
-        CasinoApiClient casino, PayoutService payout, CasinoBetTracker tracker,
+        CasinoApiClient casino, IWalletService payout, CasinoBetTracker tracker,
         GameKind game, ulong userId, ulong amount,
         BetOptions? options, string blockedMessage, bool followup = false)
     {
@@ -82,13 +83,30 @@ internal static class CasinoApiFlow
     }
 
     /// <summary>
+    /// Paga uma rodada que expirou no serviço de cassino (retorno automático de aposta).
+    /// Variação centralizada do padrão duplicado nos módulos de jogo.
+    /// </summary>
+    public static async Task SettleExpiredAsync(
+        InteractionModuleBase<SocketInteractionContext> module,
+        IWalletService payout, CasinoBetTracker tracker, ulong userId,
+        Outcome? expired, GameKind game)
+    {
+        if (expired is not { } outcome)
+            return;
+
+        await payout.PayOutAsync(
+            userId, outcome.ReturnAmount, module.Context.User.Username,
+            SettleDescription(game), RelicType(game), tracker.Get(userId));
+    }
+
+    /// <summary>
     /// Tenta resolver a rodada pendente do usuário no serviço: dispara a ação que liquida o jogo
     /// (a que o bot guarda no tracker), paga o <see cref="Outcome.ReturnAmount"/> e limpa o estado
     /// local. Retorna false quando não há partida pendente conhecida ou ela não pôde ser liquidada.
     /// </summary>
     private static async Task<bool> TrySettlePendingAsync(
         InteractionModuleBase<SocketInteractionContext> module,
-        CasinoApiClient casino, PayoutService payout, CasinoBetTracker tracker,
+        CasinoApiClient casino, IWalletService payout, CasinoBetTracker tracker,
         ulong userId)
     {
         if (tracker.GetGame(userId) is not { } pending)
@@ -169,6 +187,32 @@ internal static class CasinoApiFlow
         GameKind.HighLow => RelicGameType.HighLow,
         GameKind.Baccarat => RelicGameType.Baccarat,
         _ => RelicGameType.Blackjack
+    };
+
+    /// <summary>Descrição de transação do retorno automático de partida expirada (texto preservado).</summary>
+    private static string SettleDescription(GameKind game) => game switch
+    {
+        GameKind.Roulette => "Roulette expirado(a)",
+        GameKind.Slots => "Slots expirado(a)",
+        GameKind.Dice => "Dados expirados",
+        GameKind.Coin => "Cara ou coroa expirada",
+        GameKind.Mines => "Minas expiradas",
+        GameKind.Aviao => "Aviaozinho expirado",
+        GameKind.VideoPoker => "Poker de máquina expirado",
+        GameKind.Limbo => "Limbo expirado",
+        GameKind.Rps => "Jokenpô expirado",
+        GameKind.Race => "Corrida expirada",
+        GameKind.Plinko => "Plinko expirado",
+        GameKind.Wheel => "Roda expirada",
+        GameKind.HighLow => "Maior/menor expirado",
+        GameKind.Baccarat => "Baccarat expirado",
+        _ => "Blackjack expirado"
+    };
+
+    internal static GameKind GameKindFor(RelicGameType relic) => relic switch
+    {
+        RelicGameType.Slots => GameKind.Slots,
+        _ => GameKind.Roulette
     };
 
     private static string FriendlyName(GameKind game) => game switch

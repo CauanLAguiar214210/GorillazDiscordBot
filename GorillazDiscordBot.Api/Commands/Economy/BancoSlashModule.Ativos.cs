@@ -15,10 +15,10 @@ public partial class BancoSlashModule
     public class ComandosAtivos : InteractionModuleBase<SocketInteractionContext>
     {
         private readonly IEconomyRepository _economy;
-        private readonly IEconomyAccessor _accessor;
+        private readonly IPrimaryAccountResolver _accessor;
         private readonly ShopService _shop;
 
-        public ComandosAtivos(IEconomyRepository economy, IEconomyAccessor accessor, ShopService shop)
+        public ComandosAtivos(IEconomyRepository economy, IPrimaryAccountResolver accessor, ShopService shop)
         {
             _economy = economy;
             _accessor = accessor;

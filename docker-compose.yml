@@ -9,6 +9,12 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - gorillaz-network
 
@@ -16,15 +22,22 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Requerido para restaurar LuckyMonkey.Contracts do GitHub Packages privado.
+        NUGET_AUTH_TOKEN: "${NUGET_AUTH_TOKEN:-}"
     container_name: gorillaz-bot
     restart: unless-stopped
+    env_file:
+      # Real .env do bot (gitignored) — DISCORD_TOKEN e demais credenciais.
+      - GorillazDiscordBot.Api/.env
     environment:
-      DISCORD_TOKEN: "${DISCORD_TOKEN}"
       MONGODB_CONNECTION_STRING: "mongodb://mongodb:27017"
       MONGODB_DATABASE_NAME: "gorillazbot"
+      LUCKY_MONKEY_URL: "${LUCKY_MONKEY_URL:-http://localhost:8080}"
       TZ: "America/Sao_Paulo"
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     networks:
       - gorillaz-network
 

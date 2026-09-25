@@ -31,7 +31,7 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
     private readonly ICharacterProfileRepository _profiles;
     private readonly IEconomyRepository _economy;
     private readonly ShopService _shop;
-    private readonly IEconomyAccessor _accessor;
+    private readonly IPrimaryAccountResolver _accessor;
     private readonly ManobristaSessionService _manobrista;
     private readonly JobGameSessionService _games;
 
@@ -39,7 +39,7 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
         ICharacterProfileRepository profiles,
         IEconomyRepository economy,
         ShopService shop,
-        IEconomyAccessor accessor,
+        IPrimaryAccountResolver accessor,
         ManobristaSessionService manobrista,
         JobGameSessionService games)
     {
@@ -604,7 +604,7 @@ public class TrabalhoSlashModule : InteractionModuleBase<SocketInteractionContex
         if (boost)
             pay *= 2;
 
-        _games.Remove(Context.User.Id);
+        _games.Remove(mainId);
 
         if (pay > 0)
         {

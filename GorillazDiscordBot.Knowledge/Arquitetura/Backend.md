@@ -3,7 +3,7 @@ tags:
   - arquitetura
   - backend
   - dotnet
-atualizado: 2026-09-18
+atualizado: 2026-09-24
 ---
 
 # Backend
@@ -69,21 +69,22 @@ O serviço também lida com entrada/saída de membros, alterações de voz e atu
 
 | Serviço | Responsabilidade |
 | --- | --- |
-| `ShopService` | Catálogo, compras e inventário; coordena saldo e concorrência por usuário. |
-| `PayoutService` | Débitos e créditos de apostas e resultados do cassino. |
+| `ShopService : IShopService` | Catálogo, compras e inventário; coordena saldo e concorrência por usuário. |
+| `PayoutService : IWalletService` | Débitos e créditos de apostas e resultados do cassino. |
 | `CasinoApiClient` | Cliente HTTP autenticado do LuckyMonkey. |
-| `EconomyAccessor` / `UserAccountService` | Economia compartilhada entre contas vinculadas. |
-| `PatrimonioService` | Consolidação de patrimônio. |
+| `PrimaryAccountResolver : IPrimaryAccountResolver` | Resolução da conta principal (economia compartilhada entre contas vinculadas). |
+| `PatrimonioService : IPatrimonioService` | Consolidação de patrimônio. |
+| `InMemorySessionStore : ISessionStore` | Armazenamento das sessões efêmeras (por processo). |
 | `ReleaseAnnouncementService` | Publicação de releases pendentes nas guilds. |
 | `ChatInteractionService` | Respostas configuráveis por guild, incluindo mídia. |
 | `VoiceChannelService` | Canais de voz temporários. |
 | `GifUrlService` | Normalização de URLs de mídia. |
 
-Serviços de quiz, provas, trabalho, licenças, manobrista e o rastreador de apostas mantêm sessões em memória.
+Serviços de quiz, provas, trabalho, licenças, manobrista e o rastreador de apostas mantêm sessões em memória **via `ISessionStore`**; o retorno automático de partida de cassino expirada é centralizado no `CasinoApiFlow` (`SettleExpiredAsync`), sem duplicação por jogo.
 
 ## Domínio
 
-`GorillazDiscordBot.Domain` contém entidades, regras e interfaces de persistência. Principais áreas:
+`GorillazDiscordBot.Domain` contém entidades, regras, políticas e contratos. Principais áreas:
 
 - **Economia:** perfil, regras, transações, conta, itens de loja e inventário.
 - **Perfil:** personagem, usuário Discord, guild e membro.
@@ -91,7 +92,23 @@ Serviços de quiz, provas, trabalho, licenças, manobrista e o rastreador de apo
 - **Configuração:** prefixo, boas-vindas e preferências por guild.
 - **Conteúdo:** interações de chat e notas de release.
 
-Os contratos como `IEconomyRepository`, `IShopRepository`, `IUserRepository`, `IGuildMemberRepository`, `ICharacterProfileRepository`, `IRankingRepository` e `IReleaseNoteRepository` protegem o domínio dos detalhes do MongoDB.
+Os contratos como `IEconomyRepository`, `IShopRepository`, `IUserRepository`, `IGuildMemberRepository`, `ICharacterProfileRepository`, `IRankingRepository` e `IReleaseNoteRepository` protegem o domínio dos detalhes do MongoDB (implementados em [[Projetos/Infra|Infra]]).
+
+### Costuras (seams) do domínio econômico
+
+Parte dos contratos de serviço do Domain é implementada hoje na **Api** — são os pontos de troca para o serviço Coinflux ([[Decisões/ADR-0002 - Padrão de extração de serviço (Coinflux)|ADR-0002]]):
+
+| Contrato (Domain) | Implementação atual (Api) | Papel |
+| --- | --- | --- |
+| `IPrimaryAccountResolver` | `PrimaryAccountResolver` | Identidade: resolve a conta principal. |
+| `IWalletService` | `PayoutService` | Carteira: transações e resultados (cassino). |
+| `IShopService` | `ShopService` | Loja, catálogo e inventário. |
+| `IAltSanctionPolicy` | `GroupSanctionsPolicy` | Decisão pura de sanção de alts (usada pelo `GuildEventsSink`). |
+| `ISessionStore<TKey, TSession>` | `InMemorySessionStore` | Sessões efêmeras (por processo). |
+
+Registradas em `Program.cs`: `AddSingleton<IAltSanctionPolicy, GroupSanctionsPolicy>()`, `AddSingleton<IPrimaryAccountResolver, PrimaryAccountResolver>()`, `AddSingleton<IWalletService, PayoutService>()`, `AddSingleton<IShopService>(sp => sp.GetRequiredService<ShopService>())`.
+
+Quando o Coinflux existir, as implementações de carteira/loja trocam para adaptadores HTTP em `Api/Gateways/` (sidecar) sem tocar nos comandos, desde que os módulos dependam só dos contratos — conversão pendente em [[Ideias/Converter os módulos restantes para os contratos de domínio|converter os módulos restantes]].
 
 ## Processamento em segundo plano
 

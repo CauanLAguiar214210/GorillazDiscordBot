@@ -11,10 +11,10 @@ namespace GorillazDiscordBot.Commands;
 public class EconomyModule : ModuleBase<SocketCommandContext>
 {
     private readonly IEconomyRepository _economy;
-    private readonly IEconomyAccessor _accessor;
+    private readonly IPrimaryAccountResolver _accessor;
     private readonly ShopService _shop;
 
-    public EconomyModule(IEconomyRepository economy, IEconomyAccessor accessor, ShopService shop)
+    public EconomyModule(IEconomyRepository economy, IPrimaryAccountResolver accessor, ShopService shop)
     {
         _economy = economy;
         _accessor = accessor;

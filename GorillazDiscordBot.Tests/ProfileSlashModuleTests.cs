@@ -18,11 +18,11 @@ public class ProfileSlashModuleTests
         var services = new ServiceCollection()
             .AddSingleton(Substitute.For<ICharacterProfileRepository>())
             .AddSingleton(Substitute.For<IPatrimonioService>())
-            .AddSingleton(Substitute.For<IEconomyAccessor>())
+            .AddSingleton(Substitute.For<IPrimaryAccountResolver>())
             .AddSingleton(new ShopService(
                 Substitute.For<IShopRepository>(),
                 Substitute.For<IEconomyRepository>(),
-                Substitute.For<IEconomyAccessor>(),
+                Substitute.For<IPrimaryAccountResolver>(),
                 Substitute.For<ICharacterProfileRepository>()))
             .BuildServiceProvider();
 

@@ -1,7 +1,8 @@
 using FluentAssertions;
+using GorillazDiscordBot.Api.Utils.TableBuilder.Cassino;
 using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services;
-using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Tests;
 

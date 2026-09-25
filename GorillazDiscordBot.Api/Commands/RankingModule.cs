@@ -12,11 +12,11 @@ namespace GorillazDiscordBot.Commands;
 public class RankingModule : ModuleBase<SocketCommandContext>
 {
     private readonly IEconomyRepository _economy;
-    private readonly IEconomyAccessor _accessor;
+    private readonly IPrimaryAccountResolver _accessor;
     private readonly IRankingRepository _ranking;
     private readonly IPatrimonioService _patrimonio;
 
-    public RankingModule(IEconomyRepository economy, IEconomyAccessor accessor, IRankingRepository ranking, IPatrimonioService patrimonio)
+    public RankingModule(IEconomyRepository economy, IPrimaryAccountResolver accessor, IRankingRepository ranking, IPatrimonioService patrimonio)
     {
         _economy = economy;
         _accessor = accessor;

@@ -18,7 +18,7 @@ mono_crash.*
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
-[Rr]elease/
+# [Rr]elease/ removido: [Bb]in/ e [Oo]bj/ já cobrem build e a regra ocultava pastas de código "Release/"
 [Rr]eleases/
 x64/
 x86/
@@ -340,6 +340,12 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 .idea/
+
+# Qoder (editor config)
+.qoder/
+
+# Acidental: arquivo "nul" (nome reservado do Windows) criado por redirect de download
+nul
 
 # Terraform
 .terraform/

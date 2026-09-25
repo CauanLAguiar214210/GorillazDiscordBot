@@ -1,4 +1,4 @@
-﻿using AWS.Logger;
+using AWS.Logger;
 using AWS.Logger.AspNetCore;
 using Discord;
 using Discord.Commands;
@@ -8,6 +8,8 @@ using GorillazDiscordBot;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Data.Repository;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Domain.Policies;
+using GorillazDiscordBot.Events;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -82,6 +84,18 @@ builder.Services.AddSingleton<IReleaseNoteRepository, ReleaseNoteRepository>();
 builder.Services.AddSingleton(typeof(ISettingsRepository<>), typeof(SettingsRepository<>));
 builder.Services.AddSingleton<IVoiceChannelService, VoiceChannelService>();
 
+// Event sinks (handlers dedicados de eventos do Discord)
+builder.Services.AddSingleton<IAltSanctionPolicy, GroupSanctionsPolicy>();
+builder.Services.AddSingleton<IBotEventSink, GuildEventsSink>();
+
+// Auto-moderação (palavras bloqueadas + proteção contra flood)
+builder.Services.AddSingleton<AutoModService>();
+builder.Services.AddSingleton<IBotEventSink>(sp => sp.GetRequiredService<AutoModService>());
+
+// Log de servidor (auditoria de mensagens, membros e moderação)
+builder.Services.AddSingleton<GuildLogService>();
+builder.Services.AddSingleton<IBotEventSink>(sp => sp.GetRequiredService<GuildLogService>());
+
 // Chat interactions por servidor (cache + MongoDB)
 builder.Services.AddSingleton<IGuildInteractionRepository, GuildInteractionRepository>();
 builder.Services.AddSingleton<IChatInteractionService, ChatInteractionService>();
@@ -92,7 +106,7 @@ builder.Services.AddHttpClient(ChatInteractionService.MediaHttpClientName, clien
 });
 
 // Contas vinculadas (alt accounts) + economia unificada
-builder.Services.AddSingleton<IEconomyAccessor, EconomyAccessor>();
+builder.Services.AddSingleton<IPrimaryAccountResolver, PrimaryAccountResolver>();
 builder.Services.AddSingleton<IUserAccountService, UserAccountService>();
 
 // Microserviço de cassino (sessões e jogos passam a viver no serviço)
@@ -117,9 +131,10 @@ builder.Services.AddHttpClient<CasinoApiClient>(client =>
         Console.WriteLine($"[AVISO] {CasinoJwtProvider.SigningKeyEnv} não configurada — o serviço de cassino exigirá JWT Bearer (token será emitido apenas quando a chave estiver presente).");
     }
 });
-builder.Services.AddSingleton<PayoutService>();
+builder.Services.AddSingleton<IWalletService, PayoutService>();
 builder.Services.AddSingleton<CasinoBetTracker>();
 builder.Services.AddSingleton<ShopService>();
+builder.Services.AddSingleton<IShopService>(sp => sp.GetRequiredService<ShopService>());
 builder.Services.AddSingleton<ReleaseAnnouncementService>();
 builder.Services.AddSingleton<IPatrimonioService, PatrimonioService>();
 builder.Services.AddSingleton<QuizSessionService>();

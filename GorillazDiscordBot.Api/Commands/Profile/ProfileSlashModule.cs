@@ -15,13 +15,13 @@ public class ProfileSlashModule : InteractionModuleBase<SocketInteractionContext
 {
 private readonly ICharacterProfileRepository _profiles;
     private readonly IPatrimonioService _patrimonio;
-    private readonly IEconomyAccessor _accessor;
+    private readonly IPrimaryAccountResolver _accessor;
     private readonly ShopService _shop;
 
     public ProfileSlashModule(
         ICharacterProfileRepository profiles,
         IPatrimonioService patrimonio,
-        IEconomyAccessor accessor,
+        IPrimaryAccountResolver accessor,
         ShopService shop)
     {
         _profiles = profiles;

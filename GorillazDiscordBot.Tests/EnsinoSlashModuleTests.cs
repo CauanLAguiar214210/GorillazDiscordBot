@@ -18,7 +18,7 @@ public class EnsinoSlashModuleTests
             .AddSingleton(Substitute.For<ICharacterProfileRepository>())
             .AddSingleton(new QuizSessionService((pool, count) => pool.Take(count).ToList()))
             .AddSingleton(new JobExamSessionService((pool, count) => pool.Take(count).ToList()))
-            .AddSingleton(Substitute.For<IEconomyAccessor>())
+            .AddSingleton(Substitute.For<IPrimaryAccountResolver>())
             .BuildServiceProvider();
 
         var interactions = new InteractionService(new DiscordSocketClient());

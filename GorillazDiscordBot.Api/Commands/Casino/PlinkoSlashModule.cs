@@ -1,8 +1,9 @@
 using Discord;
 using Discord.Interactions;
+using GorillazDiscordBot.Api.Utils.TableBuilder.Cassino;
 using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services;
-using GorillazDiscordBot.Utils;
 using LuckyMonkey.Contracts.Common;
 using LuckyMonkey.Contracts.Enums;
 
@@ -12,10 +13,10 @@ namespace GorillazDiscordBot.Commands.Casino;
 public class PlinkoSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly CasinoApiClient _casino;
-    private readonly PayoutService _play;
+    private readonly IWalletService _play;
     private readonly CasinoBetTracker _bets;
 
-    public PlinkoSlashModule(CasinoApiClient casino, PayoutService play, CasinoBetTracker bets)
+    public PlinkoSlashModule(CasinoApiClient casino, IWalletService play, CasinoBetTracker bets)
     {
         _casino = casino;
         _play = play;
@@ -143,12 +144,8 @@ public class PlinkoSlashModule : InteractionModuleBase<SocketInteractionContext>
         });
     }
 
-    private async Task SettleExpiredAsync(Outcome expired)
-    {
-        await _play.PayOutAsync(
-            Context.User.Id, expired.ReturnAmount, Context.User.Username,
-            "Plinko expirado", RelicGameType.Plinko, _bets.Get(Context.User.Id));
-    }
+    private Task SettleExpiredAsync(Outcome expired)
+        => CasinoApiFlow.SettleExpiredAsync(this, _play, _bets, Context.User.Id, expired, GameKind.Plinko);
 
     private async Task<bool> DeductOrLeaveAsync(ulong amount, string description, bool followup = false)
     {
