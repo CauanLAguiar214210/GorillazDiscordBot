@@ -32,9 +32,7 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
         var embed = new EmbedBuilder()
             .WithBlurpleTheme()
             .WithAuthor($"{_client.CurrentUser.Username} — Comandos", _client.CurrentUser.GetAvatarUrl())
-            .WithDescription(
-                $"💡 **Como usar:** {mention} `comando` ou use `/comando`\n" +
-                "Os comandos marcados com `[/]` funcionam tanto por prefixo quanto por `/`.");
+            .WithDescription(CommandCatalog.HowToUse(mention));
 
         foreach (var category in CommandCatalog.Categories)
         {
@@ -67,7 +65,7 @@ public class UtilityModule : ModuleBase<SocketCommandContext>
             }
         }
 
-        embed.WithStandardFooter($"Use {mention} ajuda ou /ajuda para ver esta mensagem");
+        embed.WithStandardFooter("Use `/ajuda` para a ajuda interativa por categorias");
 
         await ReplyAsync(embed: embed.Build());
     }

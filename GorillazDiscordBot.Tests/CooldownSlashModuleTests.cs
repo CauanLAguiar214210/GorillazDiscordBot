@@ -50,9 +50,11 @@ public class CooldownSlashModuleTests
 
         paths.Should().BeEquivalentTo(new[]
         {
-            "cooldown status",
+            "cooldown ativar",
             "cooldown definir",
+            "cooldown padrao",
             "cooldown remover",
+            "cooldown status",
         });
     }
 

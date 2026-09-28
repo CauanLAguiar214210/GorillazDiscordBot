@@ -160,6 +160,22 @@ public static class CommandCatalog
             new CommandEntry("trancar [canal]", "Bloqueia o envio de mensagens", CommandKind.Both),
             new CommandEntry("destrancar [canal]", "Libera o envio de mensagens", CommandKind.Both),
         }),
+        new("modconfig", "🛡️", "Auto-proteção e Logs", new[]
+        {
+            new CommandEntry("/modlog status", "Mostra a configuração do log de auditoria", CommandKind.Slash),
+            new CommandEntry("/modlog canal <canal>", "Define o canal do log de auditoria", CommandKind.Slash),
+            new CommandEntry("/modlog eventos [..]", "Ativa/desativa eventos do log de auditoria", CommandKind.Slash),
+            new CommandEntry("/automod status", "Mostra a configuração da auto-moderação", CommandKind.Slash),
+            new CommandEntry("/automod proteger [..]", "Bloqueia convites, @everyone/@here e excesso de menções", CommandKind.Slash),
+            new CommandEntry("/automod strikes [..]", "Limites de avisos para timeout/banimento automáticos (3/6)", CommandKind.Slash),
+            new CommandEntry("/automod palavras", "Gerencia as palavras bloqueadas", CommandKind.Slash),
+            new CommandEntry("/cooldown status", "Mostra os cooldowns de comandos", CommandKind.Slash),
+            new CommandEntry("/cooldown definir <comando> <segundos>", "Define um cooldown por comando", CommandKind.Slash),
+            new CommandEntry("/permissao status", "Mostra as permissões de comandos por cargo", CommandKind.Slash),
+            new CommandEntry("/permissao conceder <comando> <cargo>", "Permite um cargo usar um comando", CommandKind.Slash),
+            new CommandEntry("/anti-raid status", "Mostra a configuração do anti-raid", CommandKind.Slash),
+            new CommandEntry("/anti-raid limite <entradas> [segundos]", "Limite de entradas que dispara o ban automático", CommandKind.Slash),
+        }),
         new("novidades", "📢", "Novidades", new[]
         {
             new CommandEntry("/release listar [todas]", "Mostra as atualizações do bot (todas: changelog completo)", CommandKind.Slash),
@@ -184,18 +200,17 @@ public static class CommandCatalog
             new CommandEntry("/config prefixo-definir", "Define um novo prefixo de comandos", CommandKind.Slash),
             new CommandEntry("/config prefixo-resetar", "Volta o prefixo ao padrão global", CommandKind.Slash),
             new CommandEntry("/config prefixo-exibir", "Mostra o prefixo de comandos atual", CommandKind.Slash),
-            new CommandEntry("welcome <canal>", "Configura o canal de boas-vindas (prefixo)", CommandKind.Prefix),
-            new CommandEntry("welcomemsg <texto>", "Define a mensagem de boas-vindas (prefixo)", CommandKind.Prefix),
-            new CommandEntry("welcome off", "Desativa boas-vindas (prefixo)", CommandKind.Prefix),
-            new CommandEntry("goodbye <canal>", "Configura o canal de despedidas (prefixo)", CommandKind.Prefix),
-            new CommandEntry("goodbyemsg <texto>", "Define a mensagem de despedida (prefixo)", CommandKind.Prefix),
-            new CommandEntry("goodbye off", "Desativa despedidas (prefixo)", CommandKind.Prefix),
-            new CommandEntry("voice setup <canal>", "Canal criador de voz (prefixo)", CommandKind.Prefix),
-            new CommandEntry("voice off <canal>", "Desativa canal criador (prefixo)", CommandKind.Prefix),
-            new CommandEntry("voice config", "Configuração dos canais de voz (prefixo)", CommandKind.Prefix),
-            new CommandEntry("prefix [set|reset]", "Prefixo do bot neste servidor (prefixo)", CommandKind.Prefix),
         }),
     };
+
+    public static string HowToUse(string mention)
+    {
+        return "💡 **Como usar:**\n" +
+               "• **Slash (`/`):** digite `/` no chat — o Discord mostra o menu de comandos. É a forma recomendada.\n" +
+               "• **Ajuda interativa:** use `/ajuda` para navegar pelas categorias\n" +
+               $"• **Prefixo/mention:** `{mention} comando` — funciona sempre, independentemente do prefixo do servidor\n" +
+               "• Comandos marcados com `[/]` funcionam nos dois formatos";
+    }
 
     public static Embed BuildOverviewEmbed(IUser botUser)
     {
@@ -210,10 +225,7 @@ public static class CommandCatalog
                 "Selecione uma categoria no menu abaixo para ver todos os comandos.\n\n" +
                 $"📊 **{slashCount}** comandos disponíveis por `/` (slash) — " +
                 $"**{prefixCount}** disponíveis por prefixo.\n\n" +
-                "💡 **Como usar:**\n" +
-                "• Slash: `/comando` — aparecem ao digitar `/` no chat\n" +
-                "• Prefixo: `{prefixo}comando` — digite o prefixo do servidor seguido do nome\n" +
-                "• Mencione o bot: `@bot comando` — funciona sempre independentemente do prefixo");
+                HowToUse(botUser.Mention));
 
         embed.WithStandardFooter("Clique no menu para navegar entre as categorias");
         return embed.Build();

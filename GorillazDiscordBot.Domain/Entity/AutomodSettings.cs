@@ -14,4 +14,10 @@ public class AutomodSettings
     public int IntervalSeconds { get; set; } = 10;
     public int TimeoutMinutes { get; set; } = 10;
     public List<string> BlockedWords { get; set; } = new();
+    public bool BlockInvites { get; set; }
+    public bool BlockEveryonePings { get; set; }
+    public int MaxMentionsPerMessage { get; set; }
+    public bool EnableStrikes { get; set; }
+    public int StrikeTimeoutWarnings { get; set; } = 3;
+    public int StrikeBanWarnings { get; set; } = 6;
 }

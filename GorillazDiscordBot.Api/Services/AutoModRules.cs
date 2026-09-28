@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using GorillazDiscordBot.Entity;
 
 namespace GorillazDiscordBot.Services;
@@ -9,6 +10,18 @@ public sealed record AutoModVerdict(bool ShouldAct, AutomodAction Action, string
 
 public static class AutoModRules
 {
+    private static readonly Regex InviteRegex = new(
+        @"(?:discord\.gg\/|discord\.com\/invite\/|discord\.app\/invite\/|discordapp\.com\/invite\/)([a-zA-Z0-9]{2,32})",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly Regex EveryoneRegex = new(
+        @"@(everyone|here)",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly Regex MentionRegex = new(
+        @"<@[!&]?\d+>|<@&\d+>",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     public static bool ContainsBlockedWord(string? content, IEnumerable<string> blockedWords, out string matchedWord)
     {
         matchedWord = string.Empty;
@@ -30,6 +43,20 @@ public static class AutoModRules
         }
 
         return false;
+    }
+
+    public static bool ContainsInvite(string? content)
+        => !string.IsNullOrWhiteSpace(content) && InviteRegex.IsMatch(content);
+
+    public static bool MentionsEveryone(string? content)
+        => !string.IsNullOrWhiteSpace(content) && EveryoneRegex.IsMatch(content);
+
+    public static int CountMentions(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return 0;
+
+        return MentionRegex.Matches(content).Count;
     }
 
     public static bool IsFlooding(AutomodSettings settings, IEnumerable<DateTime> recentTimestamps, DateTime utcNow)

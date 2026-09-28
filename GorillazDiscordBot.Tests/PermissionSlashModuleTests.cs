@@ -50,9 +50,10 @@ public class PermissionSlashModuleTests
 
         paths.Should().BeEquivalentTo(new[]
         {
-            "permissao status",
+            "permissao ativar",
             "permissao conceder",
             "permissao revogar",
+            "permissao status",
         });
     }
 

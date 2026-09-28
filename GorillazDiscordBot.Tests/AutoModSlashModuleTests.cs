@@ -42,7 +42,9 @@ public class AutoModSlashModuleTests
             "automod palavra-adicionar",
             "automod palavra-remover",
             "automod palavras",
+            "automod proteger",
             "automod status",
+            "automod strikes",
             "automod timeout",
         });
     }
@@ -92,6 +94,48 @@ public class AutoModSlashModuleTests
         var command = interactions.SlashCommands.Single(c => c.Name == "timeout");
 
         command.Parameters.Should().ContainSingle(p => p.Name == "minutos" && p.ParameterType == typeof(int) && p.IsRequired);
+    }
+
+    [Fact]
+    public async Task ProtegerAsync_ShouldExpose_Convites_MarcacoesTodos_LimiteMencoesParams()
+    {
+        var interactions = await CreateInteractionsAsync();
+
+        var command = interactions.SlashCommands.Single(c => c.Name == "proteger");
+
+        command.Parameters.Should().HaveCount(3);
+        command.Parameters[0].Name.Should().Be("convites");
+        command.Parameters[0].ParameterType.Should().Be(typeof(bool?));
+        command.Parameters[0].IsRequired.Should().BeFalse();
+
+        command.Parameters[1].Name.Should().Be("marcacoes-todos");
+        command.Parameters[1].ParameterType.Should().Be(typeof(bool?));
+        command.Parameters[1].IsRequired.Should().BeFalse();
+
+        command.Parameters[2].Name.Should().Be("limite-mencoes");
+        command.Parameters[2].ParameterType.Should().Be(typeof(int?));
+        command.Parameters[2].IsRequired.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task StrikesAsync_ShouldExpose_Ativar_Timeout_BanirParams()
+    {
+        var interactions = await CreateInteractionsAsync();
+
+        var command = interactions.SlashCommands.Single(c => c.Name == "strikes");
+
+        command.Parameters.Should().HaveCount(3);
+        command.Parameters[0].Name.Should().Be("ativar");
+        command.Parameters[0].ParameterType.Should().Be(typeof(bool?));
+        command.Parameters[0].IsRequired.Should().BeFalse();
+
+        command.Parameters[1].Name.Should().Be("timeout");
+        command.Parameters[1].ParameterType.Should().Be(typeof(int?));
+        command.Parameters[1].IsRequired.Should().BeFalse();
+
+        command.Parameters[2].Name.Should().Be("banir");
+        command.Parameters[2].ParameterType.Should().Be(typeof(int?));
+        command.Parameters[2].IsRequired.Should().BeFalse();
     }
 
     private static string[] GetCommandPath(SlashCommandInfo command)
