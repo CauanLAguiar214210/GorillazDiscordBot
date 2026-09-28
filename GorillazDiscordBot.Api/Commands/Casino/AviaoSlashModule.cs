@@ -1,8 +1,9 @@
 using Discord;
 using Discord.Interactions;
+using GorillazDiscordBot.Api.Utils.TableBuilder.Cassino;
 using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services;
-using GorillazDiscordBot.Utils;
 using LuckyMonkey.Contracts.Common;
 using LuckyMonkey.Contracts.Enums;
 
@@ -13,10 +14,10 @@ public partial class CasinoSlashModule
     public class AviaoSlashModule : InteractionModuleBase<SocketInteractionContext>
     {
         private readonly CasinoApiClient _casino;
-        private readonly PayoutService _play;
+        private readonly IWalletService _play;
         private readonly CasinoBetTracker _bets;
 
-        public AviaoSlashModule(CasinoApiClient casino, PayoutService play, CasinoBetTracker bets)
+        public AviaoSlashModule(CasinoApiClient casino, IWalletService play, CasinoBetTracker bets)
         {
             _casino = casino;
             _play = play;
@@ -184,12 +185,8 @@ public partial class CasinoSlashModule
             });
         }
 
-        private async Task SettleExpiredAsync(Outcome expired)
-        {
-            await _play.PayOutAsync(
-                Context.User.Id, expired.ReturnAmount, Context.User.Username,
-                "Aviaozinho expirado", RelicGameType.Aviao, _bets.Get(Context.User.Id));
-        }
+        private Task SettleExpiredAsync(Outcome expired)
+            => CasinoApiFlow.SettleExpiredAsync(this, _play, _bets, Context.User.Id, expired, GameKind.Aviao);
 
         private async Task<bool> DeductOrLeaveAsync(ulong amount, string description, bool followup = false)
         {

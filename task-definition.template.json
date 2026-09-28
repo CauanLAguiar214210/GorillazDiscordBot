@@ -4,8 +4,8 @@
   "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/gorillaz-discord-bot-ecs-execution-role",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
-  "cpu": "512",
-  "memory": "1024",
+  "cpu": "1024",
+  "memory": "2048",
   "containerDefinitions": [
     {
       "name": "bot",
@@ -18,6 +18,9 @@
         { "name": "LUCKY_MONKEY_URL", "value": "http://localhost:8080" },
         { "name": "LUCKY_MONKEY_JWT_ISSUER", "value": "LuckyMonkey" },
         { "name": "LUCKY_MONKEY_JWT_AUDIENCE", "value": "LuckyMonkey.Clients" },
+        { "name": "LAVALINK_REST_URI", "value": "http://localhost:2333" },
+        { "name": "LAVALINK_WS_URI", "value": "ws://localhost:2333" },
+        { "name": "LAVALINK_LOCAL_AUDIO_PATH", "value": "sounds" },
         { "name": "TZ", "value": "America/Sao_Paulo" }
       ],
       "secrets": [
@@ -25,12 +28,35 @@
         { "name": "OWM_API_KEY", "valueFrom": "${OWM_API_KEY_ARN}" },
         { "name": "MONGODB_CONNECTION_STRING", "valueFrom": "${MONGODB_CONN_ARN}" },
         { "name": "LUCKY_MONKEY_API_KEY", "valueFrom": "${LUCKY_MONKEY_API_KEY_ARN}" },
-        { "name": "LUCKY_MONKEY_JWT_SIGNING_KEY", "valueFrom": "${LUCKY_MONKEY_JWT_SIGNING_KEY_ARN}" }
+        { "name": "LUCKY_MONKEY_JWT_SIGNING_KEY", "valueFrom": "${LUCKY_MONKEY_JWT_SIGNING_KEY_ARN}" },
+        { "name": "LAVALINK_PASSWORD", "valueFrom": "${LAVALINK_PASSWORD_ARN}" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/gorillaz-discord-bot",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    },
+    {
+      "name": "lavalink",
+      "image": "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/gorillaz-lavalink:latest",
+      "essential": true,
+      "environment": [
+        { "name": "JAVA_OPTS", "value": "-Xms128M -Xmx256M" }
+      ],
+      "secrets": [
+        { "name": "LAVALINK_SERVER_PASSWORD", "valueFrom": "${LAVALINK_PASSWORD_ARN}" }
+      ],
+      "portMappings": [
+        { "containerPort": 2333, "protocol": "tcp" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/gorillaz-discord-bot/lavalink",
           "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs"
         }

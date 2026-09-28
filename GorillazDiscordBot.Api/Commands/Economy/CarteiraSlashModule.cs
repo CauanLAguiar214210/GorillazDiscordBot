@@ -11,12 +11,12 @@ namespace GorillazDiscordBot.Api.Commands.Economy;
 public class CarteiraSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly IEconomyRepository _economy;
-    private readonly IEconomyAccessor _accessor;
+    private readonly IPrimaryAccountResolver _accessor;
     private readonly IPatrimonioService _patrimonio;
 
     public CarteiraSlashModule(
         IEconomyRepository economy,
-        IEconomyAccessor accessor,
+        IPrimaryAccountResolver accessor,
         IPatrimonioService patrimonio)
     {
         _economy = economy;

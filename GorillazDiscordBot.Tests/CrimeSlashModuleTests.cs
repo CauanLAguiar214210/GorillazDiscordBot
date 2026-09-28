@@ -16,12 +16,12 @@ public class CrimeSlashModuleTests
     {
         var services = new ServiceCollection()
             .AddSingleton(Substitute.For<IEconomyRepository>())
-            .AddSingleton(Substitute.For<IEconomyAccessor>())
+            .AddSingleton(Substitute.For<IPrimaryAccountResolver>())
             .AddSingleton(Substitute.For<ICharacterProfileRepository>())
             .AddSingleton(Substitute.For<ShopService>(
                 Substitute.For<IShopRepository>(),
                 Substitute.For<IEconomyRepository>(),
-                Substitute.For<IEconomyAccessor>(),
+                Substitute.For<IPrimaryAccountResolver>(),
                 Substitute.For<ICharacterProfileRepository>()))
             .BuildServiceProvider();
 

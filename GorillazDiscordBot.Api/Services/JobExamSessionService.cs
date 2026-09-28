@@ -1,6 +1,6 @@
-using System.Collections.Concurrent;
 using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Entity.Profile;
+using GorillazDiscordBot.Domain.Interfaces;
 
 namespace GorillazDiscordBot.Services;
 
@@ -19,7 +19,7 @@ public sealed class JobExamSession
 
 public sealed class JobExamSessionService
 {
-    private readonly ConcurrentDictionary<ulong, JobExamSession> _sessions = new();
+    private readonly ISessionStore<ulong, JobExamSession> _sessions;
     private readonly Func<IReadOnlyList<MathQuestion>, int, IReadOnlyList<MathQuestion>> _selector;
 
     public JobExamSessionService()
@@ -28,7 +28,15 @@ public sealed class JobExamSessionService
     }
 
     public JobExamSessionService(Func<IReadOnlyList<MathQuestion>, int, IReadOnlyList<MathQuestion>> selector)
+        : this(new InMemorySessionStore<ulong, JobExamSession>(), selector)
     {
+    }
+
+    internal JobExamSessionService(
+        ISessionStore<ulong, JobExamSession> sessions,
+        Func<IReadOnlyList<MathQuestion>, int, IReadOnlyList<MathQuestion>> selector)
+    {
+        _sessions = sessions;
         _selector = selector;
     }
 
@@ -46,13 +54,13 @@ public sealed class JobExamSessionService
     }
 
     public JobExamSession? Get(ulong userId)
-        => _sessions.TryGetValue(userId, out var session) ? session : null;
+        => _sessions.TryGet(userId, out var session) ? session : null;
 
     public bool Cancel(ulong userId)
-        => _sessions.TryRemove(userId, out _);
+        => _sessions.TryRemove(userId);
 
     public bool Remove(ulong userId)
-        => _sessions.TryRemove(userId, out _);
+        => _sessions.TryRemove(userId);
 
     private static IReadOnlyList<MathQuestion> DefaultSelector(IReadOnlyList<MathQuestion> pool, int count)
         => pool.OrderBy(_ => Random.Shared.Next()).Take(count).ToList();

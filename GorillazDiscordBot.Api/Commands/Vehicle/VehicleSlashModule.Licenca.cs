@@ -23,13 +23,13 @@ public partial class VehicleSlashModule
     private readonly ICharacterProfileRepository _profiles;
     private readonly IEconomyRepository _economy;
     private readonly LicencaExamSessionService _sessions;
-    private readonly IEconomyAccessor _accessor;
+    private readonly IPrimaryAccountResolver _accessor;
 
     public Licenca(
         ICharacterProfileRepository profiles,
         IEconomyRepository economy,
         LicencaExamSessionService sessions,
-        IEconomyAccessor accessor)
+        IPrimaryAccountResolver accessor)
     {
         _profiles = profiles;
         _economy = economy;

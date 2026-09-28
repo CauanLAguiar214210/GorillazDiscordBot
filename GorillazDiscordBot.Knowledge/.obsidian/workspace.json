@@ -6,6 +6,7 @@
       {
         "id": "8e0a4c53dd3e996f",
         "type": "tabs",
+        "dimension": 43.52791878172589,
         "children": [
           {
             "id": "821ccfa46520f5a9",
@@ -15,7 +16,53 @@
               "state": {},
               "icon": "lucide-git-fork",
               "title": "Visualização em gráfico"
-            }
+            },
+            "group": "011a2cecf80061b5"
+          }
+        ]
+      },
+      {
+        "id": "4d58ed57738337b9",
+        "type": "tabs",
+        "dimension": 56.47208121827412,
+        "children": [
+          {
+            "id": "36f80559abb59ba7",
+            "type": "leaf",
+            "state": {
+              "type": "localgraph",
+              "state": {
+                "file": "Home.md",
+                "options": {
+                  "collapse-filter": true,
+                  "search": "",
+                  "localJumps": 1,
+                  "localBacklinks": true,
+                  "localForelinks": true,
+                  "localInterlinks": false,
+                  "showTags": false,
+                  "showAttachments": false,
+                  "hideUnresolved": false,
+                  "collapse-color-groups": true,
+                  "colorGroups": [],
+                  "collapse-display": true,
+                  "showArrow": false,
+                  "textFadeMultiplier": 0,
+                  "nodeSizeMultiplier": 1,
+                  "lineSizeMultiplier": 1,
+                  "collapse-forces": true,
+                  "centerStrength": 0.518713248970312,
+                  "repelStrength": 10,
+                  "linkStrength": 1,
+                  "linkDistance": 250,
+                  "scale": 1,
+                  "close": true
+                }
+              },
+              "icon": "lucide-git-fork",
+              "title": "Gráfico de Home"
+            },
+            "group": "011a2cecf80061b5"
           }
         ]
       }
@@ -185,11 +232,11 @@
       "bases:Criar nova base": false
     }
   },
-  "active": "821ccfa46520f5a9",
+  "active": "36f80559abb59ba7",
   "lastOpenFiles": [
     "Home.md",
-    "Agentes.md",
     "Comandos.md",
+    "Agentes.md",
     "Investigação.md",
     "Templates/Investigação.md",
     "Arquitetura.md",

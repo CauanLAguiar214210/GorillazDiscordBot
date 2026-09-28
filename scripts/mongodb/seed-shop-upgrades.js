@@ -17,7 +17,7 @@
 // Idempotente: insertMany com filtro de Keys já existentes.
 // ============================================================================
 
-//const defaultDbName = "gorillazbot";
+const defaultDbName = "gorillazbot";
 
 const extractDatabaseName = (uri) => {
     const rest = String(uri).replace(/^mongodb(\+srv)?:\/\//i, "");

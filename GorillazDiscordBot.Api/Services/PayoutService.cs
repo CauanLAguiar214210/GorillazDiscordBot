@@ -7,13 +7,13 @@ namespace GorillazDiscordBot.Services;
 /// Dono do dinheiro do jogador: débito da aposta, crédito do retorno e aplicação de relíquias.
 /// O resultado do jogo em si vem do microserviço de cassino.
 /// </summary>
-public class PayoutService
+public class PayoutService : IWalletService
 {
     private readonly IEconomyRepository _economy;
-    private readonly IEconomyAccessor _accessor;
-    private readonly ShopService _shop;
+    private readonly IPrimaryAccountResolver _accessor;
+    private readonly IShopService _shop;
 
-    public PayoutService(IEconomyRepository economy, IEconomyAccessor accessor, ShopService shop)
+    public PayoutService(IEconomyRepository economy, IPrimaryAccountResolver accessor, IShopService shop)
     {
         _economy = economy;
         _accessor = accessor;

@@ -12,10 +12,10 @@ namespace GorillazDiscordBot.Api.Commands.Economy;
 public partial class BancoSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly IEconomyRepository _economy;
-    private readonly IEconomyAccessor _accessor;
+    private readonly IPrimaryAccountResolver _accessor;
     private readonly ShopService _shop;
 
-    public BancoSlashModule(IEconomyRepository economy, IEconomyAccessor accessor, ShopService shop)
+    public BancoSlashModule(IEconomyRepository economy, IPrimaryAccountResolver accessor, ShopService shop)
     {
         _economy = economy;
         _accessor = accessor;

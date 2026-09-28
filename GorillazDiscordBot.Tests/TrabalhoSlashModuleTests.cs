@@ -2,6 +2,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using FluentAssertions;
 using GorillazDiscordBot.Api.Commands.Economy;
+using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -61,6 +62,24 @@ public class TrabalhoSlashModuleTests
         extra.Parameters.Should().BeEmpty();
     }
 
+    [Fact]
+    public void JobGameSessao_RemoveDeveUsarMesmaChaveDeInicio_MainIdNaoContextUser()
+    {
+        var games = new JobGameSessionService();
+
+        const ulong contextUserId = 101;
+        const ulong mainId = 999;
+
+        games.TryStart(mainId, JobGameKind.Porteiro, out var session).Should().BeTrue();
+        session.UserId.Should().Be(mainId);
+
+        games.Remove(contextUserId);
+        games.Get(mainId).Should().NotBeNull("a sessão vive na chave mainId, não na do contexto");
+
+        games.Remove(mainId);
+        games.Get(mainId).Should().BeNull();
+    }
+
     private static ServiceProvider BuildServices()
         => new ServiceCollection()
             .AddSingleton(Substitute.For<ICharacterProfileRepository>())
@@ -69,9 +88,9 @@ public class TrabalhoSlashModuleTests
             .AddSingleton(new ShopService(
                 Substitute.For<IShopRepository>(),
                 Substitute.For<IEconomyRepository>(),
-                Substitute.For<IEconomyAccessor>(),
+                Substitute.For<IPrimaryAccountResolver>(),
                 Substitute.For<ICharacterProfileRepository>()))
-            .AddSingleton(Substitute.For<IEconomyAccessor>())
+            .AddSingleton(Substitute.For<IPrimaryAccountResolver>())
             .AddSingleton(new ManobristaSessionService())
             .AddSingleton(new JobGameSessionService())
             .BuildServiceProvider();

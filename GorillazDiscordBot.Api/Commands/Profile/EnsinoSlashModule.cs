@@ -31,13 +31,13 @@ public class EnsinoSlashModule : InteractionModuleBase<SocketInteractionContext>
     private readonly ICharacterProfileRepository _profiles;
     private readonly QuizSessionService _quiz;
     private readonly JobExamSessionService _jobExam;
-    private readonly IEconomyAccessor _accessor;
+    private readonly IPrimaryAccountResolver _accessor;
 
     public EnsinoSlashModule(
         ICharacterProfileRepository profiles,
         QuizSessionService quiz,
         JobExamSessionService jobExam,
-        IEconomyAccessor accessor)
+        IPrimaryAccountResolver accessor)
     {
         _profiles = profiles;
         _quiz     = quiz;

@@ -1,0 +1,54 @@
+server:
+  port: 2333
+  address: 0.0.0.0
+
+lavalink:
+
+  server:
+    password: "${LAVALINK_SERVER_PASSWORD:youshallnotpass}"
+    playerUpdateInterval: 5
+    bufferDurationMs: 400
+    frameBufferDurationMs: 5000
+    opusEncodingQuality: 10
+    resamplingQuality: HIGH
+    trackStuckThresholdMs: 10000
+    useSeekGhosting: true
+    youtubePlaylistLoadLimit: 6
+    youtubeSearchEnabled: false
+    soundcloudSearchEnabled: false
+    # gc-warnings: true
+    
+    sources:
+      local: true
+      http: true
+      youtube: false
+      bandcamp: false
+      soundcloud: false
+      twitch: false
+      vimeo: false
+      nico: false
+      
+    nonAllocatingFrameBuffer: false
+      
+    # http:
+      # proxyHost: ""
+      # proxyPort: 0
+      # proxyUser: ""
+      # proxyPassword: ""
+
+  # metrics:
+    # prometheus:
+      # enabled: false
+      # endpoint: /metrics
+    # sentry:
+      # dsn: ""
+      # environment: ""
+
+# metrics:
+  # prometheus:
+    # enabled: false
+    # endpoint: /metrics
+
+# sentry:
+  # dsn: ""
+  # environment: ""

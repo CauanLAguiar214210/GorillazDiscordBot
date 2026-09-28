@@ -7,16 +7,16 @@ namespace GorillazDiscordBot.Services;
 public class PatrimonioService : IPatrimonioService
 {
     private readonly IEconomyRepository _economy;
-    private readonly ShopService _shop;
+    private readonly IShopService _shop;
     private readonly IRankingRepository _ranking;
-    private readonly IEconomyAccessor _accessor;
+    private readonly IPrimaryAccountResolver _accessor;
     private readonly IUserRepository _users;
 
     public PatrimonioService(
         IEconomyRepository economy,
-        ShopService shop,
+        IShopService shop,
         IRankingRepository ranking,
-        IEconomyAccessor accessor,
+        IPrimaryAccountResolver accessor,
         IUserRepository users)
     {
         _economy = economy;

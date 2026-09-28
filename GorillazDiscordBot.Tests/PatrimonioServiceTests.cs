@@ -12,7 +12,7 @@ public class PatrimonioServiceTests
     private readonly IEconomyRepository _economy = Substitute.For<IEconomyRepository>();
     private readonly IShopRepository _shop = Substitute.For<IShopRepository>();
     private readonly IRankingRepository _ranking = Substitute.For<IRankingRepository>();
-    private readonly IEconomyAccessor _accessor = Substitute.For<IEconomyAccessor>();
+    private readonly IPrimaryAccountResolver _accessor = Substitute.For<IPrimaryAccountResolver>();
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
 
     public PatrimonioServiceTests()

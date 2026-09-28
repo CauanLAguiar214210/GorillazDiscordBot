@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using GorillazDiscordBot.Domain.Entity.Economy;
+using GorillazDiscordBot.Domain.Interfaces;
 
 namespace GorillazDiscordBot.Services;
 
@@ -24,11 +24,19 @@ public sealed class ManobristaSession
 
 public sealed class ManobristaSessionService
 {
-    private readonly ConcurrentDictionary<ulong, ManobristaSession> _sessions = new();
+    private readonly ISessionStore<ulong, ManobristaSession> _sessions;
     private readonly Func<double> _roll;
 
     public ManobristaSessionService(Func<double>? roll = null)
-        => _roll = roll ?? (() => Random.Shared.NextDouble());
+        : this(new InMemorySessionStore<ulong, ManobristaSession>(), roll)
+    {
+    }
+
+    internal ManobristaSessionService(ISessionStore<ulong, ManobristaSession> sessions, Func<double>? roll = null)
+    {
+        _sessions = sessions;
+        _roll = roll ?? (() => Random.Shared.NextDouble());
+    }
 
     public bool TryStart(ulong userId, out ManobristaSession session)
         => TryStart(userId, ManobristaRules.Vagas, ManobristaRules.BasePerCar, out session);
@@ -38,7 +46,7 @@ public sealed class ManobristaSessionService
         bool IsActive(ManobristaSession s)
             => !s.Finished && DateTime.UtcNow - s.StartedAt < ManobristaRules.SessionTimeout;
 
-        if (_sessions.TryGetValue(userId, out var existing) && IsActive(existing))
+        if (_sessions.TryGet(userId, out var existing) && IsActive(existing))
         {
             session = existing;
             return false;
@@ -52,15 +60,15 @@ public sealed class ManobristaSessionService
             BaseValue = Math.Max((double)ManobristaRules.BasePerCar, baseValue)
         };
 
-        session = _sessions.AddOrUpdate(userId, created, (_, _) => created);
+        session = _sessions.AddOrReplace(userId, created);
         return ReferenceEquals(session, created);
     }
 
     public ManobristaSession? Get(ulong userId)
-        => _sessions.TryGetValue(userId, out var session) ? session : null;
+        => _sessions.TryGet(userId, out var session) ? session : null;
 
     public void Remove(ulong userId)
-        => _sessions.TryRemove(userId, out _);
+        => _sessions.TryRemove(userId);
 
     public bool TryPark(ulong userId)
     {

@@ -11,7 +11,7 @@ public class ShopServiceTests
 {
     private readonly IShopRepository _shop = Substitute.For<IShopRepository>();
     private readonly IEconomyRepository _economy = Substitute.For<IEconomyRepository>();
-    private readonly IEconomyAccessor _accessor = Substitute.For<IEconomyAccessor>();
+    private readonly IPrimaryAccountResolver _accessor = Substitute.For<IPrimaryAccountResolver>();
     private readonly ICharacterProfileRepository _profiles = Substitute.For<ICharacterProfileRepository>();
 
     public ShopServiceTests()

@@ -2,7 +2,7 @@
 tags:
   - arquitetura
   - visao-geral
-atualizado: 2026-09-18
+atualizado: 2026-09-24
 ---
 
 # Visão geral
@@ -31,8 +31,8 @@ flowchart LR
 
 | Projeto | Papel | Dependências diretas |
 | --- | --- | --- |
-| `GorillazDiscordBot.Api` | Executável, Discord.Net, módulos, serviços e hospedagem. | `Domain`, `Infra` |
-| `GorillazDiscordBot.Domain` | Entidades, regras de negócio e interfaces de repositório. | — |
+| `GorillazDiscordBot.Api` | Executável, Discord.Net, módulos, serviços, hospedagem e implementações atuais dos contratos econômicos. | `Domain`, `Infra` |
+| `GorillazDiscordBot.Domain` | Entidades, regras, políticas e contratos (persistência + serviços trocáveis). | — |
 | `GorillazDiscordBot.Infra` | Implementações MongoDB, opções e normalização de mídia. | `Domain` |
 | `GorillazDiscordBot.Tests` | Testes de regras, serviços, repositórios, mapeamentos e módulos. | Projetos da solução |
 
@@ -49,9 +49,11 @@ flowchart LR
 ## Responsabilidades por camada
 
 - **API:** adapta eventos e interações do Discord ao backend e compõe as dependências.
-- **Domain:** concentra o modelo de negócio e contratos que independem de infraestrutura.
+- **Domain:** concentra o modelo de negócio, políticas e contratos que independem de infraestrutura.
 - **Infra:** implementa os contratos de persistência e detalhes do MongoDB.
 - **Tests:** valida as regras e comportamentos sem acoplar a suíte ao gateway em execução.
+
+Os contratos de serviço econômico são implementados hoje na Api (carteira/loja/identidade/sessões) e são os pontos de troca para o serviço sidecar Coinflux — ver [[Decisões/ADR-0002 - Padrão de extração de serviço (Coinflux)|ADR-0002]] e [[Arquitetura/Backend|Backend]].
 
 ## Navegação
 

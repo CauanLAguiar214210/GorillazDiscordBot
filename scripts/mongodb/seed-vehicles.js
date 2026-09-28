@@ -21,7 +21,7 @@
 // Idempotente: upsert por Key (reexecutar re-aplica os mesmos valores).
 // ============================================================================
 
-//const defaultDbName = "gorillazbot";
+const defaultDbName = "gorillazbot";
 
 const extractDatabaseName = (uri) => {
     const rest = String(uri).replace(/^mongodb(\+srv)?:\/\//i, "");

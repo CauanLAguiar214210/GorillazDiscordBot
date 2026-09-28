@@ -1,0 +1,23 @@
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+[*.cs]
+dotnet_sort_system_directives_first = true
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_predefined_type_for_locals_parameter_members = true:suggestion
+dotnet_style_require_expression_body_for_accessors = true:suggestion
+dotnet_style_require_expression_body_for_methods = when_single_line:suggestion
+
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_expression_bodied_methods = when_single_line:suggestion
+csharp_preserve_single_line_blocks = true
+
+[*.{json,yml,yaml,tf}]
+indent_size = 2

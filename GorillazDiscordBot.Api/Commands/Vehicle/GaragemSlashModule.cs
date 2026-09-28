@@ -23,12 +23,12 @@ public class GaragemSlashModule : InteractionModuleBase<SocketInteractionContext
 
     private readonly ShopService _shop;
     private readonly ICharacterProfileRepository _profiles;
-    private readonly IEconomyAccessor _accessor;
+    private readonly IPrimaryAccountResolver _accessor;
 
     public GaragemSlashModule(
         ShopService shop,
         ICharacterProfileRepository profiles,
-        IEconomyAccessor accessor)
+        IPrimaryAccountResolver accessor)
     {
         _shop = shop;
         _profiles = profiles;

@@ -18,7 +18,7 @@ public class NewCasinoModulesTests
     public NewCasinoModulesTests()
     {
         var economy = Substitute.For<IEconomyRepository>();
-        var accessor = Substitute.For<IEconomyAccessor>();
+        var accessor = Substitute.For<IPrimaryAccountResolver>();
         var shop = Substitute.For<ShopService>(
             Substitute.For<IShopRepository>(),
             economy,
@@ -27,9 +27,9 @@ public class NewCasinoModulesTests
 
         _services = new ServiceCollection()
             .AddSingleton<IEconomyRepository>(economy)
-            .AddSingleton<IEconomyAccessor>(accessor)
+            .AddSingleton<IPrimaryAccountResolver>(accessor)
             .AddSingleton(shop)
-            .AddSingleton(Substitute.For<PayoutService>(economy, accessor, shop))
+            .AddSingleton(Substitute.For<IWalletService>())
             .AddSingleton(new CasinoApiClient(new HttpClient()))
             .AddSingleton(new CasinoBetTracker())
             .BuildServiceProvider();
