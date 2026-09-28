@@ -19,7 +19,7 @@
         { "name": "LUCKY_MONKEY_JWT_ISSUER", "value": "LuckyMonkey" },
         { "name": "LUCKY_MONKEY_JWT_AUDIENCE", "value": "LuckyMonkey.Clients" },
         { "name": "LAVALINK_REST_URI", "value": "http://localhost:2333" },
-        { "name": "LAVALINK_WS_URI", "value": "ws://localhost:2333" },
+        { "name": "LAVALINK_WS_URI", "value": "ws://localhost:2333/v4/websocket" },
         { "name": "LAVALINK_LOCAL_AUDIO_PATH", "value": "sounds" },
         { "name": "TZ", "value": "America/Sao_Paulo" }
       ],

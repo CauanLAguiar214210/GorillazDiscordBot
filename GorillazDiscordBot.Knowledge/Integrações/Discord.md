@@ -24,6 +24,6 @@ Problemas de conexão/mensagens/slash commands: [[Investigação/Problema Discor
 
 ## Áudio (Lavalink)
 
-Reprodução de voz usa o **Lavalink4NET 4.2.2** via sidecar `gorillaz-lavalink` (porta `2333`) contra `DiscordSocketClient` — registrado em `Program.cs` com `AddLavalink()`/`ConfigureLavalink()` após o client. Sons locais ficam em `Api/Resources/Sounds/` (copiados para `sounds/` na imagem Lavalink) e são acessados como `local:<arquivo>`. Em ECS o bot usa `http://localhost:2333` (mesmo pattern do LuckyMonkey). Ver [[Comandos/Áudio|Áudio]].
+Reprodução de voz usa o **Lavalink4NET 4.2.2** via sidecar `gorillaz-lavalink` (porta `2333`) contra `DiscordSocketClient` — registrado em `Program.cs` com `AddLavalink()`/`ConfigureLavalink()` após o client. Sons locais ficam em `Api/Resources/Sounds/` (copiados para `sounds/` na imagem Lavalink) e são acessados como `local:<arquivo>`. Em ECS o bot usa `http://localhost:2333` (mesmo pattern do LuckyMonkey) e o WebSocket em `ws://localhost:2333/v4/websocket` — o path `/v4/websocket` é obrigatório no Lavalink ≥ 4. Sem ele a conexão cai no shim legado do v3, que responde 200 mas nunca fica ready e o comando retorna "Servidor de música (Lavalink) indisponível". Ver [[Comandos/Áudio|Áudio]].
 
 > **DAVE/E2EE**: desde 02/03/2026 o Discord exige o protocolo DAVE para calls não-stage. Lavalink **≥ 4.2.0** e client **Lavalink4NET ≥ 4.1.0** são obrigatórios; stacks antigas caem com close code **4017** (`E2EE/DAVE protocol required`, logger `moe.kyokobot.koe`) — o player parece ok, mas o áudio chega mudo ao canal.
