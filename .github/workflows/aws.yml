@@ -113,6 +113,31 @@ jobs:
         export LAVALINK_PASSWORD_ARN=$(echo -n "$LAVALINK_PASSWORD_ARN" | tr -d '\r\n')
         envsubst < task-definition.template.json > task-definition.json
 
+    - name: Validate rendered task definition
+      run: |
+        python3 - <<'PY'
+        import json, sys
+
+        with open("task-definition.json") as f:
+            td = json.load(f)
+
+        bot = next((c for c in td["containerDefinitions"] if c["name"] == "bot"), None)
+        if bot is None:
+            sys.exit("::error::container 'bot' ausente no task definition")
+
+        env = {e["name"]: e.get("value") for e in bot["environment"]}
+        ws_uri = env.get("LAVALINK_WS_URI", "")
+        print(f"LAVALINK_WS_URI={ws_uri}")
+
+        if not ws_uri.endswith("/v4/websocket"):
+            sys.exit(
+                "::error::LAVALINK_WS_URI deve apontar para /v4/websocket "
+                f"(Lavalink v4). Valor: {ws_uri}"
+            )
+
+        print("OK: endpoint WebSocket do Lavalink v4")
+        PY
+
     - name: Render Amazon ECS task definition
       id: task-def
       uses: aws-actions/amazon-ecs-render-task-definition@v1
