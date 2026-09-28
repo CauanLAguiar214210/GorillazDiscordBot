@@ -230,6 +230,7 @@ public static class MongoMappings
     {
         var classMap = new BsonClassMap(typeof(T));
         classMap.AutoMap();
+        classMap.SetIgnoreExtraElements(true);
         classMap.SetIdMember(classMap.GetMemberMap(nameof(IGuildSettings.GuildId)));
         BsonClassMap.RegisterClassMap(classMap);
     }

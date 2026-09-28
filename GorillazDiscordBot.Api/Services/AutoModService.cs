@@ -11,20 +11,23 @@ namespace GorillazDiscordBot.Services;
 
 public class AutoModService : BotEventSink
 {
-    private static readonly TimeSpan PruneWindow = TimeSpan.FromMinutes(1);
+    private const int FloodWindowFloorSeconds = 60;
 
     private readonly ISettingsRepository<Guild> _guildRepository;
     private readonly IGuildMemberRepository _memberRepository;
+    private readonly StrikeEnforcementService _strikeEnforcement;
     private readonly ILogger<AutoModService> _logger;
     private readonly ConcurrentDictionary<(ulong GuildId, ulong UserId), List<DateTime>> _messageLog = new();
 
     public AutoModService(
         ISettingsRepository<Guild> guildRepository,
         IGuildMemberRepository memberRepository,
+        StrikeEnforcementService strikeEnforcement,
         ILogger<AutoModService> logger)
     {
         _guildRepository = guildRepository;
         _memberRepository = memberRepository;
+        _strikeEnforcement = strikeEnforcement;
         _logger = logger;
     }
 
@@ -53,7 +56,30 @@ public class AutoModService : BotEventSink
                 return;
             }
 
-            var history = TrackTimestamp(guildChannel.Guild.Id, message.Author.Id, utcNow);
+            if (settings.BlockInvites && AutoModRules.ContainsInvite(message.Content))
+            {
+                await EnforceAsync(message, guildChannel.Guild, settings,
+                    new AutoModVerdict(true, settings.Action, "convite bloqueado"));
+                return;
+            }
+
+            if (settings.BlockEveryonePings && AutoModRules.MentionsEveryone(message.Content))
+            {
+                await EnforceAsync(message, guildChannel.Guild, settings,
+                    new AutoModVerdict(true, settings.Action, "menção a @everyone/@here bloqueada"));
+                return;
+            }
+
+            if (settings.MaxMentionsPerMessage > 0
+                && AutoModRules.CountMentions(message.Content) > settings.MaxMentionsPerMessage)
+            {
+                await EnforceAsync(message, guildChannel.Guild, settings,
+                    new AutoModVerdict(true, settings.Action,
+                        $"excesso de menções ({settings.MaxMentionsPerMessage}+)"));
+                return;
+            }
+
+            var history = TrackTimestamp(guildChannel.Guild.Id, message.Author.Id, utcNow, settings.IntervalSeconds);
             if (AutoModRules.IsFlooding(settings, history, utcNow))
             {
                 await EnforceAsync(message, guildChannel.Guild, settings,
@@ -67,11 +93,16 @@ public class AutoModService : BotEventSink
         }
     }
 
-    private List<DateTime> TrackTimestamp(ulong guildId, ulong userId, DateTime utcNow)
+    private List<DateTime> TrackTimestamp(ulong guildId, ulong userId, DateTime utcNow, int intervalSeconds)
     {
-        var history = _messageLog.GetOrAdd((guildId, userId), static _ => new List<DateTime>(capacity: 32));
+        var window = TimeSpan.FromSeconds(Math.Max(FloodWindowFloorSeconds, intervalSeconds));
+        var history = _messageLog.GetOrAdd((guildId, userId), static _ => new List<DateTime>(capacity: 64));
         history.Add(utcNow);
-        history.RemoveAll(t => t < utcNow - PruneWindow);
+        history.RemoveAll(t => t < utcNow - window);
+
+        if (history.Count == 0)
+            _messageLog.TryRemove((guildId, userId), out _);
+
         return history;
     }
 
@@ -102,6 +133,10 @@ public class AutoModService : BotEventSink
                     AddedBy = guild.CurrentUser.Id,
                     CreatedAt = DateTime.UtcNow
                 });
+
+            var member = await _memberRepository.GetAsync(guild.Id, message.Author.Id);
+            var total = member?.Warnings.Count ?? 1;
+            await _strikeEnforcement.EvaluateAsync(guild, message.Author.Id, message.Author.GetDisplayName(), total);
         }
         catch (Exception ex)
         {

@@ -5,6 +5,7 @@ using FluentAssertions;
 using GorillazDiscordBot.Api.Commands.Moderation;
 using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -14,6 +15,7 @@ public class ModLogSlashModuleTests
 {
     private static IServiceProvider CreateServices() => new ServiceCollection()
         .AddSingleton(Substitute.For<ISettingsRepository<Guild>>())
+        .AddSingleton<GuildSettingsAccessor>()
         .BuildServiceProvider();
 
     private static async Task<InteractionService> CreateInteractionServiceAsync()

@@ -107,6 +107,7 @@ builder.Services.AddSingleton<IReleaseNoteRepository, ReleaseNoteRepository>();
 
 // Guild settings (cache + MongoDB, um documento por servidor)
 builder.Services.AddSingleton(typeof(ISettingsRepository<>), typeof(SettingsRepository<>));
+builder.Services.AddSingleton<GuildSettingsAccessor>();
 builder.Services.AddSingleton<IVoiceChannelService, VoiceChannelService>();
 
 // Event sinks (handlers dedicados de eventos do Discord)
@@ -114,12 +115,16 @@ builder.Services.AddSingleton<IAltSanctionPolicy, GroupSanctionsPolicy>();
 builder.Services.AddSingleton<IBotEventSink, GuildEventsSink>();
 
 // Auto-moderação (palavras bloqueadas + proteção contra flood)
-builder.Services.AddSingleton<AutoModService>();
+builder.Services.AddSingleton<StrikeEnforcementService>();
+    builder.Services.AddSingleton<CommandPolicyService>();
+    builder.Services.AddSingleton<AutoModService>();
 builder.Services.AddSingleton<IBotEventSink>(sp => sp.GetRequiredService<AutoModService>());
 
 // Log de servidor (auditoria de mensagens, membros e moderação)
 builder.Services.AddSingleton<GuildLogService>();
-builder.Services.AddSingleton<IBotEventSink>(sp => sp.GetRequiredService<GuildLogService>());
+    builder.Services.AddSingleton<IBotEventSink>(sp => sp.GetRequiredService<GuildLogService>());
+    builder.Services.AddSingleton<RaidGuardService>();
+    builder.Services.AddSingleton<IBotEventSink>(sp => sp.GetRequiredService<RaidGuardService>());
 
 // Áudio ao entrar/sair de canais de voz (configurável por guilda)
 builder.Services.AddSingleton<JoinLeaveSoundService>();

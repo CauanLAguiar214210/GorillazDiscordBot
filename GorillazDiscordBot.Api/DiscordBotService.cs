@@ -31,6 +31,7 @@ public class DiscordBotService : IHostedService
     private readonly ReleaseAnnouncementService _releaseAnnouncementService;
     private readonly IEnumerable<IBotEventSink> _eventSinks;
     private readonly IAudioService _audioService;
+    private readonly CommandPolicyService _commandPolicy;
 
     public DiscordBotService(
         DiscordSocketClient client,
@@ -44,7 +45,8 @@ public class DiscordBotService : IHostedService
         ShopService shopService,
         ReleaseAnnouncementService releaseAnnouncementService,
         IEnumerable<IBotEventSink> eventSinks,
-        IAudioService audioService)
+        IAudioService audioService,
+        CommandPolicyService commandPolicy)
     {
         _client = client;
         _commands = commands;
@@ -58,6 +60,7 @@ public class DiscordBotService : IHostedService
         _releaseAnnouncementService = releaseAnnouncementService;
         _eventSinks = eventSinks;
         _audioService = audioService;
+        _commandPolicy = commandPolicy;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -231,6 +234,19 @@ public class DiscordBotService : IHostedService
     {
         try
         {
+            if (interaction is SocketSlashCommand slash
+                && interaction.GuildId.HasValue
+                && _client.GetGuild(interaction.GuildId.Value) is SocketGuild guild
+                && guild.GetUser(interaction.User.Id) is SocketGuildUser guildUser)
+            {
+                var policyResult = await _commandPolicy.CheckAsync(guild, guildUser, slash.Data.Name);
+                if (!policyResult.Allowed)
+                {
+                    await interaction.RespondAsync(policyResult.Reason ?? "Comando bloqueado.", ephemeral: true);
+                    return;
+                }
+            }
+
             var context = new SocketInteractionContext(_client, interaction);
             var result = await _interactions.ExecuteCommandAsync(context, _services);
 
@@ -272,6 +288,22 @@ public class DiscordBotService : IHostedService
             return;
 
         var context = new SocketCommandContext(_client, message);
+        var searchResult = _commands.Search(context, argPos);
+        var matchedCommand = searchResult.IsSuccess
+            ? searchResult.Commands.FirstOrDefault().Command
+            : null;
+
+        if (matchedCommand != null && context.Guild != null
+            && context.Guild.GetUser(message.Author.Id) is SocketGuildUser policyUser)
+        {
+            var policyResult = await _commandPolicy.CheckAsync(context.Guild, policyUser, matchedCommand.Name);
+            if (!policyResult.Allowed)
+            {
+                await context.Channel.SendMessageAsync(policyResult.Reason ?? "Comando bloqueado.");
+                return;
+            }
+        }
+
         var result = await _commands.ExecuteAsync(context, argPos, _services);
 
         if (!result.IsSuccess && result.Error != CommandError.UnknownCommand)

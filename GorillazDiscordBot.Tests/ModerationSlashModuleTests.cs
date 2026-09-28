@@ -4,7 +4,10 @@ using Discord.WebSocket;
 using FluentAssertions;
 using GorillazDiscordBot.Api.Commands.Moderation;
 using GorillazDiscordBot.Domain.Interfaces;
+using GorillazDiscordBot.Entity;
+using GorillazDiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace GorillazDiscordBot.Tests;
@@ -16,6 +19,13 @@ public class ModerationSlashModuleTests
     {
         var services = new ServiceCollection()
             .AddSingleton(Substitute.For<IGuildMemberRepository>())
+            .AddSingleton(Substitute.For<GuildLogService>(
+                Substitute.For<ISettingsRepository<Guild>>(),
+                Substitute.For<ILogger<GuildLogService>>()))
+            .AddSingleton(Substitute.For<StrikeEnforcementService>(
+                Substitute.For<ISettingsRepository<Guild>>(),
+                Substitute.For<IGuildMemberRepository>(),
+                Substitute.For<ILogger<StrikeEnforcementService>>()))
             .BuildServiceProvider();
 
         var interactions = new InteractionService(new DiscordSocketClient());
@@ -50,6 +60,13 @@ public class ModerationSlashModuleTests
     {
         var services = new ServiceCollection()
             .AddSingleton(Substitute.For<IGuildMemberRepository>())
+            .AddSingleton(Substitute.For<GuildLogService>(
+                Substitute.For<ISettingsRepository<Guild>>(),
+                Substitute.For<ILogger<GuildLogService>>()))
+            .AddSingleton(Substitute.For<StrikeEnforcementService>(
+                Substitute.For<ISettingsRepository<Guild>>(),
+                Substitute.For<IGuildMemberRepository>(),
+                Substitute.For<ILogger<StrikeEnforcementService>>()))
             .BuildServiceProvider();
 
         var interactions = new InteractionService(new DiscordSocketClient());
@@ -74,6 +91,13 @@ public class ModerationSlashModuleTests
     {
         var services = new ServiceCollection()
             .AddSingleton(Substitute.For<IGuildMemberRepository>())
+            .AddSingleton(Substitute.For<GuildLogService>(
+                Substitute.For<ISettingsRepository<Guild>>(),
+                Substitute.For<ILogger<GuildLogService>>()))
+            .AddSingleton(Substitute.For<StrikeEnforcementService>(
+                Substitute.For<ISettingsRepository<Guild>>(),
+                Substitute.For<IGuildMemberRepository>(),
+                Substitute.For<ILogger<StrikeEnforcementService>>()))
             .BuildServiceProvider();
 
         var interactions = new InteractionService(new DiscordSocketClient());
@@ -102,6 +126,13 @@ public class ModerationSlashModuleTests
     {
         var services = new ServiceCollection()
             .AddSingleton(Substitute.For<IGuildMemberRepository>())
+            .AddSingleton(Substitute.For<GuildLogService>(
+                Substitute.For<ISettingsRepository<Guild>>(),
+                Substitute.For<ILogger<GuildLogService>>()))
+            .AddSingleton(Substitute.For<StrikeEnforcementService>(
+                Substitute.For<ISettingsRepository<Guild>>(),
+                Substitute.For<IGuildMemberRepository>(),
+                Substitute.For<ILogger<StrikeEnforcementService>>()))
             .BuildServiceProvider();
 
         var interactions = new InteractionService(new DiscordSocketClient());

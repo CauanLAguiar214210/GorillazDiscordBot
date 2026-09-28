@@ -4,6 +4,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
+using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Api.Commands.Moderation;
@@ -14,10 +15,17 @@ namespace GorillazDiscordBot.Api.Commands.Moderation;
 public class ModerationSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly IGuildMemberRepository _memberRepository;
+    private readonly GuildLogService _logService;
+    private readonly StrikeEnforcementService _strikeEnforcement;
 
-    public ModerationSlashModule(IGuildMemberRepository memberRepository)
+    public ModerationSlashModule(
+        IGuildMemberRepository memberRepository,
+        GuildLogService logService,
+        StrikeEnforcementService strikeEnforcement)
     {
         _memberRepository = memberRepository;
+        _logService = logService;
+        _strikeEnforcement = strikeEnforcement;
     }
 
     [SlashCommand("limpar", "Apaga até N mensagens do canal (opcional: só de um usuário)")]
@@ -131,7 +139,10 @@ public class ModerationSlashModule : InteractionModuleBase<SocketInteractionCont
 
         try
         {
+            _logService.MarkKicked(Context.Guild.Id, guildUser.Id, motivo ?? "Sem motivo informado");
             await guildUser.KickAsync(motivo ?? "Sem motivo informado");
+            await DmNotifier.TryNotifyAsync(usuario, "👢 Você foi expulso",
+                $"Servidor: **{Context.Guild.Name}**\nMotivo: {(motivo ?? "Sem motivo informado")}", Color.Orange);
             await RespondAsync($"👢 **{usuario.GetDisplayName()}** foi expulso{(motivo != null ? $" — {motivo}" : ".")}");
         }
         catch (Exception ex)
@@ -155,6 +166,8 @@ public class ModerationSlashModule : InteractionModuleBase<SocketInteractionCont
             var pruneDays = Math.Clamp(dias, 0, 7);
             await Context.Guild.AddBanAsync(usuario.Id, pruneDays, motivo);
             await _memberRepository.SetBanAsync(Context.Guild.Id, usuario.Id, usuario.GetDisplayName(), true);
+            await DmNotifier.TryNotifyAsync(usuario, "⛔ Você foi banido",
+                $"Servidor: **{Context.Guild.Name}**\nMotivo: {(motivo ?? "Sem motivo informado")}\nMensagens apagadas: {pruneDays} dias", Color.Red);
             await RespondAsync($"⛔ **{usuario.GetDisplayName()}** foi banido (apaga {pruneDays} dias de mensagens){(motivo != null ? $" — {motivo}" : "")}.");
         }
         catch (Exception ex)
@@ -180,6 +193,9 @@ public class ModerationSlashModule : InteractionModuleBase<SocketInteractionCont
         try
         {
             await Context.Guild.RemoveBanAsync(id);
+            var member = await _memberRepository.GetAsync(Context.Guild.Id, id);
+            if (member != null)
+                await _memberRepository.SetBanAsync(Context.Guild.Id, id, member.Username, false);
             await RespondAsync($"✅ Usuário <@{id}> foi desbanido.");
         }
         catch (Exception ex)
@@ -192,6 +208,9 @@ public class ModerationSlashModule : InteractionModuleBase<SocketInteractionCont
     [RequireUserPermission(GuildPermission.BanMembers)]
     public async Task BanimentosAsync()
     {
+        if (!await GuardBotAsync(GuildPermission.BanMembers))
+            return;
+
         var bans = (await Context.Guild.GetBansAsync().FlattenAsync()).ToList();
 
         if (bans.Count == 0)
@@ -235,6 +254,17 @@ public class ModerationSlashModule : InteractionModuleBase<SocketInteractionCont
         try
         {
             await guildUser.ModifyAsync(m => m.TimedOutUntil = minutos <= 0 ? null : DateTimeOffset.UtcNow.AddMinutes(minutos));
+            await _memberRepository.SetMuteAsync(
+                Context.Guild.Id,
+                usuario.Id,
+                usuario.GetDisplayName(),
+                minutos <= 0 ? null : DateTime.UtcNow.AddMinutes(minutos));
+
+            if (minutos > 0)
+            {
+                await DmNotifier.TryNotifyAsync(usuario, "🤫 Você recebeu um timeout",
+                    $"Servidor: **{Context.Guild.Name}**\nDuração: {minutos} minutos\nMotivo: {(motivo ?? "Sem motivo informado")}", Color.DarkRed);
+            }
 
             await RespondAsync(minutos <= 0
                 ? $"✅ Timeout removido de **{usuario.GetDisplayName()}**."
@@ -263,6 +293,28 @@ public class ModerationSlashModule : InteractionModuleBase<SocketInteractionCont
 
         var member = await _memberRepository.GetAsync(Context.Guild.Id, usuario.Id);
         var total = member?.Warnings.Count ?? 1;
+
+        await _logService.RecordAsync(Context.Guild, log => log.LogWarnings,
+            GuildLogEmbeds.WarningCreated(usuario.GetDisplayName(), usuario.Id, warning.Reason, total, Context.User.Id));
+
+        await DmNotifier.TryNotifyAsync(usuario, "🔨 Você recebeu um aviso",
+            $"Servidor: **{Context.Guild.Name}**\nAviso **#{total}** — **{warning.Reason}**", Color.Gold);
+
+        var strikeOutcome = await _strikeEnforcement.EvaluateAsync(Context.Guild, usuario.Id, usuario.GetDisplayName(), total);
+
+        if (strikeOutcome.Banned)
+        {
+            await RespondAsync($"🔨 Aviso **#{total}** aplicado a **{usuario.GetDisplayName()}** — **{warning.Reason}**\n" +
+                               $"⛔ **Banimento automático por strikes ({total} avisos).**");
+            return;
+        }
+
+        if (strikeOutcome.TimedOut)
+        {
+            await RespondAsync($"🔨 Aviso **#{total}** aplicado a **{usuario.GetDisplayName()}** — **{warning.Reason}**\n" +
+                               $"🤫 **Timeout automático por strikes ({total} avisos).**");
+            return;
+        }
 
         await RespondAsync($"🔨 Aviso **#{total}** aplicado a **{usuario.GetDisplayName()}** — **{warning.Reason}**");
     }
@@ -330,6 +382,13 @@ public class ModerationSlashModule : InteractionModuleBase<SocketInteractionCont
         [Summary("aviso_id", "ID do aviso (visto em /moderacao avisos)")] string avisoId)
     {
         var removed = await _memberRepository.RemoveWarningAsync(Context.Guild.Id, usuario.Id, avisoId);
+        if (removed)
+        {
+            var member = await _memberRepository.GetAsync(Context.Guild.Id, usuario.Id);
+            var total = member?.Warnings.Count ?? 0;
+            await _logService.RecordAsync(Context.Guild, log => log.LogWarnings,
+                GuildLogEmbeds.WarningRemoved(usuario.GetDisplayName(), usuario.Id, avisoId, total, Context.User.Id));
+        }
         await RespondAsync(removed
             ? $"✅ Aviso `{avisoId}` removido de **{usuario.GetDisplayName()}**."
             : $"❌ Aviso `{avisoId}` não encontrado para **{usuario.GetDisplayName()}**.");

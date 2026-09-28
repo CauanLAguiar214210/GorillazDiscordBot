@@ -33,6 +33,12 @@ public class AutoModSlashModule : InteractionModuleBase<SocketInteractionContext
             .AddField("Ação", settings.Action == AutomodAction.Timeout ? "Excluir + timeout" : "Excluir mensagem", true)
             .AddField("Limite de flood", $"{settings.MaxMessagesPerInterval} msgs / {settings.IntervalSeconds}s", true)
             .AddField("Timeout", $"{settings.TimeoutMinutes} min", true)
+            .AddField("Convites", SettingsBoolean(settings.BlockInvites), true)
+            .AddField("@everyone/@here", SettingsBoolean(settings.BlockEveryonePings), true)
+            .AddField("Menções por msg", settings.MaxMentionsPerMessage > 0 ? $"máx. {settings.MaxMentionsPerMessage}" : BotConstants.NotSet, true)
+            .AddField("Strikes", settings.EnableStrikes
+                ? $"timeout em {settings.StrikeTimeoutWarnings}, ban em {settings.StrikeBanWarnings}"
+                : BotConstants.NotSet, true)
             .WithDescription(settings.BlockedWords.Count == 0
                 ? "Nenhuma palavra bloqueada configurada."
                 : $"**Palavras bloqueadas ({settings.BlockedWords.Count}):**\n{string.Join(", ", settings.BlockedWords.Select(FormatWord))}")
@@ -172,6 +178,50 @@ public class AutoModSlashModule : InteractionModuleBase<SocketInteractionContext
 
         await RespondAsync(embed: embed);
     }
+
+    [SlashCommand("proteger", "Proteções de convites, @everyone/@here e limite de menções")]
+    public async Task ProtegerAsync(
+        [Summary("convites", "Bloqueia convites do Discord")] bool? convites = null,
+        [Summary("marcacoes-todos", "Bloqueia @everyone e @here")] bool? marcacoesTodos = null,
+        [Summary("limite-mencoes", "Limite de menções por mensagem (0 desativa)")] int? limiteMencoes = null)
+    {
+        if (!await CommandGuards.GuardAdminInteractionAsync(Context))
+            return;
+
+        var settings = await GetSettingsAsync();
+        if (convites.HasValue) settings.BlockInvites = convites.Value;
+        if (marcacoesTodos.HasValue) settings.BlockEveryonePings = marcacoesTodos.Value;
+        if (limiteMencoes.HasValue) settings.MaxMentionsPerMessage = Math.Clamp(limiteMencoes.Value, 0, 50);
+        await SaveAsync(settings);
+
+        await RespondAsync(
+            $"- 🚫 **Convites:** {SettingsBoolean(settings.BlockInvites)}\n" +
+            $"- 📣 **@everyone/@here:** {SettingsBoolean(settings.BlockEveryonePings)}\n" +
+            $"- 🔔 **Menções por mensagem:** {settings.MaxMentionsPerMessage}");
+    }
+
+    [SlashCommand("strikes", "Ativa/desativa os strikes e define os limites de avisos para punição")]
+    public async Task StrikesAsync(
+        [Summary("ativar", "true ativa, false desativa os strikes")] bool? ativar = null,
+        [Summary("timeout", "Aplicar timeout a partir de N avisos")] int? timeout = null,
+        [Summary("banir", "Banir a partir de N avisos")] int? banir = null)
+    {
+        if (!await CommandGuards.GuardAdminInteractionAsync(Context))
+            return;
+
+        var settings = await GetSettingsAsync();
+        if (ativar.HasValue) settings.EnableStrikes = ativar.Value;
+        if (timeout.HasValue) settings.StrikeTimeoutWarnings = Math.Clamp(timeout.Value, 1, 100);
+        if (banir.HasValue) settings.StrikeBanWarnings = Math.Clamp(banir.Value, 1, 100);
+        await SaveAsync(settings);
+
+        await RespondAsync(
+            $"⚡ Strikes **{(settings.EnableStrikes ? "ativados" : "desativados")}** neste servidor.\n" +
+            $"- 🤫 Timeout com **{settings.StrikeTimeoutWarnings}+ avisos**\n" +
+            $"- ⛔ Banimento com **{settings.StrikeBanWarnings}+ avisos**");
+    }
+
+    private static string SettingsBoolean(bool value) => value ? "🟢 Ativo" : "🔴 Desativado";
 
     private async Task<AutomodSettings> GetSettingsAsync()
     {

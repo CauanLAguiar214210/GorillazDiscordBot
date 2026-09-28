@@ -3,6 +3,7 @@ using GorillazDiscordBot.Domain.Entity.Economy;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Infra.Configuration;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace GorillazDiscordBot.Data.Repository;
@@ -47,6 +48,13 @@ public class ShopRepository : IShopRepository
     {
         var filter = Builders<ShopItem>.Filter.Eq(i => i.Key, item.Key);
         var options = new ReplaceOptions { IsUpsert = true };
+
+        var existing = await _items.Find(filter).FirstOrDefaultAsync();
+        if (existing is not null && !string.IsNullOrEmpty(existing.Id))
+            item.Id = existing.Id;
+        else if (string.IsNullOrWhiteSpace(item.Id))
+            item.Id = ObjectId.GenerateNewId().ToString();
+
         await _items.ReplaceOneAsync(filter, item, options);
     }
 

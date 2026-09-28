@@ -1,10 +1,7 @@
 using FluentAssertions;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Entity;
-using GorillazDiscordBot.Domain.Interfaces;
-using Microsoft.Extensions.Options;
-using NSubstitute;
-using GorillazDiscordBot.Api.Commands.Config;
+using GorillazDiscordBot.Utils;
 
 namespace GorillazDiscordBot.Tests;
 
@@ -13,42 +10,27 @@ public class PrefixResolverTests
     private const string DefaultPrefix = "macaco ";
 
     [Fact]
-    public void GetCurrentPrefix_SemPrefixoPersonalizado_RetornaPadraoGlobal()
+    public void Resolve_SemPrefixoPersonalizado_RetornaPadraoGlobal()
     {
-        var module = CreateModule();
-
-        var result = module.GetCurrentPrefix(new Guild { GuildId = 1 });
-
-        result.Should().Be(DefaultPrefix);
+        PrefixResolver.Resolve(null, DefaultPrefix).Should().Be(DefaultPrefix);
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void GetCurrentPrefix_ComPrefixoNuloOuVazio_RetornaPadraoGlobal(string? prefix)
+    public void Resolve_ComPrefixoNuloOuVazio_RetornaPadraoGlobal(string? prefix)
     {
-        var module = CreateModule();
-
-        var result = module.GetCurrentPrefix(new Guild { GuildId = 1, Prefix = new PrefixSettings { Prefix = prefix } });
+        var result = PrefixResolver.Resolve(prefix, DefaultPrefix);
 
         result.Should().Be(DefaultPrefix);
     }
 
     [Fact]
-    public void GetCurrentPrefix_ComPrefixoPersonalizado_RetornaPrefixo()
+    public void Resolve_ComPrefixoPersonalizado_RetornaPrefixo()
     {
-        var module = CreateModule();
-
-        var result = module.GetCurrentPrefix(new Guild { GuildId = 1, Prefix = new PrefixSettings { Prefix = "!" } });
+        var result = PrefixResolver.Resolve("!", DefaultPrefix);
 
         result.Should().Be("!");
-    }
-
-    private static PrefixModule CreateModule()
-    {
-        var repository = Substitute.For<ISettingsRepository<Guild>>();
-        var options = Options.Create(new BotOptions { CommandPrefix = DefaultPrefix });
-        return new PrefixModule(repository, options);
     }
 }

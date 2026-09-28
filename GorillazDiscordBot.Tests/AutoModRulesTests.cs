@@ -100,4 +100,118 @@ public class AutoModRulesTests
     [Fact]
     public void IsFlooding_ShouldBeFalse_ForNullCollection()
         => AutoModRules.IsFlooding(DefaultSettings(), null!, DateTime.UtcNow).Should().BeFalse();
+
+    [Theory]
+    [InlineData("discord.gg/abcd123", true)]
+    [InlineData("entra no discord.gg/abcd123 agora", true)]
+    [InlineData("https://discord.com/invite/XYZ-9abc", true)]
+    [InlineData("https://discordapp.com/invite/ABC-123-def", true)]
+    [InlineData("só um texto normal", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void ContainsInvite_ShouldMatch_DiscordInvitePatterns(string? content, bool expected)
+    {
+        AutoModRules.ContainsInvite(content).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("oi @everyone tudo bem", true)]
+    [InlineData("BOM DIA @here", true)]
+    [InlineData("texto sem menção", false)]
+    [InlineData("", false)]
+    public void MentionsEveryone_ShouldMatch_EveryoneAndHere(string? content, bool expected)
+    {
+        AutoModRules.MentionsEveryone(content).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("<@123456789>", 1)]
+    [InlineData("<@123> <@456>", 2)]
+    [InlineData("<@&987> <@&123> <@!555>", 3)]
+    [InlineData("nenhuma menção", 0)]
+    [InlineData("<@123> por favor <@123> pare", 2)]
+    [InlineData("", 0)]
+    [InlineData(null, 0)]
+    public void CountMentions_ShouldCount_UserAndRoleMentions(string? content, int expected)
+    {
+        AutoModRules.CountMentions(content).Should().Be(expected);
+    }
+
+    [Fact]
+    public void IsFlooding_ShouldUse_ConfiguredIntervalWindow()
+    {
+        var settings = DefaultSettings();
+        settings.MaxMessagesPerInterval = 3;
+        settings.IntervalSeconds = 30;
+        var now = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        var withinWindow = new List<DateTime>
+        {
+            now,
+            now.AddSeconds(-1),
+            now.AddSeconds(-15),
+            now.AddSeconds(-29)
+        };
+
+        AutoModRules.IsFlooding(settings, withinWindow, now).Should().BeTrue();
+
+        var outsideWindow = new List<DateTime>
+        {
+            now.AddSeconds(-1),
+            now.AddSeconds(-31),
+            now.AddSeconds(-32),
+            now.AddSeconds(-33)
+        };
+
+        AutoModRules.IsFlooding(settings, outsideWindow, now).Should().BeFalse();
+    }
+
+    [Fact]
+    public void StrikePolicy_ShouldBeOff_WhenStrikesDisabled()
+    {
+        var settings = DefaultSettings();
+        settings.EnableStrikes = false;
+        settings.StrikeTimeoutWarnings = 3;
+        settings.StrikeBanWarnings = 6;
+
+        StrikePolicy.ShouldTimeout(settings, 3).Should().BeFalse();
+        StrikePolicy.ShouldBan(settings, 6).Should().BeFalse();
+    }
+
+    [Fact]
+    public void StrikePolicy_ShouldTimeout_ExactlyAtThreshold()
+    {
+        var settings = DefaultSettings();
+        settings.EnableStrikes = true;
+        settings.StrikeTimeoutWarnings = 3;
+        settings.StrikeBanWarnings = 6;
+
+        StrikePolicy.ShouldTimeout(settings, 3).Should().BeTrue();
+        StrikePolicy.ShouldTimeout(settings, 4).Should().BeFalse();
+    }
+
+    [Fact]
+    public void StrikePolicy_ShouldBan_AtOrAboveThreshold()
+    {
+        var settings = DefaultSettings();
+        settings.EnableStrikes = true;
+        settings.StrikeTimeoutWarnings = 3;
+        settings.StrikeBanWarnings = 6;
+
+        StrikePolicy.ShouldBan(settings, 6).Should().BeTrue();
+        StrikePolicy.ShouldBan(settings, 9).Should().BeTrue();
+        StrikePolicy.ShouldBan(settings, 5).Should().BeFalse();
+    }
+
+    [Fact]
+    public void StrikePolicy_ShouldNotTimeout_WhenTimeoutAtOrAboveBanThreshold()
+    {
+        var settings = DefaultSettings();
+        settings.EnableStrikes = true;
+        settings.StrikeTimeoutWarnings = 6;
+        settings.StrikeBanWarnings = 6;
+
+        StrikePolicy.ShouldTimeout(settings, 6).Should().BeFalse();
+        StrikePolicy.ShouldBan(settings, 6).Should().BeTrue();
+    }
 }
