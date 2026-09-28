@@ -10,6 +10,7 @@ using GorillazDiscordBot.Entity;
 using GorillazDiscordBot.Events;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Utils;
+using Lavalink4NET;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -29,6 +30,7 @@ public class DiscordBotService : IHostedService
     private readonly ShopService _shopService;
     private readonly ReleaseAnnouncementService _releaseAnnouncementService;
     private readonly IEnumerable<IBotEventSink> _eventSinks;
+    private readonly IAudioService _audioService;
 
     public DiscordBotService(
         DiscordSocketClient client,
@@ -41,7 +43,8 @@ public class DiscordBotService : IHostedService
         IChatInteractionService chatInteractionService,
         ShopService shopService,
         ReleaseAnnouncementService releaseAnnouncementService,
-        IEnumerable<IBotEventSink> eventSinks)
+        IEnumerable<IBotEventSink> eventSinks,
+        IAudioService audioService)
     {
         _client = client;
         _commands = commands;
@@ -54,6 +57,7 @@ public class DiscordBotService : IHostedService
         _shopService = shopService;
         _releaseAnnouncementService = releaseAnnouncementService;
         _eventSinks = eventSinks;
+        _audioService = audioService;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -114,6 +118,7 @@ public class DiscordBotService : IHostedService
 
         await _client.StopAsync();
         await _client.LogoutAsync();
+        await StopAudioAsync();
     }
 
     private Task LogAsync(LogMessage log)
@@ -134,6 +139,33 @@ public class DiscordBotService : IHostedService
         await SeedShopAsync();
         await RegisterSlashCommandsAsync();
         await AnnounceReleasesAsync();
+        await StartAudioAsync();
+    }
+
+    private async Task StartAudioAsync()
+    {
+        try
+        {
+            await _audioService.StartAsync(default);
+            await _audioService.WaitForReadyAsync(default).AsTask().WaitAsync(TimeSpan.FromSeconds(30));
+            _logger.LogInformation("Servidor de música (Lavalink) pronto");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Servidor de música (Lavalink) indisponível no boot — os comandos de áudio reconectarão automaticamente");
+        }
+    }
+
+    private async Task StopAudioAsync()
+    {
+        try
+        {
+            await _audioService.StopAsync(default);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Falha ao parar servidor de música no desligamento");
+        }
     }
 
     private bool _releasesAnnounced;

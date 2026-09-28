@@ -23,6 +23,7 @@ Catálogo dos comandos e módulos do bot, agrupados por área funcional. Módulo
 - [[Comandos/Interações|Interações]] — respostas de chat configuráveis por guild.
 - [[Comandos/Moderação|Moderação]] — ações administrativas na guild.
 - [[Comandos/Releases|Releases]] — publicação de releases.
+- [[Comandos/Áudio|Áudio]] — sons no canal de voz (Lavalink), agendamentos.
 - [[Comandos/Ajuda|Ajuda]] — help e catálogo de comandos.
 - [[Comandos/Outros|Outros]] — contas, diversão, GIFs, ranking e utilidades.
 

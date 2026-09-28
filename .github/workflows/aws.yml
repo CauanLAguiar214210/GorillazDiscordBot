@@ -15,6 +15,9 @@ on:
       - 'Dockerfile'
       - 'nuget.config'
       - 'task-definition.template.json'
+      - 'docker-compose.yml'
+      - 'lavalink/**'
+      - 'GorillazDiscordBot.Api/Resources/**'
       - '.github/workflows/aws.yml'
       
 permissions:
@@ -69,6 +72,19 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+    - name: Build and push Lavalink image to Amazon ECR
+      id: build-lavalink
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: lavalink/Dockerfile
+        push: true
+        tags: |
+          ${{ steps.login-ecr.outputs.registry }}/gorillaz-lavalink:${{ github.sha }}
+          ${{ steps.login-ecr.outputs.registry }}/gorillaz-lavalink:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
     - name: Render task definition from template
       id: render-template
       env:
@@ -78,6 +94,7 @@ jobs:
         MONGODB_CONN_ARN: ${{ vars.MONGODB_CONN_ARN }}
         LUCKY_MONKEY_API_KEY_ARN: ${{ vars.LUCKY_MONKEY_API_KEY_ARN }}
         LUCKY_MONKEY_JWT_SIGNING_KEY_ARN: ${{ vars.LUCKY_MONKEY_JWT_SIGNING_KEY_ARN }}
+        LAVALINK_PASSWORD_ARN: ${{ vars.LAVALINK_PASSWORD_ARN }}
       run: |
         : "${AWS_ACCOUNT_ID:?AWS_ACCOUNT_ID variable nao configurado}"
         : "${DISCORD_TOKEN_ARN:?DISCORD_TOKEN_ARN variable nao configurado}"
@@ -85,6 +102,7 @@ jobs:
         : "${MONGODB_CONN_ARN:?MONGODB_CONN_ARN variable nao configurado}"
         : "${LUCKY_MONKEY_API_KEY_ARN:?LUCKY_MONKEY_API_KEY_ARN variable nao configurado}"
         : "${LUCKY_MONKEY_JWT_SIGNING_KEY_ARN:?LUCKY_MONKEY_JWT_SIGNING_KEY_ARN variable nao configurado}"
+        : "${LAVALINK_PASSWORD_ARN:?LAVALINK_PASSWORD_ARN variable nao configurado}"
         # sanitize: remove accidental newlines/carriage-returns from variable values
         export AWS_ACCOUNT_ID=$(echo -n "$AWS_ACCOUNT_ID" | tr -d '\r\n')
         export DISCORD_TOKEN_ARN=$(echo -n "$DISCORD_TOKEN_ARN" | tr -d '\r\n')
@@ -92,6 +110,7 @@ jobs:
         export MONGODB_CONN_ARN=$(echo -n "$MONGODB_CONN_ARN" | tr -d '\r\n')
         export LUCKY_MONKEY_API_KEY_ARN=$(echo -n "$LUCKY_MONKEY_API_KEY_ARN" | tr -d '\r\n')
         export LUCKY_MONKEY_JWT_SIGNING_KEY_ARN=$(echo -n "$LUCKY_MONKEY_JWT_SIGNING_KEY_ARN" | tr -d '\r\n')
+        export LAVALINK_PASSWORD_ARN=$(echo -n "$LAVALINK_PASSWORD_ARN" | tr -d '\r\n')
         envsubst < task-definition.template.json > task-definition.json
 
     - name: Render Amazon ECS task definition

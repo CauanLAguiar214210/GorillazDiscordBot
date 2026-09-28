@@ -12,6 +12,7 @@ using GorillazDiscordBot.Domain.Policies;
 using GorillazDiscordBot.Events;
 using GorillazDiscordBot.Services;
 using GorillazDiscordBot.Services.Interfaces;
+using Lavalink4NET.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -53,8 +54,32 @@ builder.Services.AddSingleton<DiscordSocketClient>(_ =>
     return new DiscordSocketClient(config);
 });
 
+// Áudio — servidor Lavalink (toca sons no canal de voz e sai ao terminar).
+// ⚠️ AddLavalink deve ser registrado APÓS o DiscordSocketClient.
+builder.Services.Configure<LavalinkOptions>(options =>
+{
+    options.RestUri = Environment.GetEnvironmentVariable("LAVALINK_REST_URI") ?? LavalinkOptions.DefaultRestUri;
+    options.WebSocketUri = Environment.GetEnvironmentVariable("LAVALINK_WS_URI") ?? LavalinkOptions.DefaultWebSocketUri;
+    options.Passphrase = Environment.GetEnvironmentVariable("LAVALINK_PASSWORD") ?? LavalinkOptions.DefaultPassphrase;
+    options.LocalAudioPath = Environment.GetEnvironmentVariable("LAVALINK_LOCAL_AUDIO_PATH") ?? LavalinkOptions.DefaultLocalAudioPath;
+});
+
+builder.Services.AddLavalink();
+builder.Services.ConfigureLavalink(options =>
+{
+    options.BaseAddress = new Uri(Environment.GetEnvironmentVariable("LAVALINK_REST_URI") ?? LavalinkOptions.DefaultRestUri);
+    options.Passphrase = Environment.GetEnvironmentVariable("LAVALINK_PASSWORD") ?? LavalinkOptions.DefaultPassphrase;
+    options.WebSocketUri = new Uri(Environment.GetEnvironmentVariable("LAVALINK_WS_URI") ?? LavalinkOptions.DefaultWebSocketUri);
+});
+
+builder.Services.AddSingleton<IAudioPlayerService, AudioPlayerService>();
+
 // Command Service (singleton)
-builder.Services.AddSingleton<CommandService>();
+builder.Services.AddSingleton<CommandService>(new CommandService(new CommandServiceConfig
+{
+    DefaultRunMode = Discord.Commands.RunMode.Async,
+    LogLevel = LogSeverity.Info
+}));
 
 // Interaction Service (slash commands, botões e select menus)
 builder.Services.AddSingleton(sp =>
@@ -95,6 +120,10 @@ builder.Services.AddSingleton<IBotEventSink>(sp => sp.GetRequiredService<AutoMod
 // Log de servidor (auditoria de mensagens, membros e moderação)
 builder.Services.AddSingleton<GuildLogService>();
 builder.Services.AddSingleton<IBotEventSink>(sp => sp.GetRequiredService<GuildLogService>());
+
+// Áudio ao entrar/sair de canais de voz (configurável por guilda)
+builder.Services.AddSingleton<JoinLeaveSoundService>();
+builder.Services.AddSingleton<IBotEventSink>(sp => sp.GetRequiredService<JoinLeaveSoundService>());
 
 // Chat interactions por servidor (cache + MongoDB)
 builder.Services.AddSingleton<IGuildInteractionRepository, GuildInteractionRepository>();
@@ -164,10 +193,14 @@ if (builder.Configuration.GetValue<string>("AWS_LOG_GROUP") is { Length: > 0 } l
 // Hosted Service (gerencia lifecycle do bot)
 builder.Services.AddHostedService<DiscordBotService>();
 builder.Services.AddHostedService<EconomyMaintenanceService>();
+builder.Services.AddHostedService<ScheduledSoundService>();
 
 var host = builder.Build();
 
 var logger = host.Services.GetRequiredService<ILogger<Program>>();
+logger.LogInformation(
+    "Fuso de referência America/Sao_Paulo resolvido — offset UTC atual {offset} (esperado -03:00; 00:00 indica tzdata ausente no container)",
+    ScheduleEvaluator.SaoPauloTimeZone.GetUtcOffset(DateTime.UtcNow));
 try
 {
     await host.Services.GetRequiredService<IGuildMemberRepository>().EnsureIndexesAsync();

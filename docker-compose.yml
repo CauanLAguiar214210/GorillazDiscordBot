@@ -18,6 +18,25 @@ services:
     networks:
       - gorillaz-network
 
+  lavalink:
+    build:
+      context: .
+      dockerfile: lavalink/Dockerfile
+    container_name: gorillaz-lavalink
+    restart: unless-stopped
+    environment:
+      LAVALINK_SERVER_PASSWORD: "${LAVALINK_PASSWORD:-youshallnotpass}"
+    ports:
+      - "2333:2333"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/2333' && echo ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    networks:
+      - gorillaz-network
+
   bot:
     build:
       context: .
@@ -34,9 +53,15 @@ services:
       MONGODB_CONNECTION_STRING: "mongodb://mongodb:27017"
       MONGODB_DATABASE_NAME: "gorillazbot"
       LUCKY_MONKEY_URL: "${LUCKY_MONKEY_URL:-http://localhost:8080}"
+      LAVALINK_REST_URI: "http://lavalink:2333"
+      LAVALINK_WS_URI: "ws://lavalink:2333/v4/websocket"
+      LAVALINK_PASSWORD: "${LAVALINK_PASSWORD:-youshallnotpass}"
+      LAVALINK_LOCAL_AUDIO_PATH: "sounds"
       TZ: "America/Sao_Paulo"
     depends_on:
       mongodb:
+        condition: service_healthy
+      lavalink:
         condition: service_healthy
     networks:
       - gorillaz-network
