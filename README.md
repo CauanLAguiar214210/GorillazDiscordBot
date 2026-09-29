@@ -81,6 +81,7 @@ Config via `.env` (carregado por DotNetEnv em `GorillazDiscordBot.Api/.env`, tem
 | `LUCKY_MONKEY_API_KEY` | Não | — (header `X-Api-Key` do cassino) |
 | `LUCKY_MONKEY_JWT_SIGNING_KEY` | Não | — (deve ser a mesma `LuckyMonkey:Jwt:SigningKey` do serviço de cassino) |
 | `LUCKY_MONKEY_JWT_ISSUER` / `LUCKY_MONKEY_JWT_AUDIENCE` | Não | `LuckyMonkey` / `LuckyMonkey.Clients` |
+| `AUDIO_INSTANT_MIRROR_BASE_URL` | Não | `https://myinstants.site` (espelho para links de som instantâneo) |
 | `AWS_LOG_GROUP` / `AWS_REGION` | Não | — (ativa logging CloudWatch) |
 
 ## Build, teste e execução
@@ -88,7 +89,7 @@ Config via `.env` (carregado por DotNetEnv em `GorillazDiscordBot.Api/.env`, tem
 ```bash
 dotnet restore GorillazDiscordBot.sln
 dotnet build GorillazDiscordBot.sln -c Release
-dotnet test GorillazDiscordBot.sln          # 88 testes
+dotnet test GorillazDiscordBot.sln          # 613 testes
 dotnet run --project GorillazDiscordBot.Api
 ```
 
@@ -118,6 +119,7 @@ docker compose up --build
 | `welcome` / `goodbye` | Configura boas-vindas e despedidas |
 | `voice setup` | Criação automática de canais de voz |
 | `interaction add <trigger> <resposta>` | Interações personalizadas do servidor |
+| `tocar <origem>` / `parar` / `sons` | Áudio no canal de voz — YouTube, busca (`!termo`), Myinstants, URL de áudio ou `local:arquivo` |
 | `prefix set <novo>` | Altera o prefixo do servidor |
 
 ## Deploy AWS

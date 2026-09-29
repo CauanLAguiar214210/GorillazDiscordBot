@@ -62,6 +62,7 @@ builder.Services.Configure<LavalinkOptions>(options =>
     options.WebSocketUri = Environment.GetEnvironmentVariable("LAVALINK_WS_URI") ?? LavalinkOptions.DefaultWebSocketUri;
     options.Passphrase = Environment.GetEnvironmentVariable("LAVALINK_PASSWORD") ?? LavalinkOptions.DefaultPassphrase;
     options.LocalAudioPath = Environment.GetEnvironmentVariable("LAVALINK_LOCAL_AUDIO_PATH") ?? LavalinkOptions.DefaultLocalAudioPath;
+    options.InstantMirrorBaseUrl = Environment.GetEnvironmentVariable("AUDIO_INSTANT_MIRROR_BASE_URL") ?? LavalinkOptions.DefaultInstantMirrorBaseUrl;
 });
 
 builder.Services.AddLavalink();
@@ -73,6 +74,15 @@ builder.Services.ConfigureLavalink(options =>
 });
 
 builder.Services.AddSingleton<IAudioPlayerService, AudioPlayerService>();
+
+// Sons instantâneos (Myinstants) — converte o link da página no MP3 direto
+// que o Lavalink consegue tocar via source `http`.
+builder.Services.AddHttpClient(InstantSoundResolver.HttpClientName, client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+    client.DefaultRequestHeaders.Add("User-Agent", "GorillazDiscordBot/1.0");
+});
+builder.Services.AddSingleton<IInstantSoundResolver, InstantSoundResolver>();
 
 // Command Service (singleton)
 builder.Services.AddSingleton<CommandService>(new CommandService(new CommandServiceConfig

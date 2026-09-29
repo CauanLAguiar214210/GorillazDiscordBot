@@ -44,7 +44,7 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var resolved = _audioPlayer.Resolve($"local:{LocalSoundCatalog.TestSoundFileName}");
+        var resolved = await _audioPlayer.ResolveAsync($"local:{LocalSoundCatalog.TestSoundFileName}");
         if (!resolved.IsValid)
         {
             await ReplyAsync($"❌ {resolved.Error}");
@@ -59,7 +59,7 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("tocar")]
-    [Summary("Toca uma URL ou um som local no canal de voz (sai quando termina)")]
+    [Summary("Toca um som no canal de voz (YouTube, busca, Myinstants, URL de áudio ou `local:arquivo`)")]
     public async Task TocarAsync([Remainder] string origem)
     {
         var voiceChannel = GetRequesterVoiceChannel();
@@ -69,14 +69,14 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var resolved = _audioPlayer.Resolve(origem);
+        var resolved = await _audioPlayer.ResolveAsync(origem);
         if (!resolved.IsValid)
         {
             await ReplyAsync($"❌ {resolved.Error}");
             return;
         }
 
-        if (AudioTrackResolver.IsRemoteUrl(resolved.Identifier) && !await CommandGuards.GuardPermissionAsync(Context))
+        if (resolved.RequiresElevatedPermission && !await CommandGuards.GuardPermissionAsync(Context))
             return;
 
         var result = await _audioPlayer.PlayAsync(Context.Guild.Id, voiceChannel.Id, resolved.Identifier!);
@@ -136,7 +136,7 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var resolved = _audioPlayer.Resolve(origem);
+        var resolved = await _audioPlayer.ResolveAsync(origem);
         if (!resolved.IsValid)
         {
             await ReplyAsync($"❌ {resolved.Error}");
@@ -246,7 +246,7 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var resolved = _audioPlayer.Resolve(origem);
+        var resolved = await _audioPlayer.ResolveAsync(origem);
         if (!resolved.IsValid)
         {
             await ReplyAsync($"❌ {resolved.Error}");
@@ -275,7 +275,7 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var resolved = _audioPlayer.Resolve(origem);
+        var resolved = await _audioPlayer.ResolveAsync(origem);
         if (!resolved.IsValid)
         {
             await ReplyAsync($"❌ {resolved.Error}");

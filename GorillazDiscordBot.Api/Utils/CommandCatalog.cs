@@ -123,7 +123,7 @@ public static class CommandCatalog
         }),
         new("audio", "🎧", "Áudio", new[]
         {
-            new CommandEntry("tocar <origem>", "Toca URL ou som local no canal de voz (sai quando termina)", CommandKind.Prefix),
+            new CommandEntry("tocar <origem>", "Toca YouTube, busca, Myinstants, URL de áudio ou `local:arquivo`", CommandKind.Prefix),
             new CommandEntry("teste", "Toca o som de teste (óleo de macaco) no seu canal de voz", CommandKind.Prefix),
             new CommandEntry("parar", "Para o som atual e sai do canal de voz", CommandKind.Prefix),
             new CommandEntry("sons", "Lista os sons locais disponíveis", CommandKind.Prefix),
@@ -133,7 +133,7 @@ public static class CommandCatalog
             new CommandEntry("som-entrar <origem|off>", "Define o som ao entrar no canal de voz (admin)", CommandKind.Prefix),
             new CommandEntry("som-sair <origem|off>", "Define o som ao sair do canal de voz (admin)", CommandKind.Prefix),
             new CommandEntry("som-status", "Mostra os sons de entrada/saída configurados (admin)", CommandKind.Prefix),
-            new CommandEntry("/audio tocar <origem>", "Toca URL ou som local no canal de voz (sai quando termina)", CommandKind.Slash),
+            new CommandEntry("/audio tocar <origem>", "Toca YouTube, busca, Myinstants, URL de áudio ou `local:arquivo`", CommandKind.Slash),
             new CommandEntry("/audio teste", "Toca o som de teste (óleo de macaco) no seu canal de voz", CommandKind.Slash),
             new CommandEntry("/audio parar", "Para o som atual e sai do canal de voz", CommandKind.Slash),
             new CommandEntry("/audio sons", "Lista os sons locais disponíveis", CommandKind.Slash),

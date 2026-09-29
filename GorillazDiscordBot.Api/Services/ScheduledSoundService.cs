@@ -112,7 +112,7 @@ public class ScheduledSoundService : IHostedService
                 return;
             }
 
-            var resolved = _audioPlayer.Resolve(schedule.AudioSource);
+            var resolved = await _audioPlayer.ResolveAsync(schedule.AudioSource, ct);
             if (!resolved.IsValid)
             {
                 _logger.LogWarning("Áudio agendado {id} inválido e foi desativado: {error}", schedule.Id, resolved.Error);

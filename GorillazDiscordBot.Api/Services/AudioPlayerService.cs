@@ -15,6 +15,7 @@ public class AudioPlayerService : IAudioPlayerService
 {
     private readonly IAudioService _audio;
     private readonly IOptions<LavalinkOptions> _lavalinkOptions;
+    private readonly IInstantSoundResolver _instantSounds;
     private readonly ILogger<AudioPlayerService> _logger;
     private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _playLocks = new();
     private readonly object _eventAttachLock = new();
@@ -23,15 +24,26 @@ public class AudioPlayerService : IAudioPlayerService
     public AudioPlayerService(
         IAudioService audio,
         IOptions<LavalinkOptions> lavalinkOptions,
+        IInstantSoundResolver instantSounds,
         ILogger<AudioPlayerService> logger)
     {
         _audio = audio;
         _lavalinkOptions = lavalinkOptions;
+        _instantSounds = instantSounds;
         _logger = logger;
     }
 
-    public AudioTrackResolveResult Resolve(string? origin)
-        => AudioTrackResolver.Resolve(origin, _lavalinkOptions.Value.LocalAudioPath);
+    public async Task<AudioTrackResolveResult> ResolveAsync(string? origin, CancellationToken cancellationToken = default)
+    {
+        var resolved = AudioTrackResolver.Resolve(origin, _lavalinkOptions.Value.LocalAudioPath);
+        if (!resolved.IsValid || resolved.Kind != AudioOriginKind.InstantButton)
+            return resolved;
+
+        var instant = await _instantSounds.ResolveAsync(resolved.Identifier!, cancellationToken);
+        return instant.Success
+            ? resolved with { Identifier = instant.AudioUrl }
+            : new AudioTrackResolveResult(false, null, instant.Error, resolved.Kind);
+    }
 
     public async Task<AudioPlayResult> PlayAsync(
         ulong guildId,
@@ -93,7 +105,7 @@ public class AudioPlayerService : IAudioPlayerService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Falha ao iniciar reprodução de {identifier} na guilda {guildId}", identifier, guildId);
-                return new AudioPlayResult(false, "Não consegui iniciar a reprodução do áudio (servidor de música indisponível?).");
+                return new AudioPlayResult(false, PlaybackFailureMessage(identifier));
             }
         }
         catch (Exception ex)
@@ -124,6 +136,12 @@ public class AudioPlayerService : IAudioPlayerService
             return new AudioStopResult(true, false);
         }
     }
+
+    private static string PlaybackFailureMessage(string identifier)
+        => AudioTrackResolver.IsYouTubeRequest(identifier)
+            ? "Não consegui carregar do YouTube. Verifique se o plugin `youtube-source` está ativo no Lavalink " +
+              "(`plugins.youtube.enabled: true` e o jar em `/opt/Lavalink/plugins`)."
+            : "Não consegui iniciar a reprodução do áudio (servidor de música indisponível?).";
 
     private async Task StopExistingAsync(ulong guildId, CancellationToken cancellationToken)
     {

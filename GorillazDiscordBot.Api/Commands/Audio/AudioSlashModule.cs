@@ -35,7 +35,7 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var resolved = _audioPlayer.Resolve($"local:{LocalSoundCatalog.TestSoundFileName}");
+        var resolved = await _audioPlayer.ResolveAsync($"local:{LocalSoundCatalog.TestSoundFileName}");
         if (!resolved.IsValid)
         {
             await FollowupAsync($"❌ {resolved.Error}");
@@ -48,7 +48,7 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
             : $"❌ {result.Error}");
     }
 
-    [SlashCommand("tocar", "Toca uma URL ou um som local no canal de voz (sai quando termina)")]
+    [SlashCommand("tocar", "Toca um som no canal de voz (YouTube, busca, Myinstants, URL de áudio ou local:arquivo)")]
     public async Task TocarAsync(string origem)
     {
         await DeferAsync();
@@ -60,14 +60,14 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var resolved = _audioPlayer.Resolve(origem);
+        var resolved = await _audioPlayer.ResolveAsync(origem);
         if (!resolved.IsValid)
         {
             await FollowupAsync($"❌ {resolved.Error}");
             return;
         }
 
-        if (AudioTrackResolver.IsRemoteUrl(resolved.Identifier) && !CommandGuards.HasManageGuildPermission(Context))
+        if (resolved.RequiresElevatedPermission && !CommandGuards.HasManageGuildPermission(Context))
         {
             await FollowupAsync(BotConstants.PermissionDenied);
             return;
@@ -135,7 +135,7 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var resolved = _audioPlayer.Resolve(origem);
+        var resolved = await _audioPlayer.ResolveAsync(origem);
         if (!resolved.IsValid)
         {
             await FollowupAsync($"❌ {resolved.Error}");
@@ -257,7 +257,7 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var resolved = _audioPlayer.Resolve(origem);
+        var resolved = await _audioPlayer.ResolveAsync(origem);
         if (!resolved.IsValid)
         {
             await FollowupAsync($"❌ {resolved.Error}");
@@ -290,7 +290,7 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var resolved = _audioPlayer.Resolve(origem);
+        var resolved = await _audioPlayer.ResolveAsync(origem);
         if (!resolved.IsValid)
         {
             await FollowupAsync($"❌ {resolved.Error}");
