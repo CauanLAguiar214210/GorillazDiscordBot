@@ -57,6 +57,7 @@ services:
       LAVALINK_WS_URI: "ws://lavalink:2333/v4/websocket"
       LAVALINK_PASSWORD: "${LAVALINK_PASSWORD:-youshallnotpass}"
       LAVALINK_LOCAL_AUDIO_PATH: "sounds"
+      AUDIO_INSTANT_MIRROR_BASE_URL: "${AUDIO_INSTANT_MIRROR_BASE_URL:-https://myinstants.site}"
       TZ: "America/Sao_Paulo"
     depends_on:
       mongodb:

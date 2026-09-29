@@ -68,7 +68,7 @@ public class JoinLeaveSoundService : IBotEventSink
         if (!IsOnCooldown(guildId, userId))
             return;
 
-        var resolved = _audioPlayer.Resolve(source);
+        var resolved = await _audioPlayer.ResolveAsync(source);
         if (!resolved.IsValid)
         {
             _logger.LogWarning("Som de entrada/saída inválido na guilda {guildId}: {error}", guildId, resolved.Error);

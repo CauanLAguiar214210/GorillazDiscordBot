@@ -17,7 +17,9 @@ lavalink:
     youtubeSearchEnabled: false
     soundcloudSearchEnabled: false
     # gc-warnings: true
-    
+    # O YouTube vem do plugin `youtube-source` (plugins/ no container), por isso a
+    # fonte embutida acima continua desligada. A busca é habilitada no bloco `plugins`.
+
     sources:
       local: true
       http: true
@@ -39,10 +41,25 @@ lavalink:
   # metrics:
     # prometheus:
       # enabled: false
-      # endpoint: /metrics
+      # endpoint: /prometheus
     # sentry:
       # dsn: ""
       # environment: ""
+
+# Plugins (jar fica em /opt/Lavalink/plugins, copiado pelo Dockerfile).
+# `youtube-source` traz a fonte de YouTube e a busca por `ytsearch:` / `ytmsearch:`,
+# que o Lavalink 4.2.2 não traz mais embutido.
+plugins:
+  youtube:
+    enabled: true
+    allowSearch: true
+    allowDirectVideoIds: true
+    allowDirectPlaylistIds: true
+    clients:
+      - MUSIC
+      - ANDROID_VR
+      - WEB
+      - WEBEMBEDDED
 
 # metrics:
   # prometheus:

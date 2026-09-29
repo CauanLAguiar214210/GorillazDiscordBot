@@ -15,10 +15,11 @@ public class AudioPlayerServiceTests
     private const ulong ChannelId = 456;
     private const string Identifier = "local:sounds/alarme.mp3";
 
-    private static AudioPlayerService CreateService(IAudioService audio)
+    private static AudioPlayerService CreateService(IAudioService audio, IInstantSoundResolver? instantSounds = null)
         => new(
             audio,
             Options.Create(new LavalinkOptions { LocalAudioPath = "sounds" }),
+            instantSounds ?? Substitute.For<IInstantSoundResolver>(),
             NullLogger<AudioPlayerService>.Instance);
 
     private static (IAudioService Audio, IPlayerManager Players) CreateAudio()
@@ -129,5 +130,71 @@ public class AudioPlayerServiceTests
         result.Success.Should().BeFalse();
         await existing.Received(1).StopAsync(Arg.Any<CancellationToken>());
         await existing.Received(1).DisconnectAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ResolveAsync_LinkDoYoutube_NaoConsultaOResolvedorDeInstantaneos()
+    {
+        var instantSounds = Substitute.For<IInstantSoundResolver>();
+        var (audio, _) = CreateAudio();
+
+        var result = await CreateService(audio, instantSounds)
+            .ResolveAsync("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+
+        result.IsValid.Should().BeTrue();
+        result.Kind.Should().Be(AudioOriginKind.YouTube);
+        result.Identifier.Should().Be("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+        result.RequiresElevatedPermission.Should().BeFalse();
+        await instantSounds.DidNotReceive().ResolveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ResolveAsync_LinkDeSomInstantaneo_TrocaPeloMp3DoEspelho()
+    {
+        const string pagina = "https://www.myinstants.com/instant/olha-o-macaco-5639";
+        const string mp3 = "https://myinstants.site/media/sound/olha-o-macaco.mp3";
+
+        var instantSounds = Substitute.For<IInstantSoundResolver>();
+        instantSounds.ResolveAsync(pagina, Arg.Any<CancellationToken>())
+            .Returns(new InstantSoundResolveResult(true, mp3, null));
+
+        var (audio, _) = CreateAudio();
+
+        var result = await CreateService(audio, instantSounds).ResolveAsync(pagina);
+
+        result.IsValid.Should().BeTrue();
+        result.Kind.Should().Be(AudioOriginKind.InstantButton);
+        result.Identifier.Should().Be(mp3);
+        result.RequiresElevatedPermission.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ResolveAsync_LinkDeSomInstantaneoIndisponivel_RetornaErro()
+    {
+        const string pagina = "https://www.myinstants.com/instant/nao-existe-999";
+
+        var instantSounds = Substitute.For<IInstantSoundResolver>();
+        instantSounds.ResolveAsync(pagina, Arg.Any<CancellationToken>())
+            .Returns(new InstantSoundResolveResult(false, null, "som fora do espelho"));
+
+        var (audio, _) = CreateAudio();
+
+        var result = await CreateService(audio, instantSounds).ResolveAsync(pagina);
+
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Be("som fora do espelho");
+        result.RequiresElevatedPermission.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ResolveAsync_UrlDiretaDeAudio_ContinuaExigindoPermissaoDeAdmin()
+    {
+        var (audio, _) = CreateAudio();
+
+        var result = await CreateService(audio).ResolveAsync("https://cdn.example.com/som.mp3");
+
+        result.IsValid.Should().BeTrue();
+        result.Kind.Should().Be(AudioOriginKind.DirectUrl);
+        result.RequiresElevatedPermission.Should().BeTrue();
     }
 }
