@@ -43,6 +43,15 @@ public class AudioTrackResolverTests
     }
 
     [Fact]
+    public void LocalJaNormalizado_NaoDuplicaRoot()
+    {
+        var result = AudioTrackResolver.Resolve("local:sounds/macaco-grito.mp3", "sounds");
+
+        result.IsValid.Should().BeTrue();
+        result.Identifier.Should().Be("local:sounds/macaco-grito.mp3");
+    }
+
+    [Fact]
     public void LocalComSubpasta_DeveManterCaminhoRelativo()
     {
         var result = AudioTrackResolver.Resolve("local:nino/som.mp3", "sounds");
@@ -113,6 +122,25 @@ public class AudioTrackResolverTests
         result.Kind.Should().Be(AudioOriginKind.YouTube);
         result.Identifier.Should().Be(origem);
         result.RequiresElevatedPermission.Should().BeFalse();
+    }
+
+    [Fact]
+    public void LinkDoYoutube_ComPlaylistERadio_DeveEnviarSomenteVideoAoLavalink()
+    {
+        const string origem = "https://www.youtube.com/watch?v=lj2KvMRN-ps&list=RDlj2KvMRN-ps&start_radio=1&pp=oAcB";
+
+        var result = AudioTrackResolver.Resolve(origem, "sounds");
+
+        result.IsValid.Should().BeTrue();
+        result.Identifier.Should().Be("https://www.youtube.com/watch?v=lj2KvMRN-ps");
+    }
+
+    [Theory]
+    [InlineData("https://youtu.be/lj2KvMRN-ps?list=RDlj2KvMRN-ps", "https://www.youtube.com/watch?v=lj2KvMRN-ps")]
+    [InlineData("https://www.youtube.com/shorts/lj2KvMRN-ps?list=RDlj2KvMRN-ps", "https://www.youtube.com/watch?v=lj2KvMRN-ps")]
+    public void LinkDoYoutube_ComParametros_DeveNormalizarVideo(string origem, string esperado)
+    {
+        AudioTrackResolver.Resolve(origem, "sounds").Identifier.Should().Be(esperado);
     }
 
     [Fact]

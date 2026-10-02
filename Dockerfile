@@ -20,6 +20,9 @@ RUN if [ -n "$NUGET_AUTH_TOKEN" ]; then \
             --password "$NUGET_AUTH_TOKEN" \
             --store-password-in-clear-text \
             --configfile /root/.nuget/NuGet/NuGet.Config; \
+    else \
+        echo "NUGET_AUTH_TOKEN ausente: informe um PAT do GitHub com permissao read:packages." >&2; \
+        exit 1; \
     fi \
     && dotnet restore "GorillazDiscordBot.Api/GorillazDiscordBot.Api.csproj"
 

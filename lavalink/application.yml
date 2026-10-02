@@ -57,9 +57,16 @@ plugins:
     allowDirectPlaylistIds: true
     clients:
       - MUSIC
+      - TVHTML5_SIMPLY
       - ANDROID_VR
       - WEB
       - WEBEMBEDDED
+    pot:
+      token: "${YOUTUBE_POT_TOKEN:}"
+      visitorData: "${YOUTUBE_VISITOR_DATA:}"
+    oauth:
+      enabled: "${YOUTUBE_OAUTH_ENABLED:false}"
+      refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN:}"
 
 # metrics:
   # prometheus:

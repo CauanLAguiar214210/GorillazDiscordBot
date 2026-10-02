@@ -11,6 +11,7 @@ public ulong GuildId { get; set; }
     public ReleaseSettings Release { get; set; }
     public List<VoiceChannelSettings> VoiceChannels { get; set; }
     public List<ScheduledSoundSettings> ScheduledSounds { get; set; }
+    public List<FavoriteSoundSettings> FavoriteSounds { get; set; }
     public string? JoinVoiceSound { get; set; }
     public string? LeaveVoiceSound { get; set; }
     public AutomodSettings Automod { get; set; }
@@ -27,6 +28,7 @@ public ulong GuildId { get; set; }
         Release = new ReleaseSettings();
         VoiceChannels = new List<VoiceChannelSettings>();
         ScheduledSounds = new List<ScheduledSoundSettings>();
+        FavoriteSounds = new List<FavoriteSoundSettings>();
         Automod = new AutomodSettings();
         Logs = new GuildLogSettings();
         Cooldown = new CooldownSettings();

@@ -1,3 +1,4 @@
+using System.Net.Http;
 using FluentAssertions;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Services;
@@ -196,5 +197,69 @@ public class AudioPlayerServiceTests
         result.IsValid.Should().BeTrue();
         result.Kind.Should().Be(AudioOriginKind.DirectUrl);
         result.RequiresElevatedPermission.Should().BeTrue();
+    }
+
+    [Fact]
+    public void DescribeFailure_NuncaAcusaPluginDoYouTube()
+    {
+        Exception[] exceptions =
+        [
+            new ObjectDisposedException("LavalinkPlayer"),
+            new TimeoutException(),
+            new HttpRequestException("node fora do ar"),
+            new InvalidOperationException("estado inválido")
+        ];
+
+        foreach (var exception in exceptions)
+        {
+            var message = AudioPlayerService.DescribeFailure(exception);
+
+            message.Should().NotBeNullOrWhiteSpace();
+            message.Should().NotContain("plugin", "a falha veio de {0}", exception.GetType().Name);
+        }
+    }
+
+    [Fact]
+    public void DescribeFailure_PlayerReciclado_ExplicaOReciclagem()
+    {
+        AudioPlayerService.DescribeFailure(new ObjectDisposedException("LavalinkPlayer"))
+            .Should().Contain("reciclado");
+    }
+
+    [Fact]
+    public void DescribeStartFailure_SemDetalhe_ReportaTimeout()
+    {
+        var message = AudioPlayerService.DescribeStartFailure(isYouTube: false, error: null, TimeSpan.FromSeconds(15));
+
+        message.Should().Contain("15s");
+    }
+
+    [Fact]
+    public void DescribeStartFailure_ComDetalhe_ReportaOCausaDoNo()
+    {
+        var message = AudioPlayerService.DescribeStartFailure(
+            isYouTube: false,
+            error: "  yt-dlp returned exit code 1  ",
+            TimeSpan.FromSeconds(15));
+
+        message.Should().Contain("yt-dlp returned exit code 1");
+        message.Should().NotContain("15s");
+    }
+
+    [Fact]
+    public void DescribeStartFailure_ComYouTube_CitaVerificacaoDoPluginComoPista()
+    {
+        var message = AudioPlayerService.DescribeStartFailure(isYouTube: true, error: "boom", TimeSpan.FromSeconds(15));
+
+        message.Should().Contain("plugins.youtube.enabled");
+    }
+
+    [Fact]
+    public void DescribeStartFailure_TruncaDetalheEnorme()
+    {
+        var message = AudioPlayerService.DescribeStartFailure(isYouTube: false, error: new string('x', 500), TimeSpan.FromSeconds(15));
+
+        message.Should().Contain("…");
+        message.Length.Should().BeLessThan(260);
     }
 }

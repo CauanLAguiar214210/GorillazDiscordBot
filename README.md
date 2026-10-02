@@ -1,4 +1,4 @@
-# GorillazDiscordBot 🐒
+﻿# GorillazDiscordBot 🐒
 
 Bot do Discord em **.NET 9** com comandos de prefixo e interações por servidor, persistência em **MongoDB** e deploy em **AWS ECS/Fargate** via Terraform e GitHub Actions.
 
@@ -82,6 +82,14 @@ Config via `.env` (carregado por DotNetEnv em `GorillazDiscordBot.Api/.env`, tem
 | `LUCKY_MONKEY_JWT_SIGNING_KEY` | Não | — (deve ser a mesma `LuckyMonkey:Jwt:SigningKey` do serviço de cassino) |
 | `LUCKY_MONKEY_JWT_ISSUER` / `LUCKY_MONKEY_JWT_AUDIENCE` | Não | `LuckyMonkey` / `LuckyMonkey.Clients` |
 | `AUDIO_INSTANT_MIRROR_BASE_URL` | Não | `https://myinstants.site` (espelho para links de som instantâneo) |
+| `AUDIO_PLAYBACK_START_TIMEOUT_SECONDS` | Nao | `15` (segundos ate o Lavalink confirmar `TrackStarted`) |
+| `AUDIO_UPLOAD_PATH` | Não | `/audio/uploads` (mesmo volume montado em `/opt/Lavalink/sounds/uploads`) |
+| `AUDIO_UPLOAD_MAX_MB` | Não | `25` (tamanho máximo de um anexo favoritado) |
+| `AUDIO_UPLOAD_MAX_MINUTES` | Não | `10` (duração máxima de um anexo favoritado) |
+| `AUDIO_UPLOAD_RETENTION_DAYS` | Não | `30` (idade máxima de um upload no disco) |
+| `YOUTUBE_POT_TOKEN` / `YOUTUBE_VISITOR_DATA` | Não | Tokens anti-bot do `youtube-source`; necessários quando o YouTube exigir login |
+| `YOUTUBE_OAUTH_ENABLED` | Não | `false`; habilite o fluxo OAuth do `youtube-source` |
+| `YOUTUBE_OAUTH_REFRESH_TOKEN` | Não | Refresh token gerado pelo fluxo OAuth, quando disponível |
 | `AWS_LOG_GROUP` / `AWS_REGION` | Não | — (ativa logging CloudWatch) |
 
 ## Build, teste e execução
@@ -89,7 +97,7 @@ Config via `.env` (carregado por DotNetEnv em `GorillazDiscordBot.Api/.env`, tem
 ```bash
 dotnet restore GorillazDiscordBot.sln
 dotnet build GorillazDiscordBot.sln -c Release
-dotnet test GorillazDiscordBot.sln          # 613 testes
+dotnet test GorillazDiscordBot.sln          # 707 testes
 dotnet run --project GorillazDiscordBot.Api
 ```
 
@@ -99,8 +107,63 @@ dotnet run --project GorillazDiscordBot.Api
 # 1. copie o template e preencha o DISCORD_TOKEN
 cp GorillazDiscordBot.Api/.env.example GorillazDiscordBot.Api/.env
 
-# 2. suba tudo (MongoDB + bot)
+# 2. forneça um PAT clássico do GitHub para LuckyMonkey.Contracts
+#    O token precisa de `read:packages` e acesso ao pacote privado.
+$env:NUGET_AUTH_TOKEN = "ghp_..."       # PowerShell
+# export NUGET_AUTH_TOKEN="ghp_..."     # Bash
+
+# 3. suba tudo (MongoDB + Lavalink + bot)
 docker compose up --build
+```
+
+`NUGET_AUTH_TOKEN` é usado somente como argumento do build para restaurar o pacote
+privado `LuckyMonkey.Contracts`; ele não é injetado no container em runtime. No
+PowerShell, defina a variável na mesma sessão em que executar `docker compose up`.
+O token precisa ter `read:packages` e acesso de leitura a
+`CauanLAguiar214210/LuckyMonkey.Contracts`.
+
+Se o Lavalink registrar `Sign in to confirm you're not a bot`, configure um
+`poToken` e o respectivo `visitorData` do YouTube na sessão que executa o
+Compose. O plugin `youtube-source` documenta a geração desses valores em
+`youtube-trusted-session-generator`:
+
+```powershell
+$env:YOUTUBE_POT_TOKEN = "seu_po_token"
+$env:YOUTUBE_VISITOR_DATA = "seu_visitor_data"
+docker compose up -d --build lavalink
+```
+
+Essas variáveis precisam estar definidas no shell que executa o Compose (ou no
+arquivo `.env` da raiz do projeto). Colocá-las apenas em
+`GorillazDiscordBot.Api/.env` não as envia para o container do Lavalink, pois
+esse arquivo é usado pelo serviço do bot em runtime.
+
+Esses valores não devem ser commitados nem colocados no `.env.example`.
+
+O gerador acima está atualmente depreciado e pode falhar. Alternativamente,
+use OAuth com uma conta secundária do YouTube (não use sua conta principal):
+
+```powershell
+$env:YOUTUBE_OAUTH_ENABLED = "true"
+docker compose up -d --build --force-recreate lavalink
+docker logs -f gorillaz-lavalink
+```
+
+O Lavalink exibirá as instruções/código para autorizar a conta. Depois da
+autorização, copie o `refreshToken` exibido para
+`YOUTUBE_OAUTH_REFRESH_TOKEN` e recrie o serviço. OAuth e `poToken` não devem
+ser usados simultaneamente.
+
+O compose cria o volume `audio_uploads` e monta o mesmo conteúdo no bot
+(`/audio/uploads`) e no Lavalink (`/opt/Lavalink/sounds/uploads`). Não remova esse
+volume enquanto houver favoritos baseados em anexos. A limpeza automática remove
+arquivos que ultrapassarem `AUDIO_UPLOAD_RETENTION_DAYS`, mesmo se ainda estiverem
+referenciados por um favorito.
+
+Para subir uma imagem já construída, sem repetir o restore:
+
+```bash
+docker compose up -d --no-build
 ```
 
 ## Comandos principais
@@ -120,6 +183,7 @@ docker compose up --build
 | `voice setup` | Criação automática de canais de voz |
 | `interaction add <trigger> <resposta>` | Interações personalizadas do servidor |
 | `tocar <origem>` / `parar` / `sons` | Áudio no canal de voz — YouTube, busca (`!termo`), Myinstants, URL de áudio ou `local:arquivo` |
+| `favoritar <origem> = <apelido>` / `favoritar-anexo` / `favs` / `tocarfav <chave>` / `desfavoritar <chave>` | Favoritos de áudio da guilda (até 100, com apelido opcional; anexos vão para o volume compartilhado com o Lavalink) |
 | `prefix set <novo>` | Altera o prefixo do servidor |
 
 ## Deploy AWS

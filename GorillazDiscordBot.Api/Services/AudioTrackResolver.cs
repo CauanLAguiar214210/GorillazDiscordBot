@@ -37,7 +37,7 @@ public static class AudioTrackResolver
             && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
         {
             if (IsYouTubeUri(uri))
-                return Valid(AudioOriginKind.YouTube, trimmed);
+                return Valid(AudioOriginKind.YouTube, NormalizeYouTubeUri(uri, trimmed));
 
             if (TryGetInstantSlug(uri, out _))
                 return Valid(AudioOriginKind.InstantButton, trimmed);
@@ -195,6 +195,13 @@ public static class AudioTrackResolver
             return Error("Caminho local inválido: use apenas letras, números, `-`, `_` e `.`, sem `..`.");
 
         var root = NormalizeLocalRoot(localAudioPath);
+        var normalizedRoot = root + "/";
+        if (relative.Equals(root, StringComparison.OrdinalIgnoreCase)
+            || relative.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return Valid(AudioOriginKind.Local, $"{LocalPrefix}{relative.Replace('\\', '/')}");
+        }
+
         return Valid(AudioOriginKind.Local, $"{LocalPrefix}{root}/{relative}");
     }
 
@@ -248,6 +255,63 @@ public static class AudioTrackResolver
         return host is "youtu.be" or "www.youtu.be"
             || host == "youtube.com" || host.EndsWith(".youtube.com")
             || host == "youtube-nocookie.com" || host.EndsWith(".youtube-nocookie.com");
+    }
+
+    private static string NormalizeYouTubeUri(Uri uri, string original)
+    {
+        if (!HasQueryKey(uri.Query, "list")
+            && !HasQueryKey(uri.Query, "start_radio")
+            && !HasQueryKey(uri.Query, "pp"))
+        {
+            return original;
+        }
+
+        var videoId = GetQueryValue(uri.Query, "v");
+        if (string.IsNullOrWhiteSpace(videoId))
+        {
+            var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length >= 2
+                && (segments[0].Equals("shorts", StringComparison.OrdinalIgnoreCase)
+                    || segments[0].Equals("embed", StringComparison.OrdinalIgnoreCase)))
+            {
+                videoId = segments[1];
+            }
+            else if (uri.Host.EndsWith("youtu.be", StringComparison.OrdinalIgnoreCase)
+                     && segments.Length > 0)
+            {
+                videoId = segments[0];
+            }
+        }
+
+        return string.IsNullOrWhiteSpace(videoId)
+            ? original
+            : $"https://www.youtube.com/watch?v={Uri.EscapeDataString(videoId)}";
+    }
+
+    private static bool HasQueryKey(string query, string key)
+        => query.TrimStart('?')
+            .Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Any(part =>
+            {
+                var separator = part.IndexOf('=');
+                var name = separator >= 0 ? part[..separator] : part;
+                return name.Equals(key, StringComparison.OrdinalIgnoreCase);
+            });
+
+    private static string? GetQueryValue(string query, string key)
+    {
+        foreach (var part in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separator = part.IndexOf('=');
+            var name = separator >= 0 ? part[..separator] : part;
+            if (!name.Equals(key, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var value = separator >= 0 ? part[(separator + 1)..] : string.Empty;
+            return Uri.UnescapeDataString(value.Replace('+', ' '));
+        }
+
+        return null;
     }
 
     private static bool IsInstantHost(string host)

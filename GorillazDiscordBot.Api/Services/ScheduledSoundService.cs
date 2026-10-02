@@ -92,19 +92,30 @@ public class ScheduledSoundService : IHostedService
                 if (!_fired.Add(key))
                     continue;
 
-                await TryPlayAsync(guild, schedule, ct);
+                await TryPlayAsync(socketGuild, guild, schedule, ct);
             }
         }
 
         PruneFired(utcNow);
     }
 
-    private async Task TryPlayAsync(Guild guild, ScheduledSoundSettings schedule, CancellationToken ct)
+    private async Task TryPlayAsync(SocketGuild socketGuild, Guild guild, ScheduledSoundSettings schedule, CancellationToken ct)
     {
         try
         {
+            var channelId = schedule.VoiceChannelId;
+            if (channelId == 0)
+            {
+                channelId = await FindActiveVoiceChannelAsync(socketGuild, ct);
+                if (channelId == 0)
+                {
+                    _logger.LogInformation("Áudio agendado {id} ignorado: nenhum canal de voz ocupado", schedule.Id);
+                    return;
+                }
+            }
+
             var members = await _audio.DiscordClient.GetChannelUsersAsync(
-                guild.GuildId, schedule.VoiceChannelId, false, ct);
+                guild.GuildId, channelId, false, ct);
 
             if (members.IsDefaultOrEmpty)
             {
@@ -121,7 +132,7 @@ public class ScheduledSoundService : IHostedService
                 return;
             }
 
-            var result = await _audioPlayer.PlayAsync(guild.GuildId, schedule.VoiceChannelId, resolved.Identifier!, ct);
+            var result = await _audioPlayer.PlayAsync(guild.GuildId, channelId, resolved.Identifier!, ct);
             if (result.Success)
             {
                 schedule.TimesPlayed++;
@@ -137,6 +148,19 @@ public class ScheduledSoundService : IHostedService
         {
             _logger.LogError(ex, "Falha ao tocar áudio agendado {id}", schedule.Id);
         }
+    }
+
+    private async Task<ulong> FindActiveVoiceChannelAsync(SocketGuild socketGuild, CancellationToken ct)
+    {
+        foreach (var channel in socketGuild.VoiceChannels)
+        {
+            var members = await _audio.DiscordClient.GetChannelUsersAsync(
+                socketGuild.Id, channel.Id, false, ct);
+            if (!members.IsDefaultOrEmpty)
+                return channel.Id;
+        }
+
+        return 0;
     }
 
     private void PruneFired(DateTime utcNow)
