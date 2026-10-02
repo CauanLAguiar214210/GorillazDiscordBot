@@ -12,7 +12,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && wget -q "https://github.com/lavalink-devs/Lavalink/releases/download/${LAVALINK_VERSION}/Lavalink.jar" -O Lavalink.jar \
     && mkdir -p plugins \
-    && wget -q "https://maven.lavalink.dev/releases/dev/lavalink/youtube/youtube-plugin/${YOUTUBE_SOURCE_VERSION}/youtube-plugin-${YOUTUBE_SOURCE_VERSION}.jar" \
+    && wget -q "https://github.com/lavalink-devs/youtube-source/releases/download/${YOUTUBE_SOURCE_VERSION}/youtube-plugin-${YOUTUBE_SOURCE_VERSION}.jar" \
        -O "plugins/youtube-plugin-${YOUTUBE_SOURCE_VERSION}.jar"
 
 FROM base AS final

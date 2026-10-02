@@ -132,10 +132,22 @@ RUN if [ -n "$NUGET_AUTH_TOKEN" ]; then \
 
 - No CI (`aws.yml`), o `docker/build-push-action` passa
   `build-args: NUGET_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}`.
-- Localmente, informe o token ao build:
+- Localmente, informe o token ao build direto:
 
   ```sh
-  docker build --build-arg NUGET_AUTH_TOKEN="<PAT>" -t gorillaz-discord-bot .
+   docker build --build-arg NUGET_AUTH_TOKEN="<PAT>" -t gorillaz-discord-bot .
+  ```
+
+- Com Docker Compose, o argumento é lido da variável do ambiente do host:
+
+  ```powershell
+  $env:NUGET_AUTH_TOKEN = "<PAT>"
+  docker compose up --build
+  ```
+
+  ```sh
+  export NUGET_AUTH_TOKEN="<PAT>"
+  docker compose up --build
   ```
 
 - O pacote não entra na imagem final (só `/app/publish` é copiado para `base`).
@@ -143,7 +155,8 @@ RUN if [ -n "$NUGET_AUTH_TOKEN" ]; then \
 ## Resultado
 
 - Bot compila sem nenhuma referência ao repositório do microserviço (`0 avisos, 0 erros`).
-- Testes do bot: **209/209** aprovados.
+- A validação histórica desta integração aprovou **209/209** testes; a suíte atual do
+  bot possui **707/707** testes aprovados.
 - Microserviço: **324/324** testes.
 - `LuckyMonkey.Contracts` **1.0.0** publicado no GitHub Packages
   (`nuget.pkg.github.com/CauanLAguiar214210`) e o bot consome pelo feed remoto —

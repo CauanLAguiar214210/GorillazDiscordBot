@@ -63,6 +63,9 @@ builder.Services.Configure<LavalinkOptions>(options =>
     options.Passphrase = Environment.GetEnvironmentVariable("LAVALINK_PASSWORD") ?? LavalinkOptions.DefaultPassphrase;
     options.LocalAudioPath = Environment.GetEnvironmentVariable("LAVALINK_LOCAL_AUDIO_PATH") ?? LavalinkOptions.DefaultLocalAudioPath;
     options.InstantMirrorBaseUrl = Environment.GetEnvironmentVariable("AUDIO_INSTANT_MIRROR_BASE_URL") ?? LavalinkOptions.DefaultInstantMirrorBaseUrl;
+    options.PlaybackStartTimeoutSeconds = ParseInt32(
+        Environment.GetEnvironmentVariable("AUDIO_PLAYBACK_START_TIMEOUT_SECONDS"),
+        LavalinkOptions.DefaultPlaybackStartTimeoutSeconds);
 });
 
 builder.Services.AddLavalink();
@@ -83,6 +86,23 @@ builder.Services.AddHttpClient(InstantSoundResolver.HttpClientName, client =>
     client.DefaultRequestHeaders.Add("User-Agent", "GorillazDiscordBot/1.0");
 });
 builder.Services.AddSingleton<IInstantSoundResolver, InstantSoundResolver>();
+
+// Upload de áudio por anexo — grava no volume compartilhado com o Lavalink
+// (`/audio/uploads` ↔ `/opt/Lavalink/sounds/uploads`) e valida antes de favoritar.
+builder.Services.Configure<AudioUploadOptions>(options =>
+{
+    options.Path = Environment.GetEnvironmentVariable("AUDIO_UPLOAD_PATH") ?? AudioUploadOptions.DefaultPath;
+    options.MaxMegabytes = ParseInt32(Environment.GetEnvironmentVariable("AUDIO_UPLOAD_MAX_MB"), AudioUploadOptions.DefaultMaxMegabytes);
+    options.MaxMinutes = ParseInt32(Environment.GetEnvironmentVariable("AUDIO_UPLOAD_MAX_MINUTES"), AudioUploadOptions.DefaultMaxMinutes);
+    options.RetentionDays = ParseInt32(Environment.GetEnvironmentVariable("AUDIO_UPLOAD_RETENTION_DAYS"), AudioUploadOptions.DefaultRetentionDays);
+});
+builder.Services.AddHttpClient(AudioUploadService.HttpClientName, client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(60);
+    client.DefaultRequestHeaders.Add("User-Agent", "GorillazDiscordBot/1.0");
+});
+builder.Services.AddSingleton<IAudioUploadService, AudioUploadService>();
+builder.Services.AddSingleton<IHostedService, AudioUploadCleanupService>();
 
 // Command Service (singleton)
 builder.Services.AddSingleton<CommandService>(new CommandService(new CommandServiceConfig
@@ -139,6 +159,11 @@ builder.Services.AddSingleton<GuildLogService>();
 // Áudio ao entrar/sair de canais de voz (configurável por guilda)
 builder.Services.AddSingleton<JoinLeaveSoundService>();
 builder.Services.AddSingleton<IBotEventSink>(sp => sp.GetRequiredService<JoinLeaveSoundService>());
+
+// Permanência do bot em canal de voz e saída automática quando ficar vazio
+builder.Services.AddSingleton<PersistentVoiceService>();
+builder.Services.AddSingleton<IPersistentVoiceService>(sp => sp.GetRequiredService<PersistentVoiceService>());
+builder.Services.AddSingleton<IBotEventSink>(sp => sp.GetRequiredService<PersistentVoiceService>());
 
 // Chat interactions por servidor (cache + MongoDB)
 builder.Services.AddSingleton<IGuildInteractionRepository, GuildInteractionRepository>();
@@ -209,6 +234,7 @@ if (builder.Configuration.GetValue<string>("AWS_LOG_GROUP") is { Length: > 0 } l
 builder.Services.AddHostedService<DiscordBotService>();
 builder.Services.AddHostedService<EconomyMaintenanceService>();
 builder.Services.AddHostedService<ScheduledSoundService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<PersistentVoiceService>());
 
 var host = builder.Build();
 
@@ -231,3 +257,6 @@ catch (Exception ex)
 }
 
 await host.RunAsync();
+
+static int ParseInt32(string? value, int fallback)
+    => int.TryParse(value, out var parsed) ? parsed : fallback;
