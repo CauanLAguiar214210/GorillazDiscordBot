@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - comandos
   - configuracao
+tipo: nota
 atualizado: 2026-09-27
 ---
 

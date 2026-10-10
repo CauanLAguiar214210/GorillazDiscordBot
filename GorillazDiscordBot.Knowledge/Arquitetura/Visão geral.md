@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - arquitetura
   - visao-geral
+tipo: nota
 atualizado: 2026-09-24
 ---
 

@@ -1,9 +1,10 @@
----
+﻿﻿---
 tags:
   - ideias
   - ecs
   - terraform
 status: ideia
+tipo: ideia
 atualizado: 2026-09-19
 ---
 

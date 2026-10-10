@@ -1,8 +1,10 @@
 ---
 tags:
+  - arquitetura
   - banco-de-dados
   - mongodb
-atualizado: 2026-09-19
+tipo: nota
+atualizado: 2026-10-10
 ---
 
 # Coleções MongoDB
@@ -11,7 +13,7 @@ atualizado: 2026-09-19
 
 As coleções são nomeadas **pelo nome do tipo** (`typeof(T).Name` em `MongoRepository` / `nameof` nos repositórios especializados). Mapeamentos BSON/`ObjectId` centralizados em `GorillazDiscordBot.Infra/Configuration/MongoMappings.cs`.
 
-## Coleções (databse padrão `gorillazbot`)
+## Coleções (database padrão `gorillazbot`)
 
 | Coleção | Tipo mapeado | Observações |
 | --- | --- | --- |

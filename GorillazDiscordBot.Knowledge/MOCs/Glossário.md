@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - moc
   - glossario
+tipo: moc
 atualizado: 2026-09-19
 ---
 

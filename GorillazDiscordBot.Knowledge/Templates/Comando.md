@@ -1,6 +1,7 @@
 ---
 tags:
   - comandos
+tipo: nota
 atualizado: {{date}}
 ---
 

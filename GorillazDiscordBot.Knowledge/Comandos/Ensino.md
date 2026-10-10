@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - comandos
   - ensino
+tipo: nota
 atualizado: 2026-09-19
 ---
 

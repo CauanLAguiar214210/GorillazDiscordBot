@@ -1,13 +1,14 @@
----
+﻿﻿---
 tags:
   - moc
   - diario
+tipo: moc
 atualizado: 2026-09-24
 ---
 
 # Diário
 
-Notas diárias do projeto. O plugin core `daily-notes` aponta para a pasta [[Diário]], com formato `YYYY-MM-DD` e template `Templates/Diária.md`.
+Notas diárias do projeto. O plugin core `daily-notes` aponta para a pasta [[MOCs/Diário]], com formato `YYYY-MM-DD` e template `Templates/Diária.md`.
 
 [[Home]]
 

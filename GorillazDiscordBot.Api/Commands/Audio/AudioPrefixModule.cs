@@ -13,22 +13,21 @@ namespace GorillazDiscordBot.Commands.Audio;
 [RequireContext(ContextType.Guild)]
 public class AudioPrefixModule : ModuleBase<SocketCommandContext>
 {
+    private const int LocalSoundsPageSize = 25;
+
     private readonly IAudioPlayerService _audioPlayer;
     private readonly IPersistentVoiceService _persistentVoice;
-    private readonly IAudioUploadService _uploads;
     private readonly ISettingsRepository<Guild> _guildRepository;
     private readonly IOptions<AudioUploadOptions> _uploadOptions;
 
     public AudioPrefixModule(
         IAudioPlayerService audioPlayer,
         IPersistentVoiceService persistentVoice,
-        IAudioUploadService uploads,
         ISettingsRepository<Guild> guildRepository,
         IOptions<AudioUploadOptions> uploadOptions)
     {
         _audioPlayer = audioPlayer;
         _persistentVoice = persistentVoice;
-        _uploads = uploads;
         _guildRepository = guildRepository;
         _uploadOptions = uploadOptions;
     }
@@ -152,16 +151,22 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var embed = new EmbedBuilder()
-            .WithBlurpleTheme()
-            .WithTitle("🎧 Sons locais disponíveis")
-            .WithDescription("Use `macaco tocar local:nome-do-arquivo` — ex.: `local:alarme.mp3`")
-            .WithStandardFooter($"{sounds.Count} som(es) carregado(s) no servidor de música");
+        // O Discord aceita no máximo 25 fields por embed e 10 embeds por mensagem;
+        // passar disso (76+ sons locais) faz o Build() lançar e o comando falhar.
+        var pages = sounds.Chunk(LocalSoundsPageSize).ToList();
+        for (var i = 0; i < pages.Count; i++)
+        {
+            var embed = new EmbedBuilder()
+                .WithBlurpleTheme()
+                .WithTitle("🎧 Sons locais disponíveis")
+                .WithDescription("Use `macaco tocar local:nome-do-arquivo` — ex.: `local:alarme.mp3`")
+                .WithStandardFooter($"{sounds.Count} som(es) carregado(s) no servidor de música · Parte {i + 1}/{pages.Count}");
 
-        foreach (var sound in sounds)
-            embed.AddField(sound.FileName, $"`local:{sound.RelativePath}`", true);
+            foreach (var sound in pages[i])
+                embed.AddField(sound.FileName, $"`local:{sound.RelativePath}`", true);
 
-        await ReplyAsync(embed: embed.Build());
+            await ReplyAsync(embed: embed.Build());
+        }
     }
 
     [Command("agendar")]
@@ -199,9 +204,17 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
             VoiceChannelId = targetChannel.Id
         };
 
-        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-        guild.ScheduledSounds.Add(schedule);
-        await _guildRepository.SaveAsync(guild);
+        var saved = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
+        {
+            guild.ScheduledSounds.Add(schedule);
+            return true;
+        });
+
+        if (!saved)
+        {
+            await ReplyAsync("❌ Não consegui salvar o agendamento. Tente novamente.");
+            return;
+        }
 
         var embed = new EmbedBuilder()
             .WithBlurpleTheme()
@@ -254,21 +267,38 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
             return;
 
         var key = id.Trim();
-        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-        var schedule = guild.ScheduledSounds.FirstOrDefault(s =>
-            s.Id.ToString().Equals(key, StringComparison.OrdinalIgnoreCase)
-            || s.Id.ToString().StartsWith(key, StringComparison.OrdinalIgnoreCase));
-
-        if (schedule == null)
+        string? removeError = null;
+        string? removedSource = null;
+        var saved = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
         {
-            await ReplyAsync("❌ Agendamento não encontrado.");
+            var schedule = guild.ScheduledSounds.FirstOrDefault(s =>
+                s.Id.ToString().Equals(key, StringComparison.OrdinalIgnoreCase)
+                || s.Id.ToString().StartsWith(key, StringComparison.OrdinalIgnoreCase));
+
+            if (schedule == null)
+            {
+                removeError = "Agendamento não encontrado.";
+                return false;
+            }
+
+            removedSource = schedule.AudioSource;
+            guild.ScheduledSounds.Remove(schedule);
+            return true;
+        });
+
+        if (removeError != null)
+        {
+            await ReplyAsync($"❌ {removeError}");
             return;
         }
 
-        guild.ScheduledSounds.Remove(schedule);
-        await _guildRepository.SaveAsync(guild);
+        if (!saved)
+        {
+            await ReplyAsync("❌ Não consegui remover o agendamento. Tente novamente.");
+            return;
+        }
 
-        await ReplyAsync($"🗑️ Som agendado removido: `{schedule.AudioSource}`");
+        await ReplyAsync($"🗑️ Som agendado removido: `{removedSource}`");
     }
 
     [Command("som-entrar")]
@@ -280,10 +310,14 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
 
         if (IsOff(origem))
         {
-            var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-            guild.JoinVoiceSound = null;
-            await _guildRepository.SaveAsync(guild);
-            await ReplyAsync("🔕 Som ao **entrar** desativado.");
+            var saved = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
+            {
+                guild.JoinVoiceSound = null;
+                return true;
+            });
+            await ReplyAsync(saved
+                ? "🔕 Som ao **entrar** desativado."
+                : "❌ Não consegui salvar a alteração. Tente novamente.");
             return;
         }
 
@@ -294,10 +328,15 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var guild2 = await _guildRepository.GetAsync(Context.Guild.Id);
-        guild2.JoinVoiceSound = origem.Trim();
-        await _guildRepository.SaveAsync(guild2);
-        await ReplyAsync($"🔊 Som ao **entrar** definido: `{guild2.JoinVoiceSound}`.");
+        var newValue = origem.Trim();
+        var savedOn = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
+        {
+            guild.JoinVoiceSound = newValue;
+            return true;
+        });
+        await ReplyAsync(savedOn
+            ? $"🔊 Som ao **entrar** definido: `{newValue}`."
+            : "❌ Não consegui salvar a alteração. Tente novamente.");
     }
 
     [Command("som-sair")]
@@ -309,10 +348,14 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
 
         if (IsOff(origem))
         {
-            var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-            guild.LeaveVoiceSound = null;
-            await _guildRepository.SaveAsync(guild);
-            await ReplyAsync("🔕 Som ao **sair** desativado.");
+            var saved = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
+            {
+                guild.LeaveVoiceSound = null;
+                return true;
+            });
+            await ReplyAsync(saved
+                ? "🔕 Som ao **sair** desativado."
+                : "❌ Não consegui salvar a alteração. Tente novamente.");
             return;
         }
 
@@ -323,10 +366,15 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        var guild2 = await _guildRepository.GetAsync(Context.Guild.Id);
-        guild2.LeaveVoiceSound = origem.Trim();
-        await _guildRepository.SaveAsync(guild2);
-        await ReplyAsync($"🔊 Som ao **sair** definido: `{guild2.LeaveVoiceSound}`.");
+        var newValue = origem.Trim();
+        var savedOn = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
+        {
+            guild.LeaveVoiceSound = newValue;
+            return true;
+        });
+        await ReplyAsync(savedOn
+            ? $"🔊 Som ao **sair** definido: `{newValue}`."
+            : "❌ Não consegui salvar a alteração. Tente novamente.");
     }
 
     [Command("som-status")]
@@ -348,254 +396,6 @@ public class AudioPrefixModule : ModuleBase<SocketCommandContext>
 
         await ReplyAsync(embed: embed);
     }
-
-    [Summary("Opção `macaco favs favoritar <origem> [= apelido>` (admin)")]
-    public async Task FavoritarAsync([Remainder] string entrada)
-    {
-        if (!await CommandGuards.GuardPermissionAsync(Context))
-            return;
-
-        if (!FavoriteSoundMatcher.TryParseInput(entrada, out var origem, out var alias, out var inputError))
-        {
-            await ReplyAsync($"❌ {inputError}");
-            return;
-        }
-
-        var resolved = await _audioPlayer.ResolveAsync(origem);
-        if (!resolved.IsValid)
-        {
-            await ReplyAsync($"❌ {resolved.Error}");
-            return;
-        }
-
-        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-
-        if (guild.FavoriteSounds.Count >= FavoriteSoundMatcher.MaxFavorites)
-        {
-            await ReplyAsync($"❌ Limite de {FavoriteSoundMatcher.MaxFavorites} favoritos atingido. Remova algum com `macaco favs desfavoritar`.");
-            return;
-        }
-
-        if (alias != null && guild.FavoriteSounds.Any(f => f.Alias!.Equals(alias, StringComparison.OrdinalIgnoreCase)))
-        {
-            await ReplyAsync($"❌ Já existe um favorito com o apelido **{alias}**.");
-            return;
-        }
-
-        // A origem é guardada como o usuário digitou, normalizada pelo resolver
-        // (ex.: `local:uploads/<id>.mp3`), para sobreviver a restart.
-        var favorite = new FavoriteSoundSettings
-        {
-            AudioSource = resolved.Identifier!,
-            Alias = alias
-        };
-
-        guild.FavoriteSounds.Add(favorite);
-        await _guildRepository.SaveAsync(guild);
-
-        await ReplyAsync(embed: BuildFavoriteAddedEmbed(favorite, guild.FavoriteSounds.Count).Build());
-    }
-
-    [Summary("Opção `macaco favs favoritar-anexo [= apelido]` (admin)")]
-    public async Task FavoritarAnexoAsync([Remainder] string apelido)
-    {
-        if (!await CommandGuards.GuardPermissionAsync(Context))
-            return;
-
-        var attachment = Context.Message.Attachments.FirstOrDefault();
-        if (attachment == null)
-        {
-            await ReplyAsync("📎 Anexe um arquivo de áudio ao comando. Ex.: `macaco favs favoritar-anexo = risada`");
-            return;
-        }
-
-        string? alias = null;
-        if (!string.IsNullOrWhiteSpace(apelido))
-        {
-            if (!FavoriteSoundMatcher.TryNormalizeAlias(apelido, out var parsedAlias, out var aliasError))
-            {
-                await ReplyAsync($"❌ {aliasError}");
-                return;
-            }
-
-            alias = parsedAlias;
-        }
-
-        await ReplyAsync("⏳ Enviando para o servidor de música...");
-
-        var upload = await _uploads.UploadAsync(new Uri(attachment.Url), attachment.Filename);
-        if (!upload.Success)
-        {
-            await ReplyAsync($"❌ {upload.Error}");
-            return;
-        }
-
-        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-
-        if (guild.FavoriteSounds.Count >= FavoriteSoundMatcher.MaxFavorites)
-        {
-            await ReplyAsync($"❌ Limite de {FavoriteSoundMatcher.MaxFavorites} favoritos atingido.");
-            return;
-        }
-
-        var favorite = new FavoriteSoundSettings
-        {
-            AudioSource = upload.Origin!,
-            Alias = alias
-        };
-
-        guild.FavoriteSounds.Add(favorite);
-        await _guildRepository.SaveAsync(guild);
-
-        var embed = BuildFavoriteAddedEmbed(favorite, guild.FavoriteSounds.Count)
-            .AddField("Arquivo", attachment.Filename, true);
-
-        if (upload.Duration is { } duration)
-            embed.AddField("Duração", AudioUploadService.FormatDuration(duration), true);
-
-        await ReplyAsync(embed: embed.Build());
-    }
-
-    [Summary("Lista os favoritos de áudio da guilda")]
-    public async Task FavsAsync([Remainder] string? acao = null)
-    {
-        var tokens = (acao ?? string.Empty).Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-        if (tokens.Length > 0)
-        {
-            var argumento = tokens.Length == 2 ? tokens[1] : string.Empty;
-            switch (tokens[0].ToLowerInvariant())
-            {
-                case "favoritar":
-                    await FavoritarAsync(argumento);
-                    return;
-                case "favoritar-anexo":
-                    await FavoritarAnexoAsync(argumento);
-                    return;
-                case "desfavoritar":
-                    await DesfavoritarAsync(argumento);
-                    return;
-                case "tocarfav":
-                case "tocar-fav":
-                    await TocarFavAsync(argumento);
-                    return;
-            }
-
-            await ReplyAsync("❌ Opção inválida. Use `macaco favs`, `macaco favs favoritar`, `macaco favs desfavoritar` ou `macaco favs tocarfav`.");
-            return;
-        }
-
-        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-
-        if (guild.FavoriteSounds.Count == 0)
-        {
-            await ReplyAsync("📭 Nenhum favorito ainda. Use `macaco favs favoritar <origem>` ou anexe um áudio em `macaco favs favoritar-anexo`.");
-            return;
-        }
-
-        var embed = new EmbedBuilder()
-            .WithBlurpleTheme()
-            .WithTitle($"⭐ Favoritos de áudio ({guild.FavoriteSounds.Count})")
-            .WithDescription("Use `macaco tocar fav <número|apelido>` ou `macaco tocar fav aleatorio`.")
-            .WithStandardFooter("Use macaco favs favoritar <origem> [= apelido] para adicionar");
-
-        for (var i = 0; i < guild.FavoriteSounds.Count; i++)
-        {
-            var favorite = guild.FavoriteSounds[i];
-            var label = string.IsNullOrWhiteSpace(favorite.Alias) ? FavoriteSoundMatcher.Truncate(favorite.AudioSource, 60) : favorite.Alias!;
-            var plays = favorite.TimesPlayed > 0 ? $" — 🔁 {favorite.TimesPlayed}x" : string.Empty;
-            embed.AddField($"{i + 1}. {label}", $"`{favorite.AudioSource}`{plays}", false);
-        }
-
-        await ReplyAsync(embed: embed.Build());
-    }
-
-    [Summary("Opção `macaco favs desfavoritar <número|apelido|id>` (admin)")]
-    public async Task DesfavoritarAsync([Remainder] string chave)
-    {
-        if (!await CommandGuards.GuardPermissionAsync(Context))
-            return;
-
-        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-
-        if (!FavoriteSoundMatcher.TryFind(guild.FavoriteSounds, chave, out var favorite, out var findError))
-        {
-            await ReplyAsync($"❌ {findError}");
-            return;
-        }
-
-        guild.FavoriteSounds.Remove(favorite!);
-        await _guildRepository.SaveAsync(guild);
-
-        await ReplyAsync($"🗑️ Favorito removido: **{FavoriteSoundMatcher.DisplayName(favorite!)}**");
-    }
-
-    [Summary("Opção `macaco favs tocarfav <número|apelido|aleatorio>`")]
-    public async Task TocarFavAsync([Remainder] string chave)
-    {
-        var voiceChannel = GetRequesterVoiceChannel();
-        if (voiceChannel == null)
-        {
-            await ReplyAsync("🔇 Entre em um canal de voz para usar este comando.");
-            return;
-        }
-
-        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-
-        FavoriteSoundSettings? favorite;
-        if (FavoriteSoundMatcher.IsRandomRequest(chave))
-        {
-            favorite = FavoriteSoundMatcher.PickRandom(guild.FavoriteSounds);
-            if (favorite == null)
-            {
-                await ReplyAsync("📭 Nenhum favorito ainda. Use `macaco favs favoritar <origem>`.");
-                return;
-            }
-        }
-        else if (!FavoriteSoundMatcher.TryFind(guild.FavoriteSounds, chave, out var found, out var findError))
-        {
-            await ReplyAsync($"❌ {findError}");
-            return;
-        }
-        else
-        {
-            favorite = found;
-        }
-
-        // A permissão é reavaliada a cada execução: um favorito de URL direta
-        // criado por um admin não pode ser tocado por qualquer membro.
-        var resolved = await _audioPlayer.ResolveAsync(favorite!.AudioSource);
-        if (!resolved.IsValid)
-        {
-            await ReplyAsync($"❌ Não consegui resolver o favorito: {resolved.Error}");
-            return;
-        }
-
-        if (resolved.RequiresElevatedPermission && !await CommandGuards.GuardPermissionAsync(Context))
-            return;
-
-        var result = await _audioPlayer.PlayAsync(Context.Guild.Id, voiceChannel.Id, resolved.Identifier!);
-        if (!result.Success)
-        {
-            await ReplyAsync($"❌ {result.Error}");
-            return;
-        }
-
-        favorite.TimesPlayed++;
-        await _guildRepository.SaveAsync(guild);
-
-        await ReplyAsync($"⭐ Tocando **{FavoriteSoundMatcher.DisplayName(favorite)}** no **{voiceChannel.Name}**... saio quando acabar!");
-    }
-
-    private static EmbedBuilder BuildFavoriteAddedEmbed(FavoriteSoundSettings favorite, int total)
-        => new EmbedBuilder()
-            .WithBlurpleTheme()
-            .WithTitle("⭐ Favorito salvo!")
-            .AddField("Origem", $"`{FavoriteSoundMatcher.Truncate(favorite.AudioSource, 200)}`", false)
-            .AddField("Apelido", string.IsNullOrWhiteSpace(favorite.Alias) ? BotConstants.NotSet : $"**{favorite.Alias}**", true)
-            .AddField("Total de favoritos", $"{total}/{FavoriteSoundMatcher.MaxFavorites}", true)
-            .WithStandardFooter("Use macaco favs tocarfav " +
-                                (string.IsNullOrWhiteSpace(favorite.Alias) ? "<número>" : favorite.Alias!) +
-                                " para tocar");
 
     private static bool IsOff(string origem)
         => origem.Trim().Equals("off", StringComparison.OrdinalIgnoreCase)

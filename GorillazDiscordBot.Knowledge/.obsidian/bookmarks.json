@@ -9,23 +9,23 @@
     {
       "type": "file",
       "ctime": 1789795926440,
-      "path": "Agentes.md",
+      "path": "MOCs/Agentes.md",
       "title": ""
     },
     {
       "type": "file",
       "ctime": 1789795936677,
-      "path": "Comandos.md"
+      "path": "MOCs/Comandos.md"
     },
     {
       "type": "file",
       "ctime": 1789795958351,
-      "path": "Arquitetura.md"
+      "path": "MOCs/Arquitetura.md"
     },
     {
       "type": "file",
       "ctime": 1789796080041,
-      "path": "Investigação.md"
+      "path": "MOCs/Investigação.md"
     }
   ]
 }

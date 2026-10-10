@@ -1,10 +1,13 @@
 ---
 tags:
   - diario
+tipo: diario
 atualizado: {{date}}
 ---
 
 # {{title}}
+
+[[Home|Home]] · [[Diário|← Diário]]
 
 ## Feito
 

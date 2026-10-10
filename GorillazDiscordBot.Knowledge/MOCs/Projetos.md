@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - moc
   - projetos
+tipo: moc
 atualizado: 2026-09-19
 ---
 

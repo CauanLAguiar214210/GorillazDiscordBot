@@ -84,8 +84,8 @@ Config via `.env` (carregado por DotNetEnv em `GorillazDiscordBot.Api/.env`, tem
 | `AUDIO_INSTANT_MIRROR_BASE_URL` | Não | `https://myinstants.site` (espelho para links de som instantâneo) |
 | `AUDIO_PLAYBACK_START_TIMEOUT_SECONDS` | Nao | `15` (segundos ate o Lavalink confirmar `TrackStarted`) |
 | `AUDIO_UPLOAD_PATH` | Não | `/audio/uploads` (mesmo volume montado em `/opt/Lavalink/sounds/uploads`) |
-| `AUDIO_UPLOAD_MAX_MB` | Não | `25` (tamanho máximo de um anexo favoritado) |
-| `AUDIO_UPLOAD_MAX_MINUTES` | Não | `10` (duração máxima de um anexo favoritado) |
+| `AUDIO_UPLOAD_MAX_MB` | Não | `25` (legado: limite do antigo upload de anexo; sem efeito hoje) |
+| `AUDIO_UPLOAD_MAX_MINUTES` | Não | `10` (legado: duração máxima do antigo upload de anexo; sem efeito hoje) |
 | `AUDIO_UPLOAD_RETENTION_DAYS` | Não | `30` (idade máxima de um upload no disco) |
 | `YOUTUBE_POT_TOKEN` / `YOUTUBE_VISITOR_DATA` | Não | Tokens anti-bot do `youtube-source`; necessários quando o YouTube exigir login |
 | `YOUTUBE_OAUTH_ENABLED` | Não | `false`; habilite o fluxo OAuth do `youtube-source` |
@@ -97,7 +97,7 @@ Config via `.env` (carregado por DotNetEnv em `GorillazDiscordBot.Api/.env`, tem
 ```bash
 dotnet restore GorillazDiscordBot.sln
 dotnet build GorillazDiscordBot.sln -c Release
-dotnet test GorillazDiscordBot.sln          # 707 testes
+dotnet test GorillazDiscordBot.sln          # 666 testes
 dotnet run --project GorillazDiscordBot.Api
 ```
 
@@ -155,10 +155,10 @@ autorização, copie o `refreshToken` exibido para
 ser usados simultaneamente.
 
 O compose cria o volume `audio_uploads` e monta o mesmo conteúdo no bot
-(`/audio/uploads`) e no Lavalink (`/opt/Lavalink/sounds/uploads`). Não remova esse
-volume enquanto houver favoritos baseados em anexos. A limpeza automática remove
-arquivos que ultrapassarem `AUDIO_UPLOAD_RETENTION_DAYS`, mesmo se ainda estiverem
-referenciados por um favorito.
+(`/audio/uploads`) e no Lavalink (`/opt/Lavalink/sounds/uploads`), mantendo tocáveis os
+sons `local:uploads/…` gravados pelo antigo fluxo de anexo (hoje removido). A limpeza
+automática remove arquivos que ultrapassarem `AUDIO_UPLOAD_RETENTION_DAYS`, mesmo se ainda
+forem referenciados por uma origem.
 
 Para subir uma imagem já construída, sem repetir o restore:
 
@@ -183,7 +183,7 @@ docker compose up -d --no-build
 | `voice setup` | Criação automática de canais de voz |
 | `interaction add <trigger> <resposta>` | Interações personalizadas do servidor |
 | `tocar <origem>` / `parar` / `sons` | Áudio no canal de voz — YouTube, busca (`!termo`), Myinstants, URL de áudio ou `local:arquivo` |
-| `favoritar <origem> = <apelido>` / `favoritar-anexo` / `favs` / `tocarfav <chave>` / `desfavoritar <chave>` | Favoritos de áudio da guilda (até 100, com apelido opcional; anexos vão para o volume compartilhado com o Lavalink) |
+| `sons` / `/audio listar` | Lista sons locais e favoritos com ações interativas (tocar, favoritar, desfavoritar, remover — até 100 por servidor) |
 | `prefix set <novo>` | Altera o prefixo do servidor |
 
 ## Deploy AWS

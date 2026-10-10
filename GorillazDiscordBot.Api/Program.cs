@@ -96,11 +96,6 @@ builder.Services.Configure<AudioUploadOptions>(options =>
     options.MaxMinutes = ParseInt32(Environment.GetEnvironmentVariable("AUDIO_UPLOAD_MAX_MINUTES"), AudioUploadOptions.DefaultMaxMinutes);
     options.RetentionDays = ParseInt32(Environment.GetEnvironmentVariable("AUDIO_UPLOAD_RETENTION_DAYS"), AudioUploadOptions.DefaultRetentionDays);
 });
-builder.Services.AddHttpClient(AudioUploadService.HttpClientName, client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(60);
-    client.DefaultRequestHeaders.Add("User-Agent", "GorillazDiscordBot/1.0");
-});
 builder.Services.AddSingleton<IAudioUploadService, AudioUploadService>();
 builder.Services.AddSingleton<IHostedService, AudioUploadCleanupService>();
 
@@ -138,6 +133,7 @@ builder.Services.AddSingleton<IReleaseNoteRepository, ReleaseNoteRepository>();
 // Guild settings (cache + MongoDB, um documento por servidor)
 builder.Services.AddSingleton(typeof(ISettingsRepository<>), typeof(SettingsRepository<>));
 builder.Services.AddSingleton<GuildSettingsAccessor>();
+builder.Services.AddSingleton<ModuleAccessService>();
 builder.Services.AddSingleton<IVoiceChannelService, VoiceChannelService>();
 
 // Event sinks (handlers dedicados de eventos do Discord)

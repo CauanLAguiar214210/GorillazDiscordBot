@@ -1,7 +1,9 @@
 ---
 tags:
   - decisoes
+  - adr
 status: proposto
+tipo: adr
 atualizado: {{date}}
 ---
 

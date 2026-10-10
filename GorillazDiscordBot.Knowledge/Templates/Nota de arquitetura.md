@@ -1,6 +1,7 @@
 ---
 tags:
   - arquitetura
+tipo: nota
 atualizado: {{date}}
 ---
 

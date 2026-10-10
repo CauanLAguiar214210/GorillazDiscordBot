@@ -23,6 +23,7 @@ public class AudioPlayerService : IAudioPlayerService
     private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _playLocks = new();
     private readonly ConcurrentDictionary<ulong, PendingStart> _pendingStarts = new();
     private readonly ConcurrentDictionary<ulong, ILavalinkPlayer> _activePlayers = new();
+    private readonly ConcurrentDictionary<ulong, string> _activeTrackIds = new();
     private readonly ConcurrentDictionary<ulong, ulong> _persistentChannels = new();
     private readonly object _eventAttachLock = new();
     private bool _eventsAttached;
@@ -148,28 +149,48 @@ public class AudioPlayerService : IAudioPlayerService
 
     public async Task<AudioStopResult> StopAsync(ulong guildId, CancellationToken cancellationToken = default)
     {
-        if (!_audio.Players.TryGetPlayer(guildId, out var player))
-        {
-            ClearSession(guildId);
-            return new AudioStopResult(false, true);
-        }
+        // Cancela antes de esperar o lock: um start em andamento seguraria o lock
+        // até o timeout e o usuário veria "demorou demais" em vez de "parado".
+        CancelPendingStart(guildId);
+
+        var semaphore = _playLocks.GetOrAdd(guildId, _ => new SemaphoreSlim(1, 1));
+        await semaphore.WaitAsync(cancellationToken);
 
         try
         {
-            await player.StopAsync(cancellationToken);
-            if (!_persistentChannels.ContainsKey(guildId))
-                await player.DisconnectAsync(cancellationToken);
-            return new AudioStopResult(true, true);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Falha ao parar áudio na guilda {guildId}", guildId);
-            return new AudioStopResult(true, false);
+            if (!_audio.Players.TryGetPlayer(guildId, out var player))
+            {
+                ClearSession(guildId);
+                return new AudioStopResult(false, true);
+            }
+
+            try
+            {
+                await player.StopAsync(cancellationToken);
+                if (!_persistentChannels.ContainsKey(guildId))
+                    await player.DisconnectAsync(cancellationToken);
+                return new AudioStopResult(true, true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao parar áudio na guilda {guildId}", guildId);
+                return new AudioStopResult(true, false);
+            }
+            finally
+            {
+                ClearSession(guildId);
+            }
         }
         finally
         {
-            ClearSession(guildId);
+            semaphore.Release();
         }
+    }
+
+    private void CancelPendingStart(ulong guildId)
+    {
+        if (_pendingStarts.TryRemove(guildId, out var pending))
+            pending.Cancel();
     }
 
     /// <summary>
@@ -216,6 +237,15 @@ public class AudioPlayerService : IAudioPlayerService
 
         for (var attempt = 1; attempt <= MaxStartAttempts; attempt++)
         {
+            // A pendência nasce antes do Stop/WaitForReady: nessa janela um TrackEnd
+            // atrasado da faixa anterior ainda pode chegar e precisa ser reconhecido
+            // como "início em andamento", não como fim da sessão nova.
+            var pending = new PendingStart();
+            _pendingStarts[guildId] = pending;
+
+            // Eventos da faixa anterior não podem se passar pela sessão que está começando.
+            _activeTrackIds.TryRemove(guildId, out _);
+
             var persistent = _persistentChannels.ContainsKey(guildId);
             await StopExistingAsync(guildId, cancellationToken, disconnect: !persistent);
 
@@ -228,13 +258,13 @@ public class AudioPlayerService : IAudioPlayerService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Servidor de música (Lavalink) ainda não está pronto");
+                ClearSession(guildId);
                 return new AudioPlayResult(false, "Servidor de música (Lavalink) indisponível. Tente novamente em alguns instantes.");
             }
 
             ILavalinkPlayer? player = persistent && _activePlayers.TryGetValue(guildId, out var persistentPlayer)
                 ? persistentPlayer
                 : null;
-            var pending = new PendingStart();
 
             if (player == null)
             {
@@ -260,6 +290,7 @@ public class AudioPlayerService : IAudioPlayerService
                     if (!retrieve.IsSuccess)
                     {
                         _logger.LogInformation("Falha ao obter player da guilda {guildId}: {status}", guildId, retrieve.Status);
+                        ClearSession(guildId);
                         return new AudioPlayResult(false, $"Não consegui entrar no canal de voz ({retrieve.Status}).");
                     }
 
@@ -273,6 +304,7 @@ public class AudioPlayerService : IAudioPlayerService
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Falha ao obter player da guilda {guildId}", guildId);
+                    ClearSession(guildId);
                     return new AudioPlayResult(false, DescribeFailure(ex));
                 }
             }
@@ -280,7 +312,6 @@ public class AudioPlayerService : IAudioPlayerService
             var selectedPlayer = player!;
             pending.SetPlayer(selectedPlayer);
             _activePlayers[guildId] = selectedPlayer;
-            _pendingStarts[guildId] = pending;
 
             try
             {
@@ -372,6 +403,7 @@ public class AudioPlayerService : IAudioPlayerService
     {
         ClearPending(guildId);
         _activePlayers.TryRemove(guildId, out _);
+        _activeTrackIds.TryRemove(guildId, out _);
     }
 
     private async Task StopExistingAsync(
@@ -414,14 +446,26 @@ public class AudioPlayerService : IAudioPlayerService
 
     private Task OnTrackStartedAsync(object? sender, TrackStartedEventArgs e)
     {
-        if (_pendingStarts.TryGetValue(e.Player.GuildId, out var pending) && ReferenceEquals(pending.Player, e.Player))
+        var guildId = e.Player.GuildId;
+
+        // Registra a faixa antes de liberar quem aguarda o início: um TrackEnd que
+        // chegue logo em seguida precisa já encontrar a sessão atual identificada.
+        if (_activePlayers.TryGetValue(guildId, out var active) && ReferenceEquals(active, e.Player))
+            _activeTrackIds[guildId] = e.Track.Identifier;
+
+        if (_pendingStarts.TryGetValue(guildId, out var pending) && ReferenceEquals(pending.Player, e.Player))
             pending.Succeed();
 
         return Task.CompletedTask;
     }
 
     private Task OnTrackEndedAsync(object? sender, TrackEndedEventArgs e)
-        => FinishSessionAsync(e.Player, $"áudio terminou ({e.Reason})");
+    {
+        if (IsStaleTrackEvent(e.Player, e.Track.Identifier, "TrackEnd"))
+            return Task.CompletedTask;
+
+        return FinishSessionAsync(e.Player, $"áudio terminou ({e.Reason})");
+    }
 
     private Task OnTrackExceptionAsync(object? sender, TrackExceptionEventArgs e)
     {
@@ -433,11 +477,52 @@ public class AudioPlayerService : IAudioPlayerService
             e.Player.GuildId,
             e.Exception.Message);
 
+        if (IsStaleTrackEvent(e.Player, e.Track.Identifier, "TrackException"))
+            return Task.CompletedTask;
+
         return FinishSessionAsync(e.Player, "erro ao tocar áudio");
     }
 
     private Task OnTrackStuckAsync(object? sender, TrackStuckEventArgs e)
-        => FinishSessionAsync(e.Player, "áudio travou");
+    {
+        if (IsStaleTrackEvent(e.Player, e.Track.Identifier, "TrackStuck"))
+            return Task.CompletedTask;
+
+        return FinishSessionAsync(e.Player, "áudio travou");
+    }
+
+    /// <summary>
+    /// Evento que não pertence à sessão atual: ou a faixa atual ainda está sendo
+    /// iniciada (pendência aberta) ou a faixa reportada não é a que está tocando.
+    /// Nesses casos derrubar a sessão mataria o áudio recém-iniciado.
+    /// </summary>
+    private bool IsStaleTrackEvent(ILavalinkPlayer player, string trackIdentifier, string evento)
+    {
+        var guildId = player.GuildId;
+
+        if (_pendingStarts.TryGetValue(guildId, out var pending) && !pending.Completion.IsCompleted)
+        {
+            _logger.LogDebug(
+                "Ignorando {evento} da guilda {guildId}: início de faixa em andamento",
+                evento,
+                guildId);
+            return true;
+        }
+
+        if (_activeTrackIds.TryGetValue(guildId, out var activeTrack) &&
+            !string.Equals(activeTrack, trackIdentifier, StringComparison.Ordinal))
+        {
+            _logger.LogDebug(
+                "Ignorando {evento} da guilda {guildId}: faixa de sessão anterior ({stale} != {current})",
+                evento,
+                guildId,
+                trackIdentifier,
+                activeTrack);
+            return true;
+        }
+
+        return false;
+    }
 
     private async Task FinishSessionAsync(ILavalinkPlayer player, string motivo)
     {
@@ -484,6 +569,8 @@ public class AudioPlayerService : IAudioPlayerService
         public void Succeed() => _completion.TrySetResult(StartOutcome.Ok);
 
         public void Fail(string? error) => _completion.TrySetResult(StartOutcome.WithError(error));
+
+        public void Cancel() => _completion.TrySetCanceled();
     }
 
     private readonly record struct StartOutcome(bool Started, string? Error)

@@ -1,12 +1,14 @@
 ---
 tags:
+  - vault
   - seguranca
-atualizado: 2026-09-19
+tipo: nota
+atualizado: 2026-10-10
 ---
 
 # Segurança
 
-[[Home|Home]]
+[[Home|Home]] · [[Vault|← Vault]]
 
 Boas práticas para o projeto, especialmente no trato de segredos e logs.
 

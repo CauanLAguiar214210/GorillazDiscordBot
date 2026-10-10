@@ -89,17 +89,20 @@ public class ScheduledSoundService : IHostedService
                     continue;
 
                 var key = new FiredKey(schedule.Id, utcNow.Date);
-                if (!_fired.Add(key))
+                if (_fired.Contains(key))
                     continue;
 
-                await TryPlayAsync(socketGuild, guild, schedule, ct);
+                // Fire-once só em sucesso: uma falha transitória (canal vazio no
+                // primeiro tick) deixa o segundo tick do mesmo minuto tentar de novo.
+                if (await TryPlayAsync(socketGuild, guild, schedule, ct))
+                    _fired.Add(key);
             }
         }
 
         PruneFired(utcNow);
     }
 
-    private async Task TryPlayAsync(SocketGuild socketGuild, Guild guild, ScheduledSoundSettings schedule, CancellationToken ct)
+    private async Task<bool> TryPlayAsync(SocketGuild socketGuild, Guild guild, ScheduledSoundSettings schedule, CancellationToken ct)
     {
         try
         {
@@ -110,7 +113,7 @@ public class ScheduledSoundService : IHostedService
                 if (channelId == 0)
                 {
                     _logger.LogInformation("Áudio agendado {id} ignorado: nenhum canal de voz ocupado", schedule.Id);
-                    return;
+                    return false;
                 }
             }
 
@@ -120,33 +123,48 @@ public class ScheduledSoundService : IHostedService
             if (members.IsDefaultOrEmpty)
             {
                 _logger.LogInformation("Áudio agendado {id} ignorado: canal de voz vazio", schedule.Id);
-                return;
+                return false;
             }
 
             var resolved = await _audioPlayer.ResolveAsync(schedule.AudioSource, ct);
             if (!resolved.IsValid)
             {
                 _logger.LogWarning("Áudio agendado {id} inválido e foi desativado: {error}", schedule.Id, resolved.Error);
-                schedule.Enabled = false;
-                await _guildRepository.SaveAsync(guild);
-                return;
+                await _guildRepository.MutateAsync(guild.GuildId, g =>
+                {
+                    var current = g.ScheduledSounds.FirstOrDefault(s => s.Id == schedule.Id);
+                    if (current == null)
+                        return false;
+
+                    current.Enabled = false;
+                    return true;
+                });
+                return false;
             }
 
             var result = await _audioPlayer.PlayAsync(guild.GuildId, channelId, resolved.Identifier!, ct);
             if (result.Success)
             {
-                schedule.TimesPlayed++;
-                await _guildRepository.SaveAsync(guild);
+                await _guildRepository.MutateAsync(guild.GuildId, g =>
+                {
+                    var current = g.ScheduledSounds.FirstOrDefault(s => s.Id == schedule.Id);
+                    if (current == null)
+                        return false;
+
+                    current.TimesPlayed++;
+                    return true;
+                });
                 _logger.LogInformation("Áudio agendado {id} tocado ({times}x)", schedule.Id, schedule.TimesPlayed);
+                return true;
             }
-            else
-            {
-                _logger.LogWarning("Áudio agendado {id} falhou: {error}", schedule.Id, result.Error);
-            }
+
+            _logger.LogWarning("Áudio agendado {id} falhou: {error}", schedule.Id, result.Error);
+            return false;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Falha ao tocar áudio agendado {id}", schedule.Id);
+            return false;
         }
     }
 

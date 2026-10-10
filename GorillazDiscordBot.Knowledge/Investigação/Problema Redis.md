@@ -1,8 +1,9 @@
----
+﻿﻿---
 tags:
   - investigacao
   - redis
-status: sem uso identificado no bot
+status: descartada
+tipo: investigacao
 atualizado: 2026-09-18
 ---
 # Problema Redis

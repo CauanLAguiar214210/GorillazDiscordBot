@@ -11,7 +11,7 @@ namespace GorillazDiscordBot.Api.Commands.Config;
 [Group("config", "Configurações do servidor (boas-vindas, despedidas, voz e prefixo)")]
 [RequireContext(ContextType.Guild)]
 [DefaultMemberPermissions(GuildPermission.ManageGuild)]
-public class ConfigSlashModule : InteractionModuleBase<SocketInteractionContext>
+public partial class ConfigSlashModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly ISettingsRepository<Guild> _guildRepository;
     private readonly IOptions<BotOptions> _botOptions;

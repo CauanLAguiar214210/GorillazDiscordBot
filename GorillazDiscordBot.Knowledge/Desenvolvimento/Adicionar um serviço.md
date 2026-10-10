@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - desenvolvimento
   - servicos
+tipo: nota
 atualizado: 2026-09-19
 ---
 

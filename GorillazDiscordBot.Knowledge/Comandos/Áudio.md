@@ -1,8 +1,9 @@
----
+﻿﻿---
 tags:
   - comandos
   - audio
-atualizado: 2026-09-29
+tipo: nota
+atualizado: 2026-10-08
 ---
 
 # Áudio
@@ -18,9 +19,9 @@ Toca sons no canal de voz via **Lavalink** (sidecar). O modo padrão é "toque e
 | `AudioPrefixModule` | `Commands/Audio/AudioPrefixModule.cs` |
 | `AudioSlashModule` | `Commands/Audio/AudioSlashModule.cs` |
 | `JoinLeaveSoundService` | `Services/JoinLeaveSoundService.cs` |
-| `AudioUploadService` | `Services/AudioUploadService.cs` (favoritos via anexo) |
+| `AudioUploadService` | `Services/AudioUploadService.cs` (limpeza dos uploads legados) |
 | `AudioUploadCleanupService` | `Services/AudioUploadCleanupService.cs` (limpeza periódica) |
-| `FavoriteSoundMatcher` | `Services/FavoriteSoundMatcher.cs` (chave/apelido/aleatório) |
+| `FavoriteSoundMatcher` | `Services/FavoriteSoundMatcher.cs` (apelido/origem, limites e dedupe) |
 
 Disponível por **prefixo** e por **slash** (`/audio <comando>`):
 
@@ -46,27 +47,22 @@ Disponível por **prefixo** e por **slash** (`/audio <comando>`):
 `⭐ Favoritos` mostra os itens de `Guild.FavoriteSounds` (Mongo), até **100** por guilda.
 Cada favorito tem apelido opcional (até **32** caracteres), origem e contador de reproduções.
 
-- `chave` aceita **número** da lista, **apelido**, **id**, a própria **origem** ou `aleatorio`
-  (`FavoriteSoundMatcher`, sem distinção entre maiúsculas e minúsculas).
+- As ações ficam nos botões da lista (detail **Tocar**/**Voltar**/**Favoritar**/
+  **Desfavoritar**/**Remover**). Não há comandos de favorito por prefixo; não-local novo entra
+  via `/audio add <origem> <nome>`, e local favoritá-se pelo próprio botão na lista.
+- Os botões do catálogo identificam o item pela **chave da origem** (hash de 16 hex —
+  `AudioSlashModule.CatalogKey`), não pelo índice da página: outra pessoa favoritando entre
+  render e clique não desvia a ação para o áudio errado.
 - Quem cria e remove precisa de **ManageGuild** (ou `Administrator`). Ao **tocar**, a permissão de URL direta é **reavaliada**: um favorito `DirectUrl`
-  criado por admin e depois de um membro sem permissão é recusado na hora.
-- O fluxo de anexo **baixa o arquivo do CDN do Discord**, grava no volume compartilhado com o
-  Lavalink e valida com `LoadTrackAsync` antes de favoritar. O nome enviado pelo usuário **nunca**
-  vira caminho no disco: o arquivo é salvo como `<guid-N>.<ext>` e a origem fica
-  `local:uploads/<guid-N>.<ext>`.
-- Limites (`AUDIO_UPLOAD_MAX_MB`, `AUDIO_UPLOAD_MAX_MINUTES`): 25 MB e 10 min por padrão. Formatos:
-  `.mp3`, `.ogg`, `.wav`, `.flac`, `.m4a`. Só HTTPS de `cdn.discordapp.com`,
-  `media.discordapp.net` e `cdn.discord.com`.
-- O download vai para `<arquivo>.part` e só é movido para o nome final **antes** da validação,
-  porque o Lavalink escolhe o codec pela extensão. Se a validação falhar (corrompido, live stream,
-  longo demais), o arquivo é apagado e nada fica para trás.
-- Cada falha tem mensagem própria: tamanho, anexo vazio, rede, formato, corrompido, live ou
-  duração — nada de "maior que o limite" quando o problema era outro.
-- Sem tag ID3 o Lavalink devolve `Unknown title`; nesses casos o título do favorito fica com o
-  **nome do anexo** que o usuário enviou.
-- `AudioUploadCleanupService` roda no boot e a cada 6h apagando arquivos gerados pelo bot mais
-  velhos que `AUDIO_UPLOAD_RETENTION_DAYS` (30). O critério é a **idade do arquivo**, não a lista
-  de favoritos: um favorito mais antigo que a retenção para de tocar até ser favoritado de novo.
+  criado por admin e depois tocado por um membro sem permissão é recusado na hora.
+- `/audio add` salva a **origem digitada** (ex.: a URL do Myinstants), não a URL do espelho
+  resolvida — o espelho pode mudar sem quebrar o favorito.
+- O fluxo de anexo (`favoritar-anexo`) não existe mais: o bot não baixa arquivos do CDN do
+  Discord. Origens `local:uploads/…` já existentes continuam tocando.
+- `AudioUploadCleanupService` roda no boot e a cada 6h apagando os arquivos `<guid>.<ext>`
+  gerados pelo bot mais velhos que `AUDIO_UPLOAD_RETENTION_DAYS` (30). O critério é a
+  **idade do arquivo**: um áudio de upload mais antigo que a retenção some do disco e para
+  de tocar.
 
 
 ## Origens aceitas
@@ -85,11 +81,11 @@ Cada favorito tem apelido opcional (até **32** caracteres), origem e contador d
 
 - **Lavalink ≥ 4.2.0** — o Discord passou a exigir **DAVE/E2EE** em 02/03/2026; servidor antigo cai com close code **4017** (`E2EE/DAVE protocol required`, logger `moe.kyokobot.koe`), silenciando o áudio mesmo com o player "ok". O client usa **Lavalink4NET 4.2.2** (≥ 4.1.0 adiciona `channelId` ao voice state, exigido pelo DAVE).
 - Sons locais: `Api/Resources/Sounds/` → `sounds/` na imagem Lavalink (`lavalink/Dockerfile`).
-- **Uploads**: o bot e o Lavalink precisam do mesmo volume — `docker-compose.yml` monta
-  `audio_uploads` em `/audio/uploads` (bot, `AUDIO_UPLOAD_PATH`) e em
-  `/opt/Lavalink/sounds/uploads` (Lavalink), então a origem `local:uploads/…` é servida como
-  `sounds/uploads/…`. Sem o volume montado nos dois lados, o anexo até é baixado mas o Lavalink
-  responde vazio ao validar.
+- **Uploads legados**: o fluxo de upload de anexos foi removido, mas os arquivos já gravados
+  seguem tocáveis — `docker-compose.yml` monta `audio_uploads` em `/audio/uploads` (bot,
+  `AUDIO_UPLOAD_PATH`) e em `/opt/Lavalink/sounds/uploads` (Lavalink), então a origem
+  `local:uploads/…` é servida como `sounds/uploads/…`. Sem o volume montado nos dois lados, o
+  Lavalink responde vazio ao validar.
 - YouTube: o Lavalink 4 não traz mais a fonte embutida. O `lavalink/Dockerfile` baixa `dev.lavalink.youtube:youtube-plugin:1.18.2` para `/opt/Lavalink/plugins/` no build (bump em `ARG YOUTUBE_SOURCE_VERSION`), e o `lavalink/application.yml` liga `plugins.youtube` (`enabled`, `allowSearch`, `allowDirectVideoIds`, `allowDirectPlaylistIds`). A fonte embutida `lavalink.server.sources.youtube` fica **`false`** de propósito — o plugin exige isso. Se faltar o jar, o bot responde com a dica de verificar o plugin (não um erro genérico).
 - Myinstants: `www.myinstants.com` bloqueia requisição sem browser (403), então o bot não copia o áudio — ele extrai o *slug* da página e monta o MP3 direto no espelho (`AUDIO_INSTANT_MIRROR_BASE_URL`, default `https://myinstants.site`), que o Lavalink baixa pela source `http`.
 
@@ -103,6 +99,7 @@ Cada favorito tem apelido opcional (até **32** caracteres), origem e contador d
 - `AudioTrackResolver` é puro/síncrono e classifica a origem em `AudioOriginKind` (`Local`, `YouTube`, `YouTubeSearch`, `InstantButton`, `DirectUrl`); só `DirectUrl` vira `RequiresElevatedPermission`. `AudioPlayerService.ResolveAsync` resolve o `InstantButton` via `IInstantSoundResolver` (HTTP + cache de 6h) e troca o identifier pelo MP3.
 - O bot guarda o identifier com prefixo no `local:` (`local:sounds/x.mp3`) e converte no envio para o Lavalink (`ToServerIdentifier` → `sounds/x.mp3`), porque o `LocalAudioSourceManager` do Lavalink 4 resolve o caminho literal relativo ao workdir (`/opt/Lavalink`, com sons em `sounds/`).
 - YouTube/Spotify: links de página do YouTube passam direto para o Lavalink (o plugin entende `watch`, `youtu.be`, `shorts`, `list`). **Spotify continua sem suporte** — exigiria o plugin `lavasrc` e o resolver `Lavalink4NET.Spotify`.
-- Agendamentos persistidos em `Guild.ScheduledSounds` (Mongo) — sobrevivem a restart — e avaliados por `ScheduledSoundService` a cada 30s; só tocam com gente no canal. Guardam a **origem** (`AudioSource`), não os bytes do arquivo.
+- Agendamentos persistidos em `Guild.ScheduledSounds` (Mongo) — sobrevivem a restart — e avaliados por `ScheduledSoundService` a cada 30s; só tocam com gente no canal. Guardam a **origem** (`AudioSource`), não os bytes do arquivo. O disparo é **fire-once em sucesso**: se a tentativa do minuto falhar (canal vazio no primeiro tick), o próximo tick tenta de novo; quando toca, a chave fica registrada e não repete no mesmo dia.
 - Horários são convertidos para UTC no cadastro e comparados em UTC no disparo; o **dia da semana** é comparado no fuso de Brasília (`ScheduleEvaluator.ShouldFire` converte para `America/Sao_Paulo` antes) — evita o disparo "1 dia antes" em horários noturnos (ex.: `segunda 22:00`). O código usa `DateTime.UtcNow` (nunca o relógio do servidor); o offset de SP é logado no boot: `Fuso de referência America/Sao_Paulo resolvido - offset UTC atual -03:00:00`.
-- Sons de entrada/saída (`Guild.JoinVoiceSound`/`LeaveVoiceSound`, Mongo) tocados via `JoinLeaveSoundService` (evento `UserVoiceStateUpdated`), com **cooldown de 15s por usuário** e ignorando o próprio bot.
+- Sons de entrada/saída (`Guild.JoinVoiceSound`/`LeaveVoiceSound`, Mongo) tocados via `JoinLeaveSoundService` (evento `UserVoiceStateUpdated`), com **cooldown de 15s por usuário** (por tipo — entrar e sair contam separado) e ignorando o próprio bot. O bot **nunca entra no canal só por causa desses sons**: se ele não estiver conectado naquele canal (ou seja, ninguém usou `join`), o som é ignorado. Os demais comandos de áudio continuam com entrada automática (toca-e-sai).
+- O modo `join` é monitorado por `PersistentVoiceService`: o bot sai quando o canal fica sem humanos ou é removido; se um admin derrubar o bot do canal, o registro persistente é removido **sem reconectar**. Os locks por guilda do serviço são podados quando ficam ociosos.

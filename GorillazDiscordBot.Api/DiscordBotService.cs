@@ -32,6 +32,7 @@ public class DiscordBotService : IHostedService
     private readonly IEnumerable<IBotEventSink> _eventSinks;
     private readonly IAudioService _audioService;
     private readonly CommandPolicyService _commandPolicy;
+    private readonly ModuleAccessService _moduleAccess;
 
     public DiscordBotService(
         DiscordSocketClient client,
@@ -46,7 +47,8 @@ public class DiscordBotService : IHostedService
         ReleaseAnnouncementService releaseAnnouncementService,
         IEnumerable<IBotEventSink> eventSinks,
         IAudioService audioService,
-        CommandPolicyService commandPolicy)
+        CommandPolicyService commandPolicy,
+        ModuleAccessService moduleAccess)
     {
         _client = client;
         _commands = commands;
@@ -61,6 +63,7 @@ public class DiscordBotService : IHostedService
         _eventSinks = eventSinks;
         _audioService = audioService;
         _commandPolicy = commandPolicy;
+        _moduleAccess = moduleAccess;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -245,6 +248,13 @@ public class DiscordBotService : IHostedService
                     await interaction.RespondAsync(policyResult.Reason ?? "Comando bloqueado.", ephemeral: true);
                     return;
                 }
+
+                var moduleResult = await _moduleAccess.CheckAsync(guild.Id, slash.Data.Name);
+                if (!moduleResult.Allowed)
+                {
+                    await interaction.RespondAsync(moduleResult.Reason!, ephemeral: true);
+                    return;
+                }
             }
 
             var context = new SocketInteractionContext(_client, interaction);
@@ -300,6 +310,13 @@ public class DiscordBotService : IHostedService
             if (!policyResult.Allowed)
             {
                 await context.Channel.SendMessageAsync(policyResult.Reason ?? "Comando bloqueado.");
+                return;
+            }
+
+            var moduleResult = await _moduleAccess.CheckAsync(context.Guild.Id, matchedCommand.Name);
+            if (!moduleResult.Allowed)
+            {
+                await context.Channel.SendMessageAsync(moduleResult.Reason!);
                 return;
             }
         }

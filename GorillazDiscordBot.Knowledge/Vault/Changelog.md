@@ -1,13 +1,15 @@
 ---
 tags:
-  - releases
+  - vault
   - changelog
-atualizado: 2026-09-19
+  - releases
+tipo: nota
+atualizado: 2026-10-10
 ---
 
 # Changelog
 
-[[Home|Home]] · [[Comandos/Releases|Releases]]
+[[Home|Home]] · [[Vault|← Vault]] · [[Comandos/Releases|Releases]]
 
 Histórico de versões do **projeto** (distinto das [[Comandos/Releases|releases publicadas no Discord]]). Sem versões registradas ainda.
 

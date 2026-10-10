@@ -18,7 +18,6 @@ public class AudioFavoritesModuleTests
     private static IServiceProvider CreateServices() => new ServiceCollection()
         .AddSingleton(Substitute.For<IAudioPlayerService>())
         .AddSingleton(Substitute.For<IPersistentVoiceService>())
-        .AddSingleton(Substitute.For<IAudioUploadService>())
         .AddSingleton(Substitute.For<ISettingsRepository<Guild>>())
         .AddSingleton<IOptions<AudioUploadOptions>>(Options.Create(new AudioUploadOptions { Path = "test-uploads" }))
         .BuildServiceProvider();
@@ -62,6 +61,7 @@ public class AudioFavoritesModuleTests
             .ToArray();
 
         paths.Should().Contain("audio listar");
+        paths.Should().Contain("audio add");
         paths.Should().NotContain([
             "audio favs",
             "audio favs listar",
@@ -93,7 +93,7 @@ public class AudioFavoritesModuleTests
     }
 
     [Fact]
-    public async Task PrefixModule_RegistraOsComandosDeFavoritos()
+    public async Task PrefixModule_NaoRegistraOsComandosDeFavoritosRemovidos()
     {
         var commands = await CreateCommandsAsync();
 

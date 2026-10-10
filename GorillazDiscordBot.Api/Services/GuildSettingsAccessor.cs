@@ -15,10 +15,10 @@ public class GuildSettingsAccessor
     public async Task<Guild> GetAsync(ulong guildId)
         => await _guildRepository.GetAsync(guildId);
 
-    public async Task SaveAsync(ulong guildId, Action<Guild> mutate)
-    {
-        var guild = await _guildRepository.GetAsync(guildId);
-        mutate(guild);
-        await _guildRepository.SaveAsync(guild);
-    }
+    public Task<bool> SaveAsync(ulong guildId, Action<Guild> mutate)
+        => _guildRepository.MutateAsync(guildId, guild =>
+        {
+            mutate(guild);
+            return true;
+        });
 }

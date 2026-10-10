@@ -6,7 +6,9 @@ using GorillazDiscordBot.Api.Commands.Config;
 using GorillazDiscordBot.Configuration;
 using GorillazDiscordBot.Domain.Interfaces;
 using GorillazDiscordBot.Entity;
+using GorillazDiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 
@@ -20,6 +22,8 @@ public class ConfigSlashModuleTests
         var services = new ServiceCollection()
             .AddSingleton<ISettingsRepository<Guild>>(Substitute.For<ISettingsRepository<Guild>>())
             .AddSingleton(Options.Create(new BotOptions()))
+            .AddSingleton(Substitute.For<ILogger<ModuleAccessService>>())
+            .AddSingleton<ModuleAccessService>()
             .BuildServiceProvider();
 
         var interactions = new InteractionService(new DiscordSocketClient());
@@ -40,6 +44,7 @@ public class ConfigSlashModuleTests
             "config despedidas-canal",
             "config despedidas-desativar",
             "config despedidas-mensagem",
+            "config modulo status",
             "config prefixo-definir",
             "config prefixo-exibir",
             "config prefixo-resetar",

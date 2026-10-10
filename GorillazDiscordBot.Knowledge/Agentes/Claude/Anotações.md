@@ -1,8 +1,9 @@
----
+﻿﻿---
 tags:
   - agente
   - claude
   - anotacoes
+tipo: nota
 atualizado: 2026-09-19
 ---
 
