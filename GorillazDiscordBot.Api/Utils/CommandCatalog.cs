@@ -136,9 +136,10 @@ public static class CommandCatalog
             new CommandEntry("/audio tocar <origem>", "Toca YouTube, busca, Myinstants, URL de áudio ou `local:arquivo`", CommandKind.Slash),
             new CommandEntry("/audio teste", "Toca o som de teste (óleo de macaco) no seu canal de voz", CommandKind.Slash),
             new CommandEntry("/audio join [canal]", "Entra e permanece no canal de voz até leave ou ficar vazio", CommandKind.Slash),
-            new CommandEntry("/audio leave", "Para o som e sai do canal de voz", CommandKind.Slash),
-            new CommandEntry("/audio parar", "Para o som atual", CommandKind.Slash),
-            new CommandEntry("/audio listar", "Lista sons locais e favoritos com ações interativas", CommandKind.Slash),
+             new CommandEntry("/audio leave", "Para o som e sai do canal de voz", CommandKind.Slash),
+             new CommandEntry("/audio parar", "Para o som atual", CommandKind.Slash),
+             new CommandEntry("/audio add <origem> <nome>", "Adiciona um áudio não local à lista do servidor (admin)", CommandKind.Slash),
+             new CommandEntry("/audio listar", "Lista sons locais e favoritos com ações interativas", CommandKind.Slash),
             new CommandEntry("/audio agendar <origem> <HH:MM> [dia] [canal]", "Agenda um som em horário fixo (admin)", CommandKind.Slash),
             new CommandEntry("/audio agendamentos", "Lista os sons agendados (admin)", CommandKind.Slash),
             new CommandEntry("/audio desagendar <id>", "Remove um som agendado (admin)", CommandKind.Slash),
@@ -183,9 +184,10 @@ public static class CommandCatalog
             new CommandEntry("/release listar [todas]", "Mostra as atualizações do bot (todas: changelog completo)", CommandKind.Slash),
             new CommandEntry("/release anunciar [versao]", "Reenvia o anúncio de uma versão no canal de novidades (admin)", CommandKind.Slash),
         }),
-        new("config", "⚙️", "Configuração", new[]
-        {
-            new CommandEntry("/config status", "Visão geral da configuração do servidor", CommandKind.Slash),
+         new("config", "⚙️", "Configuração", new[]
+         {
+             new CommandEntry("/config modulo status", "Mostra os módulos liberados para este servidor", CommandKind.Slash),
+             new CommandEntry("/config status", "Visão geral da configuração do servidor", CommandKind.Slash),
             new CommandEntry("/config boasvindas-canal", "Define o canal de boas-vindas e ativa", CommandKind.Slash),
             new CommandEntry("/config boasvindas-mensagem", "Define a mensagem de boas-vindas", CommandKind.Slash),
             new CommandEntry("/config boasvindas-desativar", "Desativa as mensagens de boas-vindas", CommandKind.Slash),

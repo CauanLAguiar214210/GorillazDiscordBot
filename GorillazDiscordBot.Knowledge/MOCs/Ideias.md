@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - moc
   - ideias
+tipo: moc
 atualizado: 2026-09-24
 ---
 

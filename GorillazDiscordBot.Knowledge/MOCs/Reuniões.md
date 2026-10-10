@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - moc
   - reunioes
+tipo: moc
 atualizado: 2026-09-19
 ---
 
@@ -9,7 +10,7 @@ atualizado: 2026-09-19
 
 Registro de reuniões do projeto: pauta, decisões e pendências. Cada encontro é uma nota `Reuniões/YYYY-MM-DD <título>.md`, criada com o template `Templates/Reunião.md`.
 
-[[Home]] · [[Diário|Diário]]
+[[Home]] · [[MOCs/Diário|Diário]]
 
 ## Formato
 

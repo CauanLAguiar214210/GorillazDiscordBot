@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - glossario
   - economia
+tipo: glossario
 atualizado: 2026-09-19
 ---
 

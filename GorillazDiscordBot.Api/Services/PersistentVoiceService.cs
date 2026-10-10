@@ -128,6 +128,8 @@ public sealed class PersistentVoiceService : IPersistentVoiceService, IBotEventS
 
         while (await timer.WaitForNextTickAsync(cancellationToken))
         {
+            PruneLocks();
+
             foreach (var guildId in _channels.Keys)
             {
                 var guild = _client.GetGuild(guildId);
@@ -150,18 +152,49 @@ public sealed class PersistentVoiceService : IPersistentVoiceService, IBotEventS
         }
     }
 
+    private void PruneLocks()
+    {
+        foreach (var (guildId, gate) in _locks)
+        {
+            // Só poda locks ociosos e de guildas sem canal persistente; remover um
+            // gate em uso (ou de guilda ativa) abriria uma segunda instância.
+            if (gate.CurrentCount == 1 && !_channels.ContainsKey(guildId))
+                _locks.TryRemove(guildId, out _);
+        }
+    }
+
     private async Task CheckGuildAsync(SocketGuild guild, CancellationToken cancellationToken)
     {
         if (!_channels.TryGetValue(guild.Id, out var channelId))
             return;
 
         var channel = guild.GetVoiceChannel(channelId);
-        if (channel == null || channel.ConnectedUsers.All(user => user.IsBot))
+        if (channel == null)
         {
             _logger.LogInformation(
-                "Canal persistente da guilda {guildId} vazio; bot saindo ({reason})",
-                guild.Id,
-                channel == null ? "canal indisponível" : "sem usuários humanos");
+                "Canal persistente da guilda {guildId} indisponível; bot saindo",
+                guild.Id);
+            await LeaveAsync(guild.Id, cancellationToken);
+            return;
+        }
+
+        if (!channel.ConnectedUsers.Any(u => u.Id == _client.CurrentUser.Id))
+        {
+            // Disconnect externo: um admin derrubou o bot sem passar por LeaveAsync.
+            // Não reconectamos (não se luta contra o admin) — só registramos.
+            _logger.LogInformation(
+                "Bot desconectado externamente do canal persistente {channelId} da guilda {guildId}; registro removido",
+                channelId,
+                guild.Id);
+            await LeaveAsync(guild.Id, cancellationToken);
+            return;
+        }
+
+        if (channel.ConnectedUsers.All(user => user.IsBot))
+        {
+            _logger.LogInformation(
+                "Canal persistente da guilda {guildId} vazio; bot saindo",
+                guild.Id);
             await LeaveAsync(guild.Id, cancellationToken);
         }
     }

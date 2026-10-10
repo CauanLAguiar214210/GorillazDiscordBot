@@ -2,6 +2,7 @@
 tags:
   - projetos
   - infra
+tipo: nota
 atualizado: 2026-09-19
 ---
 
@@ -27,7 +28,7 @@ GorillazDiscordBot.Infra/
 
 ## Pontos-chave
 
-- Coleções nomeadas por tipo (`typeof(T).Name`) — ver [[Coleções MongoDB|Coleções MongoDB]].
+- Coleções nomeadas por tipo (`typeof(T).Name`) — ver [[Arquitetura/Coleções MongoDB|Coleções MongoDB]].
 - `MongoMappings.Register` centraliza mapeamentos BSON/`ObjectId` e `IdGenerator`.
 - `SettingsRepository<T>` faz cache concorrente por guild + upsert.
 - Terraform: `GorillazDiscordBot.Infra/AWS/...` (obs.: o path correto é dentro do projeto Infra).

@@ -2,6 +2,7 @@
 tags:
   - ideias
 status: ideia
+tipo: ideia
 atualizado: {{date}}
 ---
 

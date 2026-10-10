@@ -1,0 +1,58 @@
+views:
+  - type: table
+    name: Ideias
+    filters:
+      and:
+        - file.hasTag("ideias")
+    order:
+      - file.name
+      - status
+      - atualizado
+    sort:
+      - property: atualizado
+        direction: DESC
+  - type: table
+    name: Investigações
+    filters:
+      and:
+        - file.hasTag("investigacao")
+    order:
+      - file.name
+      - status
+      - atualizado
+    sort:
+      - property: atualizado
+        direction: DESC
+  - type: table
+    name: ADRs
+    filters:
+      and:
+        - file.hasTag("decisoes")
+    order:
+      - file.name
+      - status
+      - atualizado
+    sort:
+      - property: atualizado
+        direction: DESC
+  - type: table
+    name: Notas recentes
+    filters:
+      and:
+        - atualizado >= today() - "14d"
+    order:
+      - file.name
+      - file.folder
+      - atualizado
+    sort:
+      - property: atualizado
+        direction: DESC
+    limit: 25
+  - type: table
+    name: MOCs
+    filters:
+      and:
+        - file.hasTag("moc")
+    order:
+      - file.name
+      - file.folder

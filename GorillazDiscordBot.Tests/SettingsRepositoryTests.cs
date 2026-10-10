@@ -72,13 +72,116 @@ public class SettingsRepositoryTests
         var (repo, collection) = CreateRepo();
         var settings = new Guild { GuildId = 2, Prefix = new PrefixSettings { Prefix = "!" } };
 
-        await repo.SaveAsync(settings);
+        var result = await repo.SaveAsync(settings);
 
+        result.Should().BeTrue();
         await collection.Received(1).ReplaceOneAsync(
             Arg.Any<FilterDefinition<Guild>>(),
             settings,
             Arg.Any<ReplaceOptions>(),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SaveAsync_FalhaNoBanco_RetornaFalseEmVezDeEngolirErro()
+    {
+        var (repo, collection) = CreateRepo();
+        collection
+            .ReplaceOneAsync(
+                Arg.Any<FilterDefinition<Guild>>(),
+                Arg.Any<Guild>(),
+                Arg.Any<ReplaceOptions>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<MongoDB.Driver.ReplaceOneResult>(
+                new InvalidOperationException("boom")));
+
+        var settings = new Guild { GuildId = 2 };
+
+        var result = await repo.SaveAsync(settings);
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task MutateAsync_MutacaoAplicada_PersisteERetornaTrue()
+    {
+        var (repo, collection) = CreateRepo();
+        StubFindAsync(collection, false);
+
+        var mutated = false;
+        var result = await repo.MutateAsync(10, guild =>
+        {
+            guild.JoinVoiceSound = "local:teste.mp3";
+            mutated = true;
+            return true;
+        });
+
+        result.Should().BeTrue();
+        mutated.Should().BeTrue();
+        await collection.Received(1).ReplaceOneAsync(
+            Arg.Any<FilterDefinition<Guild>>(),
+            Arg.Any<Guild>(),
+            Arg.Any<ReplaceOptions>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task MutateAsync_MutacaoRecusada_NaoPersisteERetornaTrue()
+    {
+        var (repo, collection) = CreateRepo();
+        StubFindAsync(collection, false);
+
+        var result = await repo.MutateAsync(10, _ => false);
+
+        result.Should().BeTrue();
+        await collection.DidNotReceive().ReplaceOneAsync(
+            Arg.Any<FilterDefinition<Guild>>(),
+            Arg.Any<Guild>(),
+            Arg.Any<ReplaceOptions>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task MutateAsync_FalhaAoPersistir_RetornaFalse()
+    {
+        var (repo, collection) = CreateRepo();
+        StubFindAsync(collection, false);
+        collection
+            .ReplaceOneAsync(
+                Arg.Any<FilterDefinition<Guild>>(),
+                Arg.Any<Guild>(),
+                Arg.Any<ReplaceOptions>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<MongoDB.Driver.ReplaceOneResult>(
+                new InvalidOperationException("boom")));
+
+        var result = await repo.MutateAsync(10, _ => true);
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task MutateAsync_Concorrentes_NaoInterletemGetESave()
+    {
+        var (repo, collection) = CreateRepo();
+        StubFindAsync(collection, false);
+
+        var inFlight = 0;
+        var maxInFlight = 0;
+        Func<Guild, bool> mutate = _ =>
+        {
+            var current = Interlocked.Increment(ref inFlight);
+            maxInFlight = Math.Max(maxInFlight, current);
+            Thread.Sleep(10);
+            Interlocked.Decrement(ref inFlight);
+            return true;
+        };
+
+        await Task.WhenAll(
+            repo.MutateAsync(10, mutate),
+            repo.MutateAsync(10, mutate));
+
+        maxInFlight.Should().Be(1);
     }
 
     [Fact]

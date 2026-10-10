@@ -12,10 +12,14 @@
             "id": "821ccfa46520f5a9",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Visualização em gráfico"
+              "type": "markdown",
+              "state": {
+                "file": "Arquitetura/Infraestrutura.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Infraestrutura"
             },
             "group": "011a2cecf80061b5"
           }
@@ -24,7 +28,7 @@
       {
         "id": "4d58ed57738337b9",
         "type": "tabs",
-        "dimension": 56.47208121827412,
+        "dimension": 56.47208121827411,
         "children": [
           {
             "id": "36f80559abb59ba7",
@@ -32,7 +36,7 @@
             "state": {
               "type": "localgraph",
               "state": {
-                "file": "Home.md",
+                "file": "Arquitetura/Infraestrutura.md",
                 "options": {
                   "collapse-filter": true,
                   "search": "",
@@ -60,7 +64,7 @@
                 }
               },
               "icon": "lucide-git-fork",
-              "title": "Gráfico de Home"
+              "title": "Gráfico de Infraestrutura"
             },
             "group": "011a2cecf80061b5"
           }
@@ -122,8 +126,7 @@
               "title": "Marcadores"
             }
           }
-        ],
-        "currentTab": 2
+        ]
       }
     ],
     "direction": "horizontal",
@@ -232,36 +235,41 @@
       "bases:Criar nova base": false
     }
   },
-  "active": "36f80559abb59ba7",
+  "active": "821ccfa46520f5a9",
   "lastOpenFiles": [
-    "Home.md",
-    "Comandos.md",
-    "Agentes.md",
-    "Investigação.md",
-    "Templates/Investigação.md",
-    "Arquitetura.md",
-    "Glossário.md",
-    "Comandos/Loja.md",
-    "Templates/Reunião.md",
-    "Reuniões/Formato.md",
-    "Reuniões",
+    "MOCs/Operação.md",
+    "MOCs/Investigação.md",
+    "MOCs/Integrações.md",
+    "MOCs/Ideias.md",
+    "MOCs/Glossário.md",
+    "MOCs/Diário.md",
+    "MOCs/Desenvolvimento.md",
+    "MOCs/Decisões.md",
+    "MOCs/Comandos.md",
+    "MOCs/Arquitetura.md",
+    "MOCs/Agentes.md",
     "Reuniões.md",
-    "Projetos/Tests.md",
-    "Projetos/Infra.md",
-    "Projetos/Domain.md",
-    "Projetos/Api.md",
-    "Projetos",
+    "MOCs/Vault.md",
+    "MOCs/Reuniões.md",
+    "MOCs/Projetos.md",
+    "MOCs",
     "Projetos.md",
-    "Dataview.md",
-    "Git e entrega.md",
-    "Coleções MongoDB.md",
-    "Referências.md",
-    "Changelog.md",
-    "Onboarding.md",
-    "Segurança.md",
-    "Comandos/Economia.md",
-    "knowledge/Investigação/Problema Discord.md",
-    "knowledge/Arquitetura/Visão geral.md",
+    "Operação.md",
+    "Investigação.md",
+    "Integrações.md",
+    "Ideias.md",
+    "Home.md",
+    "Glossário.md",
+    "Diário.md",
+    "Desenvolvimento.md",
+    "Decisões.md",
+    "Comandos.md",
+    "Canvas/Mapa do vault.canvas",
+    "Canvas/Arquitetura.canvas",
+    "Vault/Painéis.base",
+    "Vault",
+    "Reuniões",
+    "Projetos",
     "Sem título 2.base",
     "Sem título 1.base",
     "Sem título.base",

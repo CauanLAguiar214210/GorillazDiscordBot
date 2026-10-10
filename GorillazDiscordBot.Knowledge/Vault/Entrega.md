@@ -1,13 +1,14 @@
 ---
 tags:
-  - git
+  - vault
   - entrega
-atualizado: 2026-09-19
+tipo: nota
+atualizado: 2026-10-10
 ---
 
-# Git e entrega
+# Entrega
 
-[[Home|Home]] · [[Operação/AWS|AWS/ECS]] · [[Operação/Execução local|Execução local]]
+[[Home|Home]] · [[Vault|← Vault]] · [[Operação/AWS|AWS/ECS]] · [[Operação/Execução local|Execução local]]
 
 Fluxo de integração e entrega atual do repositório.
 
@@ -35,5 +36,5 @@ Fluxo de integração e entrega atual do repositório.
 ## Convenções propostas
 
 - Commits atômicos e descritivos; testes passando antes do PR (`dotnet test GorillazDiscordBot.sln`).
-- Nada de segredos no diff — revisar com [[Segurança|Segurança]].
-- Registrar mudanças de comportamento no [[Changelog|Changelog]].
+- Nada de segredos no diff — revisar com [[Vault/Segurança|Segurança]].
+- Registrar mudanças de comportamento no [[Vault/Changelog|Changelog]].

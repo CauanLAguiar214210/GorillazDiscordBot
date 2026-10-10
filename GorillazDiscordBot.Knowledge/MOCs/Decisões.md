@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - moc
   - decisoes
+tipo: moc
 atualizado: 2026-09-24
 ---
 

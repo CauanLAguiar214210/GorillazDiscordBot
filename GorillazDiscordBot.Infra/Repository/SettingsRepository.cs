@@ -11,6 +11,7 @@ public class SettingsRepository<T> : MongoRepository<T>, ISettingsRepository<T>
     where T : class, IGuildSettings, new()
 {
     private readonly ConcurrentDictionary<ulong, T> _cache = new();
+    private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _locks = new();
     private readonly ILogger<SettingsRepository<T>> _logger;
 
     public SettingsRepository(IOptions<MongoOptions> options, ILogger<SettingsRepository<T>> logger)
@@ -46,7 +47,7 @@ public class SettingsRepository<T> : MongoRepository<T>, ISettingsRepository<T>
         return settings;
     }
 
-    public async Task SaveAsync(T settings)
+    public async Task<bool> SaveAsync(T settings)
     {
         _cache[settings.GuildId] = settings;
 
@@ -54,10 +55,30 @@ public class SettingsRepository<T> : MongoRepository<T>, ISettingsRepository<T>
         {
             var filter = Builders<T>.Filter.Eq(s => s.GuildId, settings.GuildId);
             await Collection.ReplaceOneAsync(filter, settings, new ReplaceOptions { IsUpsert = true });
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Falha ao persistir configurações do servidor {guildId}", settings.GuildId);
+            return false;
+        }
+    }
+
+    public async Task<bool> MutateAsync(ulong guildId, Func<T, bool> mutate)
+    {
+        var gate = _locks.GetOrAdd(guildId, static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync();
+        try
+        {
+            var settings = await GetAsync(guildId);
+            if (!mutate(settings))
+                return true;
+
+            return await SaveAsync(settings);
+        }
+        finally
+        {
+            gate.Release();
         }
     }
 
@@ -65,6 +86,8 @@ public class SettingsRepository<T> : MongoRepository<T>, ISettingsRepository<T>
     {
         _cache.TryRemove(guildId, out _);
 
+        var gate = _locks.GetOrAdd(guildId, static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync();
         try
         {
             var filter = Builders<T>.Filter.Eq(s => s.GuildId, guildId);
@@ -73,6 +96,10 @@ public class SettingsRepository<T> : MongoRepository<T>, ISettingsRepository<T>
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Falha ao remover configurações do servidor {guildId}", guildId);
+        }
+        finally
+        {
+            gate.Release();
         }
     }
 }

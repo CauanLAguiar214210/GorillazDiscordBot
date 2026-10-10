@@ -1,8 +1,9 @@
----
+﻿﻿---
 tags:
   - arquitetura
   - infraestrutura
   - devops
+tipo: nota
 atualizado: 2026-09-18
 ---
 

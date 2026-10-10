@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - glossario
   - ranking
+tipo: glossario
 atualizado: 2026-09-19
 ---
 

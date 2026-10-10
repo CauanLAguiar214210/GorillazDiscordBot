@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - projetos
   - domain
+tipo: nota
 atualizado: 2026-09-24
 ---
 

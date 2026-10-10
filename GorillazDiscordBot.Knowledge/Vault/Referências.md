@@ -1,12 +1,14 @@
 ---
 tags:
+  - vault
   - referencias
-atualizado: 2026-09-19
+tipo: nota
+atualizado: 2026-10-10
 ---
 
 # Referências externas
 
-[[Home|Home]]
+[[Home|Home]] · [[Vault|← Vault]]
 
 Documentação oficial usada no projeto. URLs de documentação para programação.
 

@@ -1,8 +1,9 @@
----
+﻿---
 tags:
   - decisoes
   - adr
 status: aceito
+tipo: adr
 atualizado: 2026-09-24
 ---
 
@@ -40,5 +41,5 @@ O domínio de economia é o maior acoplamento do bot (repositórios Mongo usados
 
 ## Notas
 
-- Depende de [[ADR-0001|ADR-0001 - Ownership de dados e identidade]] (quem é dono de cada coleção e onde a identidade mora).
+- Depende de [[Decisões/ADR-0001 - Ownership de dados e identidade|ADR-0001 - Ownership de dados e identidade]] (quem é dono de cada coleção e onde a identidade mora).
 - Referência de integração do padrão atual: [[Integrações/LuckyMonkey|LuckyMonkey]].

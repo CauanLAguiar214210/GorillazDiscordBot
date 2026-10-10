@@ -1,6 +1,7 @@
 ---
 tags:
   - reunioes
+tipo: reuniao
 atualizado: {{date}}
 ---
 

@@ -18,20 +18,17 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
 
     private readonly IAudioPlayerService _audioPlayer;
     private readonly IPersistentVoiceService _persistentVoice;
-    private readonly IAudioUploadService _uploads;
     private readonly ISettingsRepository<Guild> _guildRepository;
     private readonly IOptions<AudioUploadOptions> _uploadOptions;
 
     public AudioSlashModule(
         IAudioPlayerService audioPlayer,
         IPersistentVoiceService persistentVoice,
-        IAudioUploadService uploads,
         ISettingsRepository<Guild> guildRepository,
         IOptions<AudioUploadOptions> uploadOptions)
     {
         _audioPlayer = audioPlayer;
         _persistentVoice = persistentVoice;
-        _uploads = uploads;
         _guildRepository = guildRepository;
         _uploadOptions = uploadOptions;
     }
@@ -124,11 +121,93 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
     public async Task PararAsync()
     {
         await DeferAsync();
-
+        
         var result = await _audioPlayer.StopAsync(Context.Guild.Id);
         await FollowupAsync(result.WasPlaying
             ? "⏹️ Reprodução parada."
             : "ℹ️ Nada tocando no momento.");
+    }
+
+    [SlashCommand("add", "Adiciona um áudio não local à lista do servidor")]
+    public async Task AddAsync(string origem, string nome)
+    {
+        await DeferAsync(ephemeral: true);
+
+        if (!CommandGuards.HasManageGuildPermission(Context))
+        {
+            await FollowupAsync(BotConstants.PermissionDenied, ephemeral: true);
+            return;
+        }
+
+        if (!FavoriteSoundMatcher.TryNormalizeAlias(nome, out var alias, out var aliasError))
+        {
+            await FollowupAsync($"❌ {aliasError}", ephemeral: true);
+            return;
+        }
+
+        var resolved = await _audioPlayer.ResolveAsync(origem);
+        if (!resolved.IsValid)
+        {
+            await FollowupAsync($"❌ {resolved.Error}", ephemeral: true);
+            return;
+        }
+
+        if (resolved.Kind == AudioOriginKind.Local)
+        {
+            await FollowupAsync("❌ Use este comando apenas para áudios não locais.", ephemeral: true);
+            return;
+        }
+
+        // Para som instantâneo, ResolveAsync troca a origem pela URL do espelho,
+        // que é volátil: o favorito precisa guardar o link do Myinstants.
+        var source = resolved.Kind == AudioOriginKind.InstantButton
+            ? origem.Trim()
+            : resolved.Identifier!;
+
+        string? error = null;
+        var saved = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
+        {
+            if (FavoriteSoundMatcher.FindBySource(guild.FavoriteSounds, source) != null)
+            {
+                error = "Já existe um áudio cadastrado com este link ou origem.";
+                return false;
+            }
+
+            if (FavoriteSoundMatcher.FindByAlias(guild.FavoriteSounds, alias!) != null)
+            {
+                error = $"Já existe um áudio cadastrado com o nome **{alias}**.";
+                return false;
+            }
+
+            if (guild.FavoriteSounds.Count >= FavoriteSoundMatcher.MaxFavorites)
+            {
+                error = $"Limite de {FavoriteSoundMatcher.MaxFavorites} áudios atingido.";
+                return false;
+            }
+
+            guild.FavoriteSounds.Add(new FavoriteSoundSettings
+            {
+                AudioSource = source,
+                Alias = alias
+            });
+            return true;
+        });
+
+        if (error != null)
+        {
+            await FollowupAsync($"❌ {error}", ephemeral: true);
+            return;
+        }
+
+        if (!saved)
+        {
+            await FollowupAsync("❌ Não consegui salvar o áudio. Tente novamente.", ephemeral: true);
+            return;
+        }
+
+        await FollowupAsync(
+            $"✅ Áudio **{alias}** adicionado à lista. Use `/audio listar` para encontrá-lo.",
+            ephemeral: true);
     }
 
     [SlashCommand("listar", "Lista e gerencia sons locais e favoritos de áudio")]
@@ -152,7 +231,7 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
     {
         var component = (SocketMessageComponent)Context.Interaction;
         var selected = component.Data.Values.FirstOrDefault();
-        if (!int.TryParse(selected, out var index))
+        if (string.IsNullOrWhiteSpace(selected))
         {
             await RespondAsync("❌ Áudio inválido.", ephemeral: true);
             return;
@@ -160,7 +239,7 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
 
         await DeferAsync();
         var filter = ParseAudioListFilter(filterValue);
-        var item = await GetAudioListItemAsync(filter, page, index);
+        var item = await GetAudioListItemByKeyAsync(filter, selected);
         if (item is null)
         {
             await FollowupAsync("❌ Esse áudio não está mais disponível.", ephemeral: true);
@@ -170,12 +249,12 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
         await Context.Interaction.ModifyOriginalResponseAsync(message =>
         {
             message.Embed = BuildAudioDetailEmbed(item).Build();
-            message.Components = BuildAudioDetailComponents(filter, page, index, item);
+            message.Components = BuildAudioDetailComponents(filter, page, item);
         });
     }
 
     [ComponentInteraction("audio-catalog:action:*:*:*:*", true)]
-    public async Task AudioListActionAsync(string filterValue, int page, int index, string action)
+    public async Task AudioListActionAsync(string filterValue, int page, string key, string action)
     {
         var filter = ParseAudioListFilter(filterValue);
         if (action.Equals("back", StringComparison.OrdinalIgnoreCase))
@@ -185,7 +264,7 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var item = await GetAudioListItemAsync(filter, page, index);
+        var item = await GetAudioListItemByKeyAsync(filter, key);
         if (item is null)
         {
             await RespondAsync("❌ Esse áudio não está mais disponível.", ephemeral: true);
@@ -201,39 +280,55 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
             }
 
             await DeferAsync(true);
-            var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-            var favorite = FindFavorite(guild, item);
-
-            if (action == "favorite")
+            string? actionError = null;
+            string? successMessage = null;
+            var saved = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
             {
-                if (!item.IsLocal || favorite != null)
+                var favorite = FindFavorite(guild, item);
+
+                if (action == "favorite")
                 {
-                    await FollowupAsync("ℹ️ Esse áudio já está nos favoritos ou não é um som local disponível.", ephemeral: true);
-                    return;
+                    if (!item.IsLocal || favorite != null)
+                    {
+                        actionError = "Esse áudio já está nos favoritos ou não é um som local disponível.";
+                        return false;
+                    }
+
+                    if (guild.FavoriteSounds.Count >= FavoriteSoundMatcher.MaxFavorites)
+                    {
+                        actionError = $"Limite de {FavoriteSoundMatcher.MaxFavorites} favoritos atingido.";
+                        return false;
+                    }
+
+                    guild.FavoriteSounds.Add(new FavoriteSoundSettings { AudioSource = item.Source });
+                    successMessage = "⭐ Áudio favoritado.";
+                    return true;
                 }
 
-                if (guild.FavoriteSounds.Count >= FavoriteSoundMatcher.MaxFavorites)
-                {
-                    await FollowupAsync($"❌ Limite de {FavoriteSoundMatcher.MaxFavorites} favoritos atingido.", ephemeral: true);
-                    return;
-                }
-
-                guild.FavoriteSounds.Add(new FavoriteSoundSettings { AudioSource = item.Source });
-                await _guildRepository.SaveAsync(guild);
-                await FollowupAsync("⭐ Áudio favoritado.", ephemeral: true);
-            }
-            else
-            {
                 if (favorite == null)
                 {
-                    await FollowupAsync("❌ Favorito não encontrado.", ephemeral: true);
-                    return;
+                    actionError = "Favorito não encontrado.";
+                    return false;
                 }
 
                 guild.FavoriteSounds.Remove(favorite);
-                await _guildRepository.SaveAsync(guild);
-                await FollowupAsync(action == "remove" ? "🗑️ Áudio não local removido." : "💔 Áudio desfavoritado.", ephemeral: true);
+                successMessage = action == "remove" ? "🗑️ Áudio não local removido." : "💔 Áudio desfavoritado.";
+                return true;
+            });
+
+            if (actionError != null)
+            {
+                await FollowupAsync($"❌ {actionError}", ephemeral: true);
+                return;
             }
+
+            if (!saved)
+            {
+                await FollowupAsync("❌ Não consegui salvar a alteração. Tente novamente.", ephemeral: true);
+                return;
+            }
+
+            await FollowupAsync(successMessage!, ephemeral: true);
 
             await RenderAudioListAsync(filter, page);
             return;
@@ -277,8 +372,15 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
 
         if (playFavorite != null)
         {
-            playFavorite.TimesPlayed++;
-            await _guildRepository.SaveAsync(playGuild);
+            await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
+            {
+                var favorite = FindFavorite(guild, item);
+                if (favorite == null)
+                    return false;
+
+                favorite.TimesPlayed++;
+                return true;
+            });
         }
 
         await FollowupAsync($"▶️ Tocando **{item.DisplayName}** no **{voiceChannel.Name}**.");
@@ -323,9 +425,17 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
             VoiceChannelId = targetChannel.Id
         };
 
-        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-        guild.ScheduledSounds.Add(schedule);
-        await _guildRepository.SaveAsync(guild);
+        var saved = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
+        {
+            guild.ScheduledSounds.Add(schedule);
+            return true;
+        });
+
+        if (!saved)
+        {
+            await FollowupAsync("❌ Não consegui salvar o agendamento. Tente novamente.");
+            return;
+        }
 
         var embed = new EmbedBuilder()
             .WithBlurpleTheme()
@@ -386,21 +496,38 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         var key = id.Trim();
-        var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-        var schedule = guild.ScheduledSounds.FirstOrDefault(s =>
-            s.Id.ToString().Equals(key, StringComparison.OrdinalIgnoreCase)
-            || s.Id.ToString().StartsWith(key, StringComparison.OrdinalIgnoreCase));
-
-        if (schedule == null)
+        string? removeError = null;
+        string? removedSource = null;
+        var saved = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
         {
-            await FollowupAsync("❌ Agendamento não encontrado.");
+            var schedule = guild.ScheduledSounds.FirstOrDefault(s =>
+                s.Id.ToString().Equals(key, StringComparison.OrdinalIgnoreCase)
+                || s.Id.ToString().StartsWith(key, StringComparison.OrdinalIgnoreCase));
+
+            if (schedule == null)
+            {
+                removeError = "Agendamento não encontrado.";
+                return false;
+            }
+
+            removedSource = schedule.AudioSource;
+            guild.ScheduledSounds.Remove(schedule);
+            return true;
+        });
+
+        if (removeError != null)
+        {
+            await FollowupAsync($"❌ {removeError}");
             return;
         }
 
-        guild.ScheduledSounds.Remove(schedule);
-        await _guildRepository.SaveAsync(guild);
+        if (!saved)
+        {
+            await FollowupAsync("❌ Não consegui remover o agendamento. Tente novamente.");
+            return;
+        }
 
-        await FollowupAsync($"🗑️ Som agendado removido: `{schedule.AudioSource}`");
+        await FollowupAsync($"🗑️ Som agendado removido: `{removedSource}`");
     }
 
     [SlashCommand("som-entrada", "Define o som ao entrar no canal de voz (off desativa)")]
@@ -416,10 +543,14 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
 
         if (IsOff(origem))
         {
-            var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-            guild.JoinVoiceSound = null;
-            await _guildRepository.SaveAsync(guild);
-            await FollowupAsync("🔕 Som ao **entrar** desativado.");
+            var saved = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
+            {
+                guild.JoinVoiceSound = null;
+                return true;
+            });
+            await FollowupAsync(saved
+                ? "🔕 Som ao **entrar** desativado."
+                : "❌ Não consegui salvar a alteração. Tente novamente.");
             return;
         }
 
@@ -430,10 +561,15 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var guild2 = await _guildRepository.GetAsync(Context.Guild.Id);
-        guild2.JoinVoiceSound = origem.Trim();
-        await _guildRepository.SaveAsync(guild2);
-        await FollowupAsync($"🔊 Som ao **entrar** definido: `{guild2.JoinVoiceSound}`.");
+        var newValue = origem.Trim();
+        var savedOn = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
+        {
+            guild.JoinVoiceSound = newValue;
+            return true;
+        });
+        await FollowupAsync(savedOn
+            ? $"🔊 Som ao **entrar** definido: `{newValue}`."
+            : "❌ Não consegui salvar a alteração. Tente novamente.");
     }
 
     [SlashCommand("som-saida", "Define o som ao sair do canal de voz (off desativa)")]
@@ -449,10 +585,14 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
 
         if (IsOff(origem))
         {
-            var guild = await _guildRepository.GetAsync(Context.Guild.Id);
-            guild.LeaveVoiceSound = null;
-            await _guildRepository.SaveAsync(guild);
-            await FollowupAsync("🔕 Som ao **sair** desativado.");
+            var saved = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
+            {
+                guild.LeaveVoiceSound = null;
+                return true;
+            });
+            await FollowupAsync(saved
+                ? "🔕 Som ao **sair** desativado."
+                : "❌ Não consegui salvar a alteração. Tente novamente.");
             return;
         }
 
@@ -463,10 +603,15 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var guild2 = await _guildRepository.GetAsync(Context.Guild.Id);
-        guild2.LeaveVoiceSound = origem.Trim();
-        await _guildRepository.SaveAsync(guild2);
-        await FollowupAsync($"🔊 Som ao **sair** definido: `{guild2.LeaveVoiceSound}`.");
+        var newValue = origem.Trim();
+        var savedOn = await _guildRepository.MutateAsync(Context.Guild.Id, guild =>
+        {
+            guild.LeaveVoiceSound = newValue;
+            return true;
+        });
+        await FollowupAsync(savedOn
+            ? $"🔊 Som ao **sair** definido: `{newValue}`."
+            : "❌ Não consegui salvar a alteração. Tente novamente.");
     }
 
     [SlashCommand("som-status", "Mostra os sons configurados para entrada/saída de canal de voz")]
@@ -519,7 +664,7 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
         var embed = new EmbedBuilder()
             .WithBlurpleTheme()
             .WithTitle("🎧 Lista de áudios")
-            .WithDescription("Selecione um áudio para ver as ações disponíveis. O filtro ⭐ Favoritos substitui o antigo `/audio favs`.")
+            .WithDescription("Selecione um áudio para ver as ações disponíveis. Use o filtro ⭐ Favoritos para ver só os seus favoritos.")
             .WithStandardFooter($"Filtro: {FormatAudioListFilter(filter)} · Página {page + 1}/{pageCount} · {items.Count} áudio(s)");
 
         foreach (var item in pageItems)
@@ -537,12 +682,23 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
         });
     }
 
-    private async Task<AudioListItem?> GetAudioListItemAsync(AudioListFilter filter, int page, int index)
+    private async Task<AudioListItem?> GetAudioListItemByKeyAsync(AudioListFilter filter, string key)
     {
         var guild = await _guildRepository.GetAsync(Context.Guild.Id);
         return BuildAudioListItems(guild, filter)
-            .Skip(page * AudioListPageSize)
-            .ElementAtOrDefault(index);
+            .FirstOrDefault(item => string.Equals(CatalogKey(item.Source), key, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Chave estável do item nos custom IDs: derivada da origem, não da posição.
+    /// Índices de página mudam entre o render e o clique (outro admin favoritou,
+    /// arquivo novo, filtro trocado) e apontariam para o áudio errado.
+    /// </summary>
+    internal static string CatalogKey(string source)
+    {
+        var bytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(source.ToLowerInvariant()));
+        return Convert.ToHexString(bytes, 0, 8).ToLowerInvariant();
     }
 
     private List<AudioListItem> BuildAudioListItems(Guild guild, AudioListFilter filter)
@@ -598,18 +754,18 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
             components.WithSelectMenu(new SelectMenuBuilder()
                 .WithCustomId($"audio-catalog:select:{filter.ToString().ToLowerInvariant()}:{page}")
                 .WithPlaceholder("Selecione um áudio…")
-                .WithOptions(pageItems.Select((item, index) =>
+                .WithOptions(pageItems.Select(item =>
                     new SelectMenuOptionBuilder(
                         FavoriteSoundMatcher.Truncate(item.DisplayName, 90),
-                        index.ToString(),
+                        CatalogKey(item.Source),
                         item.IsLocal ? "Áudio local" : "Favorito não local")).ToList()));
         }
 
         if (pageCount > 1)
         {
             components.AddRow(new ActionRowBuilder()
-                .WithButton("Anterior", $"audio-catalog:action:{filter.ToString().ToLowerInvariant()}:{page - 1}:0:back", ButtonStyle.Secondary, disabled: page == 0)
-                .WithButton("Próxima", $"audio-catalog:action:{filter.ToString().ToLowerInvariant()}:{page + 1}:0:back", ButtonStyle.Secondary, disabled: page == pageCount - 1));
+                .WithButton("Anterior", $"audio-catalog:action:{filter.ToString().ToLowerInvariant()}:{page - 1}:-:back", ButtonStyle.Secondary, disabled: page == 0)
+                .WithButton("Próxima", $"audio-catalog:action:{filter.ToString().ToLowerInvariant()}:{page + 1}:-:back", ButtonStyle.Secondary, disabled: page == pageCount - 1));
         }
 
         return components.Build();
@@ -627,10 +783,9 @@ public class AudioSlashModule : InteractionModuleBase<SocketInteractionContext>
     private static MessageComponent BuildAudioDetailComponents(
         AudioListFilter filter,
         int page,
-        int index,
         AudioListItem item)
     {
-        var prefix = $"audio-catalog:action:{filter.ToString().ToLowerInvariant()}:{page}:{index}";
+        var prefix = $"audio-catalog:action:{filter.ToString().ToLowerInvariant()}:{page}:{CatalogKey(item.Source)}";
         var row = new ActionRowBuilder()
             .WithButton("Tocar", $"{prefix}:play", ButtonStyle.Primary)
             .WithButton("Voltar", $"{prefix}:back", ButtonStyle.Secondary);

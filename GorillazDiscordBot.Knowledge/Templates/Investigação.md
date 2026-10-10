@@ -1,7 +1,8 @@
 ---
 tags:
   - investigacao
-status: em investigação
+status: em-andamento
+tipo: investigacao
 atualizado: {{date}}
 ---
 

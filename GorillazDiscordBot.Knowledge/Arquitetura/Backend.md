@@ -1,8 +1,9 @@
----
+﻿﻿---
 tags:
   - arquitetura
   - backend
   - dotnet
+tipo: nota
 atualizado: 2026-09-24
 ---
 

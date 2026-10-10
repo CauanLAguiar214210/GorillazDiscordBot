@@ -19,6 +19,7 @@ public ulong GuildId { get; set; }
     public CooldownSettings Cooldown { get; set; }
     public PermissionSettings Permission { get; set; }
     public RaidSettings Raid { get; set; }
+    public ModuleSettings Modules { get; set; }
 
     public Guild()
     {
@@ -34,5 +35,6 @@ public ulong GuildId { get; set; }
         Cooldown = new CooldownSettings();
         Permission = new PermissionSettings();
         Raid = new RaidSettings();
+        Modules = new ModuleSettings();
     }
 }

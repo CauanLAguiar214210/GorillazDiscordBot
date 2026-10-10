@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - desenvolvimento
   - testes
+tipo: nota
 atualizado: 2026-09-19
 ---
 

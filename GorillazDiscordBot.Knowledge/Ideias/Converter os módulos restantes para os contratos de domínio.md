@@ -1,7 +1,8 @@
----
+﻿﻿---
 tags:
   - ideias
 status: priorizada
+tipo: ideia
 atualizado: 2026-09-24
 ---
 

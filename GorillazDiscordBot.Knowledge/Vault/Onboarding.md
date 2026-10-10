@@ -1,13 +1,14 @@
 ---
 tags:
+  - vault
   - onboarding
-  - guia
-atualizado: 2026-09-19
+tipo: nota
+atualizado: 2026-10-10
 ---
 
 # Onboarding
 
-[[Home|Home]] · [[Desenvolvimento|Desenvolvimento]] · [[Segurança|Segurança]]
+[[Home|Home]] · [[Vault|← Vault]] · [[Desenvolvimento|Desenvolvimento]]
 
 Roteiro para quem chega no projeto.
 
@@ -27,10 +28,10 @@ Aprofunde por demanda em [[Comandos|Comandos]], [[Integrações|Integrações]] 
 1. `cp GorillazDiscordBot.Api/.env.example GorillazDiscordBot.Api/.env` e preencher `DISCORD_TOKEN`.
 2. Definir `DISCORD_DEV_GUILD_ID` para registrar slash commands localmente.
 3. `docker-compose up` (MongoDB + bot) — o LuckyMonkey **não** sobe localmente.
-4. `dotnet restore GorillazDiscordBot.sln` e `dotnet test` (suíte xUnit; ~88 testes).
+4. `dotnet restore GorillazDiscordBot.sln` e `dotnet test` (suíte xUnit).
 5. Conferir a convenção de execução em [[Operação/Execução local|Execução local]] e os comandos em [[Comandos|Comandos]].
 
 ## Comunicação
 
-- `dev` recebe pushes (CI roda); PRs miram `master` (deploy) — detalhes em [[Git e entrega|Git e entrega]].
-- Antes de expor segredos ou logs, leia [[Segurança|Segurança]].
+- `dev` recebe pushes (CI roda); PRs miram `master` (deploy) — detalhes em [[Vault/Entrega|Entrega]].
+- Antes de expor segredos ou logs, leia [[Vault/Segurança|Segurança]].

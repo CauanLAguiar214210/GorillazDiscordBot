@@ -1,8 +1,9 @@
----
+﻿---
 tags:
   - decisoes
   - adr
 status: aceito
+tipo: adr
 atualizado: 2026-09-24
 ---
 
@@ -16,7 +17,7 @@ atualizado: 2026-09-24
 
 ## Contexto
 
-O domínio de economia/gameficação (carteira, banco, loja, cassino, ranking, perfil) está acoplado ao bot: a resolução de identidade (`IEconomyAccessor`, mainId/alt) vivia na Api e os comandos consumiam os repositórios Mongo diretamente, no mesmo banco físico. Para evoluir o domínio para um serviço próprio ([[ADR-0002|Coinflux]]) mantendo a operação atual, é preciso definir quem é dono de cada dado e onde a identidade mora.
+O domínio de economia/gameficação (carteira, banco, loja, cassino, ranking, perfil) está acoplado ao bot: a resolução de identidade (`IEconomyAccessor`, mainId/alt) vivia na Api e os comandos consumiam os repositórios Mongo diretamente, no mesmo banco físico. Para evoluir o domínio para um serviço próprio ([[Decisões/ADR-0002 - Padrão de extração de serviço (Coinflux)|Coinflux]]) mantendo a operação atual, é preciso definir quem é dono de cada dado e onde a identidade mora.
 
 ## Decisão
 
@@ -36,4 +37,4 @@ O domínio de economia/gameficação (carteira, banco, loja, cassino, ranking, p
 ## Notas
 
 - Código: `GorillazDiscordBot.Domain/Interfaces/IPrimaryAccountResolver.cs`, `IWalletService.cs`, `IShopService.cs`, `IAltSanctionPolicy.cs` e `Policies/GroupSanctionsPolicy.cs`.
-- Base compartilhada para a extração definida em [[ADR-0002|ADR-0002 - Padrão de extração de serviço (Coinflux)]].
+- Base compartilhada para a extração definida em [[Decisões/ADR-0002 - Padrão de extração de serviço (Coinflux)|ADR-0002 - Padrão de extração de serviço (Coinflux)]].

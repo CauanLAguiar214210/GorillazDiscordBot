@@ -1,8 +1,9 @@
----
+﻿﻿---
 tags:
   - investigacao
   - ecs
-status: investigação estática concluída
+status: concluida
+tipo: investigacao
 atualizado: 2026-09-18
 ---
 
